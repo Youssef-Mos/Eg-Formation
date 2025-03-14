@@ -136,6 +136,11 @@
   animation: gradient-shift 4s ease-in infinite;
 }
 
+.animate-gradient-mid {
+  background-size: 400% 400%;
+  animation: gradient-shift 10s ease-in infinite;
+}
+
 @keyframes gradient-shift { 
   0% { background-position: 0% 50% }
   50% { background-position: 100% 50% }
