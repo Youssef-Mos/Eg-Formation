@@ -4,12 +4,14 @@ import React, { Component, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { Menu, X } from 'lucide-react';
+import LoginModal from './Login';
+import { motion,AnimatePresence } from 'framer-motion';
 
 export default function Nav () {
   
 
     const [isOpen, setIsOpen] = useState(false)
-
+    const [showSignUp, setShowSignUp] = useState(false);
 
     // 🔄 Fermer le menu si la largeur dépasse 768px (md)
     useEffect(() => {
@@ -26,25 +28,25 @@ export default function Nav () {
 
     return (
       <nav>
-      <div className="sticky mt-7  flex justify-center items-center z-50">
+      <div className="flex sticky mt-7 max-sm:w-sm w-full gap-5 justify-arround  items-center z-40">
         {/* Conteneur de la bordure animée */}
         <ul
-          className={`relative bg-zinc-800 flex py-2 ${
+          className={` bg-zinc-800 flex max-md:justify-around py-2 ${
             isOpen ? 'flex-col h-auto py-4' : 'h-14 transition-all duration-300 ease-in-out'
-          } justify-center gap-4 items-center w-lg rounded-3xl text-white hover:shadow-xl transition-all duration-300 ease-in-out md:flex-row md:h-auto`}
+          }  max-sm:justify-center gap-4 items-center max-md:w-md md:w-lg rounded-3xl text-white hover:shadow-xl transition-all duration-300 ease-in-out sm:flex-row md:h-auto`}
         >
-          <div className="flex items-start md:mr-28">
+          <div className="flex  md:mr-28">
             <li className="cursor-pointer px-7 py-2 hover:text-zinc-200 transition duration-300 ease-in-out">Logo</li>
           </div>
 
           {/* Bouton hamburger */}
-          <div className="absolute right-5 top-3 md:hidden transition-all duration-300 ease-in-out">
+          <div className="absolute right-5 top-3.5 sm:hidden transition-all duration-300 ease-in-out cursor-pointer">
             <button onClick={() => setIsOpen(!isOpen)}>
-              {isOpen ? <X size={28} className="text-white" /> : <Menu size={28} className="text-white" />}
+              {isOpen ? <X size={28} className="text-white cursor-pointer transition-all duration-200 ease-in" /> : <Menu size={28} className="text-white cursor-pointer transition-all duration-200 ease-in" />}
             </button>
           </div>
 
-          <div className={`flex gap-9 items-center ${isOpen ? 'flex-col mt-5' : 'hidden md:flex'}`}>
+          <div className={`flex gap-9 items-center ${isOpen ? 'flex-col mt-5 transition-all duration-200 ease-in' : 'hidden sm:flex transition-all duration-200 ease-in'}`}>
             <Link href="/">
               <li className="hover:text-zinc-300 transition duration-200 ease-in-out cursor-pointer">Réservation</li>
             </Link>
@@ -53,8 +55,8 @@ export default function Nav () {
             </Link>
             <li className={`hover:text-zinc-300 transition duration-200 ease-in-out cursor-pointer ${isOpen ? '' : 'mr-5' }`}>Contact</li>
 
-            <div className="md:hidden flex flex-col gap-5 items-center">
-              <Button variant="default" className='cursor-pointer '>Se connecter</Button>
+            <div className="sm:hidden flex flex-col gap-5 items-center">
+              <Button variant="default" className='cursor-pointer ' onClick={() => setShowSignUp(true)}>Se connecter</Button>
               <Link href="/register">
                 <Button variant="outline" className='cursor-pointer bg- transition-all duration-200 ease-in'>S'enregistrer</Button>
               </Link>
@@ -62,14 +64,20 @@ export default function Nav () {
           </div>
         </ul>
 
-        <div className="flex gap-5 top-10 right-10 fixed  items-center justify-center max-md:hidden md:flex-col md:right-2 lg:right-10 md:top-5 xl:flex-row xl:top-10">
-        <Button variant="default" className='cursor-pointer '>Se connecter</Button>
+        <div className="flex gap-2.5 max-sm:hidden sm:flex-col md:right-2 xl:flex-row lg:flex-row">
+        <Button variant="default" className='cursor-pointer ' onClick={() => setShowSignUp(true)}>Se connecter</Button>
         <Link href="/register">
         <Button variant="outline" className='cursor-pointer '>S'enregistrer</Button>
         </Link>
         </div>
       </div>
       
+      <AnimatePresence>
+        {showSignUp && <LoginModal isOpen={showSignUp} onClose={() => setShowSignUp(false)} />}
+      </AnimatePresence>
+      
+      
+
       </nav>
     );
   
