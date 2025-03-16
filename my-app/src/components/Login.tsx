@@ -13,6 +13,7 @@ interface LoginModalProps {
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   return (
+    
     <AnimatePresence>
       {isOpen && (
         // Backdrop semi-transparent avec fade-in/out
@@ -24,7 +25,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         >
           {/* Conteneur du modal avec zoom-in/out */}
           <motion.div
-            className="relative w-[350px] bg-zinc-800 text-white rounded-lg shadow-lg p-6"
+            className="relative w-xs h-96 bg-zinc-800 text-white rounded-lg shadow-lg p-6"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
@@ -36,7 +37,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </button>
 
             {/* Titre */}
-            <h1 className="text-2xl text-center mb-6">Se connecter</h1>
+            <h1 className="text-2xl text-center mt-3 mb-6">Se connecter</h1>
 
             {/* Champ Nom d'utilisateur */}
             <Label className="block mb-2" htmlFor="username">
@@ -58,11 +59,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </div>
 
             {/* Bouton Se connecter */}
-            <Button variant="default" className="w-full mt-6 cursor-pointer">Se connecter</Button>
+            <Button variant="default" className="w-full mt-12 cursor-pointer">Se connecter</Button>
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
+    
   );
 }
 

@@ -1,5 +1,5 @@
 import Nav from "@/components/nav";
-import { Body } from "@/components/body";
+import { Body } from "@/components/ui-reservation/body";
 
 export default function Home() {
   return (
