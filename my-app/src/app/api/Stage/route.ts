@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const stages = await prisma.stage.findMany();
     return NextResponse.json(stages, { status: 200 });
