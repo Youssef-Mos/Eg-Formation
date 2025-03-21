@@ -155,7 +155,7 @@ function Calendar({
                     }}
                     className={cn(
                       "p-2 text-sm rounded-md hover:bg-accent cursor-pointer",
-                      year === currentMonth.getFullYear() && "bg-primary text-primary-foreground",
+                      year === currentMonth.getFullYear() && "bg-primary hover:bg-zinc-800 text-primary-foreground",
                       year < 1950 && "opacity-50 cursor-not-allowed"
                     )}
                     disabled={year < 1950}
@@ -197,9 +197,9 @@ function Calendar({
             ),
             day: cn(
               buttonVariants({ variant: "ghost" }),
-              "size-8 p-0 font-normal aria-selected:opacity-100 cursor-pointer"
+              "size-8 p-0 font-normal aria-selected:opacity-100  cursor-pointer"
             ),
-            day_selected: "bg-primary text-primary-foreground",
+            day_selected: "bg-primary text-primary-foreground hover:bg-zinc-800 hover:text-zinc-100",
             day_today: "bg-accent text-accent-foreground",
             ...classNames,
           }}

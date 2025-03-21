@@ -24,7 +24,7 @@ export function DatePicker({ onDateChange }: { onDateChange: (date: Date | undef
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
-            className={`w-[240px] cursor-pointer pl-3 text-left font-normal bg-zinc-50 shadow-lg ${!selectedDate && "text-muted-foreground"}`}
+            className={`w-[240px] cursor-pointer pl-3 text-left font-normal bg-zinc-50 shadow-lg  ${!selectedDate && "text-muted-foreground"}`}
             onClick={() => setIsPopoverOpen(true)}
           >
             {selectedDate ? format(selectedDate, "PPP") : <span> Votre date de naissance</span>}
