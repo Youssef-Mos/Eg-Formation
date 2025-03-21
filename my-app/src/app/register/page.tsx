@@ -3,17 +3,19 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Nav from "@/components/nav";
+import { DatePicker } from "@/components/ui-reservation/datapicker";
+
 
 export default function Register() {
+    const [date, setDate] = React.useState<Date | undefined>(new Date())
+
     return (
         <>
         
         <div className="flex justify-center items-center gap-5 flex-col">
             <Nav />
-            <div className="border-2 h-screen w-sm rounded-xl mt-4 hover:shadow-2xl transition-all duration-200 ease-in gap-5">
+            <div className="border-2 h-screen w-sm md:w-xl rounded-xl mt-4 hover:shadow-2xl transition-all duration-200 ease-in gap-5">
                 <h1 className='text-2xl md:text-4xl font-bold text-center mt-5 gap-5'>Créer votre compte :</h1>
                 <div className="flex flex-col items-center justify-center mt-7 gap-5">
                     <div className="flex gap-1 flex-col ">
@@ -23,15 +25,26 @@ export default function Register() {
                     </div>
 
                     <div>
-                        <label className="floating-label label">
-                            <span className="text-amber-500 bg- bg-amber-50">Your Email</span>
-                            <input type="text" placeholder="mail@site.com" className="input-ghost  input input-md w-xs rounded-lg  bg-amber-200" />
+                        <label className="floating-label label bg-white text-white rounded-lg border-1 border-gray-300 focus:bg-white">
+                            <span className="!bg-white text-zinc-900 focus:bg-white active:bg-amber-50">Nom</span>
+                            <input type="text" placeholder="Votre nom..." className="bg-zinc-50 outline-0 text-zinc-900 input w-xs rounded-lg focus:bg-white shadow-md" />
                         </label>    
                     </div>
                     <div>
-                    <Label htmlFor="prenom" className="flex items-start">Prénom</Label>
-                    <Input type="prenom" id="prenom" placeholder="
-                    Votre prénom" className="w-xs" />
+                        <label className="floating-label label bg-white text-white rounded-lg border-1 border-gray-300 focus:bg-white">
+                            <span className="!bg-white text-zinc-900 focus:bg-white active:bg-amber-50">Prénom</span>
+                            <input type="text" placeholder="Votre prénom..." className="bg-zinc-50 outline-0 text-zinc-900 input w-xs rounded-lg focus:bg-white shadow-md" />
+                        </label>    
+                    </div>
+                    <div>
+                        <label className="floating-label label bg-white text-white rounded-lg border-1 border-gray-300 focus:bg-white">
+                            <span className="!bg-white text-zinc-900 focus:bg-white active:bg-amber-50">Your Email</span>
+                            <input type="text" placeholder="Votre e-mail" className="bg-zinc-50 outline-0 text-zinc-900 input w-xs rounded-lg focus:bg-white shadow-md" />
+                        </label>    
+                    </div>
+                    <div>
+                        
+                    <DatePicker onDateChange={(date) => console.log("Date sélectionnée :", date)} />
                     </div>
                 </div>
             </div>
