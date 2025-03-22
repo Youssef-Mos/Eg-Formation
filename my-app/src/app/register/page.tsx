@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import Nav from "@/components/nav";
 import { DatePicker } from "@/components/ui-reservation/datapicker";
+import { Background } from "@/components/background";
 
 
 export default function Register() {
@@ -13,9 +14,10 @@ export default function Register() {
     return (
         <>
         
-        <div className="flex justify-center items-center gap-5 flex-col  ">
+        <div className="flex justify-center bg-gradient-to-tr from-zinc-300 via-stone-100 to-zinc-200 animate-gradient items-center gap-5 flex-col z-50  ">
+        < Background  />
             <Nav />
-            <div className="border-2 sm:h-full w-sm md:w-xl lg:w-4xl rounded-xl mt-4 hover:shadow-2xl transition-all duration-200 ease-in gap-5 ">
+            <div className="border-2 bg-zinc-50 sm:h-full w-sm md:w-xl lg:w-4xl rounded-xl mt-4  hover:shadow-2xl transition-all duration-200 ease-in gap-5 ">
                 <h1 className='text-2xl md:text-4xl font-bold text-center mt-5 gap-5'>Créer votre compte :</h1>
                 <div className="flex flex-col lg:flex-row justify-center items-center gap-6 lg:gap-36">
                 <div className="flex flex-col items-center justify-center mt-7 gap-5 lg:mb-10">

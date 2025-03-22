@@ -13,7 +13,7 @@ export const Body = () => {
 <>
     <div className="flex flex-col gap-4 w-full border-b-2 border-zinc-500 pb-5">
         <h1 className='text-4xl font-bold text-center'>Bienvenue sur <span className='bg-gradient-to-r from-indigo-600 via-blue-300 to-red-600 animate-gradient-mid bg-clip-text text-transparent '>Eg-Formation</span></h1>
-        <h1 className='text-2xl font-bold text-center mx-3 '>Récupérez jusqu'à <span className="text-red-400">4 points</span>  sur votre permis en quelques clics et en suivant ces <span className="text-blue-400">3 étapes </span> :</h1>
+        <h1 className='text-2xl font-bold text-center mx-3 '>Récupérez jusqu&aposà <span className="text-red-400">4 points</span>  sur votre permis en quelques clics et en suivant ces <span className="text-blue-400">3 étapes </span> :</h1>
         
           <Accordion type="single" collapsible className="max-w-md mx-auto mb-4 ">
             <AccordionItem value="item-1">
@@ -31,7 +31,7 @@ export const Body = () => {
             <AccordionItem value="item-3">
               <AccordionTrigger className='mx-4 md:mx-auto cursor-pointer'>📜 Récupérez vos points</AccordionTrigger>
                 <AccordionContent className='mx-4 md:mx-auto'>
-                  Une fois le stage terminé, vous récupérez jusqu'à 4 points sur votre permis !
+                  Une fois le stage terminé, vous récupérez jusqu&aposà 4 points sur votre permis !
                 </AccordionContent>
             </AccordionItem>
           </Accordion>

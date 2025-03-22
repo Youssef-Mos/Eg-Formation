@@ -4,8 +4,7 @@ import React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
-
-
+import { BackgroundGradient } from "../ui/background-gradient";
 
 
 
@@ -14,11 +13,15 @@ import { AnimatePresence, motion } from "framer-motion";
 
 export default function ReservationSection() {
     return (
-        <>
-        <div className="flex justifiy-center items-center border-2 rounded-lg mt-5 w-lg h-screen mb-7 hover:shadow-xl transition-all duration-200 ease-in md:w-2xl lg:w-5xl xl:6xl">
-            <div></div>
+      <BackgroundGradient className="w-6xl ">
+        <div className="bg-white rounded-xl flex justify-center items-center w-full h-screen">
+          <div>sdf</div>
         </div>
-        </>
+      </BackgroundGradient>
     );
-}
+  }
+  
+  
+  
+
 // Compare this snippet from my-app/src/components/ui-reservation/footer.tsx:

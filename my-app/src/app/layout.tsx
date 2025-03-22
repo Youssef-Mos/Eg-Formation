@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Background } from "@/components/background";
-
 const inter = Inter();
 
 export const metadata: Metadata = {
@@ -20,10 +19,10 @@ export default function RootLayout({
       <body
         className={`${inter.className} antialiased`}
       > 
-      <Background>
       
-      </Background>
-      {children}
+        {children}
+      
+      
       
       
       </body>
