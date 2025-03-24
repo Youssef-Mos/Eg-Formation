@@ -1,5 +1,6 @@
 import Nav from "@/components/nav";
 import { Body } from "@/components/ui-reservation/body";
+import Footer from "@/components/footer";
 
 export default function Home() {
   return (
@@ -8,8 +9,9 @@ export default function Home() {
       <Nav />
     
       <Body />
+      
     </div>
-  
+    <Footer />
   </>
   );
 }

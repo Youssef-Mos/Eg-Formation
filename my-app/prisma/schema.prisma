@@ -23,9 +23,37 @@ model Stage {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  // Anciens champs
+  name           String?  
+  email          String   @unique
+  password       String
+  role           String   @default("client")
+  
+  // Nouveaux champs avec valeurs par défaut
+  firstName      String   @default("À compléter") // Prénom
+  lastName       String   @default("À compléter") // Nom
+  gender         String   @default("male")        // Genre par défaut
+  birthDate      DateTime @default(now())         // Date actuelle temporaire
+  birthPlace     String   @default("À compléter") // Lieu de naissance
+  address1       String   @default("À compléter") // Adresse 1
+  postalCode     String   @default("00000")       // Code postal
+  city           String   @default("À compléter") // Ville
+  phone1         String   @default("0000000000")  // Téléphone
+  permitNumber   String   @default("À compléter") // Numéro permis
+  permitIssuedAt String   @default("À compléter") // Lieu d'obtention
+  permitDate     DateTime @default(now())         // Date actuelle temporaire
+  username       String   @unique @default("user-${id}") // Pseudo unique
+
+  // Champs optionnels (pas besoin de default)
+  address2       String?  
+  address3       String?  
+  phone2         String?  
+
+  // Métadonnées
+  createdAt      DateTime @default(now())
+  emailVerified  DateTime?
+  image          String?
 }
+
+
