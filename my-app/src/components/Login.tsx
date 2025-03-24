@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from '@radix-ui/react-label';
 import { Button } from './ui/button';
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -12,6 +14,28 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Appel à NextAuth avec le provider "credentials"
+    const result = await signIn('credentials', {
+      username,
+      password,
+      redirect: false,
+    });
+
+    if (result?.error) {
+      setError('Identifiants invalides.');
+    } else {
+      // Connexion réussie, on peut fermer la modal
+      setError(null);
+      onClose();
+    }
+  };
   return (
     
     <AnimatePresence>
@@ -39,27 +63,53 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             {/* Titre */}
             <h1 className="text-2xl text-center mt-3 mb-6">Se connecter</h1>
 
+            {error && (
+              <p className="text-center text-red-500 mb-4">{error}</p>
+            )}
+
             {/* Champ Nom d'utilisateur */}
-            <Label className="block mb-2" htmlFor="username">
-              Nom d'utilisateur
-            </Label>
-            <Input type="text" placeholder="Nom d'utilisateur" className="w-full mb-4" />
+            <form onSubmit={handleSubmit}>
+              <Label className="block mb-2" htmlFor="username">
+                Nom d'utilisateur
+              </Label>
+              <Input
+                type="text"
+                id="username"
+                placeholder="Nom d'utilisateur"
+                className="w-full mb-4"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
 
-            {/* Champ Mot de passe */}
-            <Label className="block mb-2" htmlFor="password">
-              Mot de passe
-            </Label>
-            <Input type="password" placeholder="Mot de passe" className="w-full mb-0.5" />
-            
-            {/* Lien vers la page d'inscription */}
-            <div className='text-end text-[11px]'>
-              <a className="text underline underline-offset-1 cursor-pointer hover:no-underline transition-all duration-300 ease-in" href='/register'>
-                Vous n'avez pas encore de compte ?
-              </a>
-            </div>
+              <Label className="block mb-2" htmlFor="password">
+                Mot de passe
+              </Label>
+              <Input
+                type="password"
+                id="password"
+                placeholder="Mot de passe"
+                className="w-full mb-0.5"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
 
-            {/* Bouton Se connecter */}
-            <Button variant="default" className="w-full mt-12 cursor-pointer">Se connecter</Button>
+              <div className="text-end text-[11px]">
+                <a
+                  className="text underline underline-offset-1 cursor-pointer hover:no-underline transition-all duration-300 ease-in"
+                  href="/register"
+                >
+                  Vous n'avez pas encore de compte ?
+                </a>
+              </div>
+
+              <Button
+                variant="default"
+                className="w-full mt-12 cursor-pointer"
+                type="submit"
+              >
+                Se connecter
+              </Button>
+            </form>
           </motion.div>
         </motion.div>
       )}
