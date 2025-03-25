@@ -7,6 +7,7 @@ import { Label } from '@radix-ui/react-label';
 import { Button } from './ui/button';
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
+import { toast, Toaster } from 'sonner';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -27,12 +28,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       password,
       redirect: false,
     });
-
+      console.log('userser',result)
     if (result?.error) {
-      setError('Identifiants invalides.');
+      toast.error('Identifiants invalides.');
     } else {
-      // Connexion réussie, on peut fermer la modal
-      setError(null);
+      toast.success('Connexion réussie !');
       onClose();
     }
   };
@@ -63,9 +63,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             {/* Titre */}
             <h1 className="text-2xl text-center mt-3 mb-6">Se connecter</h1>
 
-            {error && (
-              <p className="text-center text-red-500 mb-4">{error}</p>
-            )}
+           
 
             {/* Champ Nom d'utilisateur */}
             <form onSubmit={handleSubmit}>

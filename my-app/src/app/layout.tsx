@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Background } from "@/components/background";
-
+import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "./Provider";
 
 const inter = Inter();
 
@@ -22,8 +23,10 @@ export default function RootLayout({
         className={`${inter.className} antialiased`}
       > 
         <Background />
-        {children}
-        
+        <Providers>
+          {children}
+        </Providers>
+        <Toaster />
       
       
       
