@@ -36,7 +36,7 @@ export default function Nav() {
         <ul
           className={`bg-zinc-800 flex max-md:justify-around py-2 ${
             isOpen ? 'flex-col h-auto py-4' : 'h-14 transition-all duration-300 ease-in-out'
-          } max-sm:justify-center gap-4 items-center max-md:w-md md:w-lg rounded-3xl text-white hover:shadow-xl transition-all duration-300 ease-in-out sm:flex-row md:h-auto`}
+          } max-sm:justify-center gap-4 items-center max-md:w-md md:w-lg rounded-3xl text-white hover:shadow-lg hover:shadow-zinc-400 transition-all duration-300 ease-in-out sm:flex-row md:h-auto`}
         >
           <div className="flex md:mr-28">
             <li className="cursor-pointer px-7 py-2 hover:text-zinc-200 transition duration-300 ease-in-out">Logo</li>

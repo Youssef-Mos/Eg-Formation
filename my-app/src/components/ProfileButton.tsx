@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 
@@ -18,20 +18,24 @@ export default function ProfileButton({ username }: ProfileButtonProps) {
 
   return (
     <motion.div
-      className="cursor-pointer inline-block bg-white rounded-lg px-2.5 py-2 z-20 "
+      layout
+      className="cursor-pointer inline-block overflow-hidden bg-zinc-800 px-2.5 py-2 rounded-lg shadow-md shadow-zinc-500 hover:shadow-lg hover:shadow-zinc-400 transition-all duration-300 ease-in-out"
       onClick={handleClick}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
+      transition={{ layout: { duration: 0.3 } }}
+      style={{ display: "inline-flex", alignItems: "center" }} // Ensure proper alignment
     >
       <AnimatePresence mode="wait">
         {hovered ? (
           <motion.div
             key="hovered"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            layout
+            className="flex items-center text-white whitespace-nowrap shadow-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex items-cente  text-white"
           >
             <span>Consultez votre profil</span>
             <ArrowRight size={16} className="ml-1" />
@@ -39,11 +43,12 @@ export default function ProfileButton({ username }: ProfileButtonProps) {
         ) : (
           <motion.div
             key="default"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            layout
+            className="text-white whitespace-nowrap shadow-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="text-white"
           >
             Bonjour M.{username}
           </motion.div>
