@@ -8,6 +8,7 @@ import LoginModal from './Login';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
 import Profile from './profile';
+import ProfileButton from './ProfileButton';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -79,9 +80,7 @@ export default function Nav() {
                   </Link>
                 </>
               ) : (
-                <Button variant="default" className="cursor-pointer" onClick={() => setShowProfile(true)}>
-                  Profile
-                </Button>
+                <ProfileButton username={session.user.username} />
               )}
             </div>
           </div>
@@ -99,9 +98,7 @@ export default function Nav() {
               </Link>
             </>
           ) : (
-            <Button variant="default" className="cursor-pointer" onClick={() => setShowProfile(true)}>
-                  Profile
-            </Button>
+            <ProfileButton username={session.user.username} />
           )}
         </div>
       </div>
