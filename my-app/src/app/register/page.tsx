@@ -1,14 +1,16 @@
 'use client';
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import Nav from "@/components/nav";
 import { DatePicker } from "@/components/ui-reservation/datapicker";
-import { Background } from "@/components/background";
 import { DatePickerPermis } from "@/components/ui-reservation/datapicker copy";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function Register() {
-  const [date, setDate] = React.useState<Date | undefined>(new Date());
-
+  const router = useRouter();
   const [formData, setFormData] = React.useState({
     gender: '',
     lastName: '',
@@ -30,16 +32,25 @@ export default function Register() {
     username: '',
     password: ''
   });
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
+    // Vérification côté client : exemple pour quelques champs obligatoires
+    const requiredFields = ['email', 'password', 'username', 'lastName', 'firstName', 'birthDate', 'birthPlace', 'address1', 'postalCode', 'city', 'phone1', 'permitNumber', 'permitIssuedAt'];
+    for (const field of requiredFields) {
+      if (!formData[field as keyof typeof formData]) {
+        toast.error(`Le champ ${field} est requis.`);
+        return;
+      }
+    }
+
     try {
       // Conversion des dates en ISO string
       const dataToSend = {
         ...formData,
         birthDate: formData.birthDate.toISOString(),
-        permitDate: formData.permitDate.toISOString()
+        permitDate: formData.permitDate.toISOString(),
       };
   
       const response = await fetch('/api/register', {
@@ -47,21 +58,35 @@ export default function Register() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(dataToSend)
+        body: JSON.stringify(dataToSend),
       });
   
+      const result = await response.json();
+  
       if (!response.ok) {
-        throw new Error('Erreur HTTP: ' + response.status);
+        toast.error(result.error || 'Échec de l\'inscription');
+        return;
       }
   
-      const result = await response.json();
-      console.log('Utilisateur créé:', result);
-      alert('Inscription réussie !');
-      
+      toast.success('Inscription réussie !');
   
+      // Connexion automatique après inscription
+      const loginResult = await signIn('credentials', {
+        username: formData.username,
+        password: formData.password,
+        redirect: false, // Nous gérons la redirection manuellement
+      });
+  
+      if (loginResult?.error) {
+        toast.error('Erreur lors de la connexion automatique.');
+      } else {
+        
+        // Redirige vers la page souhaitée
+        router.push('/');
+      }
     } catch (error) {
       console.error('Erreur:', error);
-      alert("Échec de l'inscription");
+      toast.error("Échec de l'inscription");
     }
   };
 
@@ -361,7 +386,7 @@ export default function Register() {
               </div>
             </div>
             <div className="flex justify-center">
-              <Button className="mt-10 cursor-pointer">S'enregistrer</Button>
+              <Button className="mt-10 cursor-pointer" type="submit">S'enregistrer</Button>
             </div>
           </div>
           </form>
