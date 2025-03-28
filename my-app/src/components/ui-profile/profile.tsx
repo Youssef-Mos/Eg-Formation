@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import { useSession, signOut } from 'next-auth/react';
 
 interface ProfileProps {
@@ -25,7 +25,7 @@ export default function Profile({ isOpen, onClose }: ProfileProps) {
         >
           {/* Conteneur du modal avec zoom-in/out */}
           <motion.div
-            className="relative w-xs max-w-sm bg-zinc-800 text-white rounded-lg shadow-lg p-6"
+            className="relative h-full w-3xl bg-zinc-800 text-white rounded-lg hover:shadow-xl p-6 transition-duration duration-200 ease-in"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
@@ -44,6 +44,9 @@ export default function Profile({ isOpen, onClose }: ProfileProps) {
                 <p className="text-lg">Bonjour, {session.user.username}</p>
                 {/* Tu peux ajouter d'autres informations ici, par exemple l'email */}
                 <p className="text-sm text-gray-300">{session.user.email}</p>
+                <div className='flex justify-center items-center  h-36 bg-amber-700'>
+                    Salut
+                </div>
                 <Button variant="default" className='cursor-pointer' onClick={() => signOut()}>
                   Se déconnecter
                 </Button>

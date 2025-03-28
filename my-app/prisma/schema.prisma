@@ -11,11 +11,20 @@ datasource db {
 }
 
 model Stage {
-  id        Int      @id @default(autoincrement())
-  title     String
-  date      DateTime
-  location  String
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  Titre          String
+  Adresse         String
+  CodePostal     String
+  Ville           String
+  PlaceDisponibles Int
+  // Plage de dates (début et fin)
+  DateDebut      DateTime
+  DateFin        DateTime
+  // Plage horaire (stockée en chaîne ou sous forme de DateTime si tu préfères inclure une date fictive)
+  HeureDebut      String
+  HeureFin        String
+  Prix          Float
+  createdAt      DateTime @default(now())
 }
 
 model User {

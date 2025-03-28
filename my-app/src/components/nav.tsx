@@ -7,8 +7,9 @@ import { Menu, X } from 'lucide-react';
 import LoginModal from './Login';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
-import Profile from './profile';
-import ProfileButton from './ProfileButton';
+import Profile from './ui-profile/profile';
+import ProfileButton from './ui-profile/ProfileButton';
+import { AnimatedModalDemo, AnimatedProfileButton } from './ui-profile/ProfileAnimateButton';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -98,7 +99,8 @@ export default function Nav() {
               </Link>
             </>
           ) : (
-            <ProfileButton username={session.user.username} />
+            
+            <AnimatedProfileButton />
           )}
         </div>
       </div>

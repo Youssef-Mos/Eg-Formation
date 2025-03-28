@@ -12,6 +12,7 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 
 export function SidebarDemo() {
   const { data: session } = useSession();
@@ -45,11 +46,17 @@ export function SidebarDemo() {
       ),
     },
     {
-      label: "Logout",
+      label: "Se déconnecter",
+        
       href: "#",
       icon: (
         <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
       ),
+      onClick: async (e: any) => {
+        e.preventDefault(); // Empêche la navigation
+        await signOut({ callbackUrl: "/" });
+      },
+      
     },
   ];
 
@@ -78,7 +85,7 @@ export function SidebarDemo() {
                 href: "#",
                 icon: (
                   <Image
-                    src="/images/manu.jpg"
+                    src="/next.svg"
                     className="h-7 w-7 shrink-0 rounded-full"
                     width={50}
                     height={50}
