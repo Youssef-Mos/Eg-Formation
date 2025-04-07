@@ -23,11 +23,13 @@ export default function RootLayout({
         className={`${inter.className} antialiased`}
       > 
         <Background />
+       
         <Providers>
           {children}
         </Providers>
+        
         <Toaster />
-      
+        
       
       
       </body>

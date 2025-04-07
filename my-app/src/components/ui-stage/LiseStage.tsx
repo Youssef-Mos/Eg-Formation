@@ -44,11 +44,11 @@ export default function ListeStages() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Liste des stages</h1>
+      <h1 className="text-2xl font-bold mb-4 text-center">Liste des stages</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
         {stages.map((stage) => (
-          <div key={stage.id} className="border p-4 rounded-lg shadow-md">
+          <div key={stage.id} className="cursor-pointer border border-cyan-300 p-4 rounded-lg shadow-md bg-cyan-100 hover:shadow-lg hover:shadow-cyan-400 transition-all duration-200 ease-in hover:bg-cyan-200 hover:border-cyan-600 xl:w-lg">
             <h2 className="text-xl font-semibold mb-2">{stage.Titre}</h2>
             <p className="mb-1">{stage.Adresse}</p>
             <p className="mb-1">{stage.CodePostal} {stage.Ville}</p>

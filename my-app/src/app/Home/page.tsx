@@ -1,13 +1,26 @@
 import React from "react";
 import Nav from "@/components/nav";
+import { Background } from "@/components/background";
+import { LampDemo } from "@/components/Home/head-body";
+import Footer from "@/components/footer";
+import BodyHome from "@/components/Home/body";
+
 export default function Accueil() {
     return (
         <>
-        <Nav />
-        <div className="flex justify-center items-center  flex-col gap-5">
-            <div className="flex justify-center items-center w-xs mx10">dfsd</div>
-            <div className="flex justify-center items-center w-xs mx10"></div>
-            <div className="flex justify-center items-center w-xs mx10"></div>
+        
+        <div className="flex  items-center  flex-col gap-5 h-screen z-30">
+        <div className="fixed top-0 z-50">
+            <Nav />
+        </div>
+        
+        <LampDemo />
+        <div className="flex flex-col items-center gap-10  justify-center w-screen">
+            <BodyHome />
+            
+        </div>
+        <div className=" bottom-0 w-screen "><Footer /></div>
+        
         </div>
         </>
     )
