@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
 import Profile from './ui-profile/profile';
 import ProfileButton from './ui-profile/ProfileButton';
-import { AnimatedModalDemo, AnimatedProfileButton } from './ui-profile/ProfileAnimateButton';
+import {  AnimatedProfileButton } from './ui-profile/ProfileAnimateButton';
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +32,7 @@ export default function Nav() {
 
   return (
     <nav className=''>
-      <div className="flex mt-7 max-sm:w-sm w-full gap-5 justify-arround items-center z-40">
+      <div className="flex sticky mt-7 max-sm:w-sm w-full gap-5 justify-arround items-center z-40">
         {/* Conteneur de la bordure animée */}
         <ul
           className={`bg-zinc-800 flex max-md:justify-around py-2 ${

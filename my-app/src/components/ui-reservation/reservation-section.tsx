@@ -24,7 +24,7 @@ export default function ReservationSection() {
             </Link>
           </div>
         )}
-        <div className="bg-white flex justify-center max-sm:w-sm max-md:w-xl md:w-2xl lg:w-4xl xl:w-6xl 2xl:w-8xl border-2 rounded-xl hover:shadow-2xl transition duration-300 ease-in-out h-screen">
+        <div className="bg-white flex justify-center max-sm:w-sm max-md:w-xl md:w-2xl lg:w-4xl xl:w-6xl 2xl:w-8xl border-2 rounded-xl hover:shadow-2xl transition duration-300 ease-in-out ">
           <div>
             <ListeStages />
           </div>

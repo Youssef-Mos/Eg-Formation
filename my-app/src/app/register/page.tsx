@@ -8,6 +8,7 @@ import { DatePickerPermis } from "@/components/ui-reservation/datapicker copy";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Footer from "@/components/footer";
 
 export default function Register() {
   const router = useRouter();
@@ -92,9 +93,9 @@ export default function Register() {
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center bg-gradient-to-tr from-zinc-300 via-stone-100 to-zinc-200 animate-gradient gap-5 z-50">
+      <div className="flex flex-col items-center justify-center  gap-5 z-50">
         <Nav /> 
-        <div className="h-screen">
+        <div className="">
           <form onSubmit={handleSubmit} className="z-50">
           <div className="border-2 z-50 bg-zinc-50 px-10 py-10 rounded-xl mt-4 hover:shadow-2xl transition-all duration-200 ease-in gap-5 w-max max-sm:w-sm md:max-w-3xl lg:max-w-4xl xl:max-w-screen-xl 2xl:max-w-screen-2xl">
             <h1 className="text-2xl md:text-4xl font-bold text-center mt-5 mb-5">
@@ -391,7 +392,10 @@ export default function Register() {
           </div>
           </form>
         </div>
+        <div className=" bottom-0 w-screen"><Footer /></div>
+        
       </div>
+      
     </>
   );
 }
