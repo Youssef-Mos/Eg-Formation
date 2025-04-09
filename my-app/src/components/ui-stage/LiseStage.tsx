@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Button } from "../ui/button";
+import { useSession } from "next-auth/react";
 
 interface Stage {
   id: number;
@@ -19,6 +21,7 @@ interface Stage {
 
 export default function ListeStages() {
   const [stages, setStages] = useState<Stage[]>([]);
+  const { data: session } = useSession();
 
   useEffect(() => {
     const fetchStages = async () => {
@@ -42,6 +45,21 @@ export default function ListeStages() {
     return date.toLocaleDateString('fr-FR');
   };
 
+
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await fetch(`/api/Stage/DeleteStage/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Erreur lors de la suppression");
+
+      // Mise à jour de l'état en retirant le stage supprimé
+      setStages((prevStages) => prevStages.filter(stage => stage.id !== id));
+      toast.success("Stage supprimé avec succès");
+    } catch (error) {
+      console.error("Erreur lors de la suppression :", error);
+      toast.error("Erreur lors de la suppression du stage");
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4 text-center">Liste des stages</h1>
@@ -58,6 +76,20 @@ export default function ListeStages() {
             </p>
             <p className="mb-1">Horaires: {stage.HeureDebut} - {stage.HeureFin}</p>
             <p className="text-lg font-bold mt-2">Prix: {stage.Prix}€</p>
+
+            {session?.user?.role === "admin" && (
+              <div className="flex gap-2 justify-end">
+              <Button
+                variant="destructive" className="cursor-pointer"
+                onClick={() => handleDelete(stage.id)}
+              >
+                Supprimer
+              </Button>
+              <Button variant="default" className="cursor-pointer">
+                Modifier
+              </Button>
+              </div>
+            )}
           </div>
         ))}
       </div>
