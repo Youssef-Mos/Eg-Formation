@@ -6,12 +6,15 @@ import Nav from "@/components/nav";
 import { DatePicker } from "@/components/ui-reservation/datapicker";
 import { DatePickerPermis } from "@/components/ui-reservation/datapicker copy";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Footer from "@/components/footer";
 
 export default function Register() {
   const router = useRouter();
+
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl");
   const [formData, setFormData] = React.useState({
     gender: '',
     lastName: '',
@@ -83,7 +86,7 @@ export default function Register() {
       } else {
         
         // Redirige vers la page souhaitée
-        router.push('/');
+        router.push(callbackUrl ? callbackUrl : '/');
       }
     } catch (error) {
       console.error('Erreur:', error);
