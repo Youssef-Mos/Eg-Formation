@@ -52,7 +52,7 @@ export default function AddStagePage() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-blue-400 -z-20">
+    <div className="flex justify-center items-center h-screen bg-zinc-100 -z-20">
     
     <div className="p-8 max-w-4xl my-15 border-2 rounded-lg flex flex-col w-sm xl:w-3xl bg-white hover:shadow-xl hover:shadow-zinc-400 transition-all duration-200 ease-in">
       <h1 className="text-2xl font-bold mb-6 flex justify-center">Ajouter un stage</h1>

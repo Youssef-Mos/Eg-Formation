@@ -159,6 +159,10 @@
   }
 }
 
+.will-change-transform-opacity {
+  will-change: transform, opacity;
+}
+
 
 .animate-gradient {
   background-size: 400% 400%;

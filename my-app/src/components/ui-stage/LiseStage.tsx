@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
+import LoginModalResa from "../ui-reservation/loginredirect";
+import EditStageModal from "../admin/EditStage";
 
 interface Stage {
   id: number;
@@ -23,6 +24,15 @@ interface Stage {
 
 export default function ListeStages() {
   const [stages, setStages] = useState<Stage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoginOpen, setLoginOpen] = useState(false);
+  const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
+
+ 
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [editingStage, setEditingStage] = useState<Stage | null>(null);
+
+
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -31,12 +41,14 @@ export default function ListeStages() {
       try {
         const res = await fetch("/api/Stage/RecupStage");
         if (!res.ok) throw new Error("Erreur de récupération");
-        
+
         const data = await res.json();
         setStages(data);
       } catch (error) {
         console.error(error);
         toast.error("Erreur réseau");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -48,13 +60,11 @@ export default function ListeStages() {
     return date.toLocaleDateString('fr-FR');
   };
 
-
   const handleDelete = async (id: number) => {
     try {
       const res = await fetch(`/api/Stage/DeleteStage/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erreur lors de la suppression");
 
-      // Mise à jour de l'état en retirant le stage supprimé
       setStages((prevStages) => prevStages.filter(stage => stage.id !== id));
       toast.success("Stage supprimé avec succès");
     } catch (error) {
@@ -63,61 +73,82 @@ export default function ListeStages() {
     }
   };
 
-    // Fonction pour gérer la réservation (à adapter selon la logique souhaitée)
-    const handleReservation = (id: number) => {
-      if (!session) {
-        // Utilisateur non connecté : redirection vers /register avec callbackUrl vers /reservation/id
-        router.push(`/register?callbackUrl=/reservation/${id}`);
-      } else {
-        // Utilisateur connecté : redirection vers la page de réservation correspondante
-        router.push(`/reservation/${id}`);
-      }
-    };
+  const handleReservation = (id: number) => {
+    const targetUrl = `/reservation/${id}`;
+    if (!session) {
+      setCallbackUrl(targetUrl);
+      setLoginOpen(true);
+    } else {
+      router.push(targetUrl);
+    }
+  };
+
+  const handleOpenEdit = (stage: Stage) => {
+    setEditingStage(stage);
+    setEditModalOpen(true);
+  };
+
+  // Fonction de callback pour actualiser le stage après modification.
+  const handleUpdateStage = (updatedStage: Stage) => {
+    setStages((prevStages) =>
+      prevStages.map((stage) => (stage.id === updatedStage.id ? updatedStage : stage))
+    );
+  };
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4 text-center">Liste des stages</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
-        {stages.map((stage) => (
-          <div key={stage.id} className="cursor-default border border-cyan-300 p-4 rounded-lg shadow-md bg-cyan-100 hover:shadow-lg hover:shadow-cyan-400 transition-all duration-200 ease-in hover:bg-cyan-200 hover:border-cyan-600 xl:w-lg">
-            <h2 className="text-xl font-semibold mb-2">{stage.Titre}</h2>
-            <p className="mb-1">{stage.Adresse}</p>
-            <p className="mb-1">{stage.CodePostal} {stage.Ville}</p>
-            <p className="mb-1">Places disponibles: {stage.PlaceDisponibles}</p>
-            <p className="mb-1">
-              Dates: {formatDate(stage.DateDebut)} au {formatDate(stage.DateFin)}
-            </p>
-            <p className="mb-1">Horaires: {stage.HeureDebut} - {stage.HeureFin}</p>
-            <p className="text-lg font-bold mt-2">Prix: {stage.Prix}€</p>
 
-            {session?.user?.role === "admin" ? (
-              <div className="flex gap-2 justify-end mt-2">
-                <Button
-                  variant="destructive"
-                  className="cursor-pointer"
-                  onClick={() => handleDelete(stage.id)}
-                >
-                  Supprimer
-                </Button>
-                <Button variant="default" className="cursor-pointer">
-                  Modifier
-                </Button>
-              </div>
-            ) : (
-              <div className="flex justify-end mt-2">
-                <Button
-                  variant="default"
-                  className="cursor-pointer"
-                  onClick={() => handleReservation(stage.id)}
-                >
-                  Réserver
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-40">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
+          {stages.map((stage) => (
+            <div key={stage.id} className="cursor-default border border-zinc-300 p-4 rounded-lg bg-zinc-50 hover:shadow-md hover:shadow-zinc-300 transition-all duration-200 ease-in hover:bg-zinc-100 hover:border-zinc-300 xl:w-lg">
+              <h2 className="text-xl font-semibold mb-2">{stage.Titre}</h2>
+              <p className="mb-1">{stage.Adresse}</p>
+              <p className="mb-1">{stage.CodePostal} {stage.Ville}</p>
+              <p className="mb-1">Places disponibles: {stage.PlaceDisponibles}</p>
+              <p className="mb-1">
+                Dates: {formatDate(stage.DateDebut)} au {formatDate(stage.DateFin)}
+              </p>
+              <p className="mb-1">Horaires: {stage.HeureDebut} - {stage.HeureFin}</p>
+              <p className="text-lg font-bold mt-2">Prix: {stage.Prix}€</p>
+
+              {session?.user?.role === "admin" ? (
+                <div className="flex gap-2 justify-end mt-2">
+                  <Button variant="destructive" className="cursor-pointer" onClick={() => handleDelete(stage.id)}>Supprimer</Button>
+                  <Button className="cursor-pointer" onClick={() => handleOpenEdit(stage)}>
+                    Modifier
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex justify-end mt-2">
+                  <Button className="cursor-pointer" onClick={() => handleReservation(stage.id)}>Réserver</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <LoginModalResa
+        isOpen={isLoginOpen}
+        onClose={() => setLoginOpen(false)}
+        callbackUrl={callbackUrl}
+      />
+
+      <EditStageModal
+        isOpen={isEditModalOpen}
+        stage={editingStage}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingStage(null);
+        }}
+        onUpdate={handleUpdateStage}
+      />
     </div>
   );
 }
