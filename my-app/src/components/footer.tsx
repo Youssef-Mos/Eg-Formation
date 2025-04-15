@@ -18,9 +18,9 @@ export default function Footer() {
           <div>
             <h2 className="max-md:text-center text-xl font-semibold mb-3">Liens utiles</h2>
             <ul className="max-md:text-center text-sm text-gray-400 space-y-2">
-              <li><a href="#" className="hover:text-white">Accueil</a></li>
-              <li><a href="#" className="hover:text-white">Nos services</a></li>
-              <li><a href="#" className="hover:text-white">Contact</a></li>
+              <li><a href="/" className="hover:text-white">Réservation</a></li>
+              <li><a href="/Home" className="hover:text-white">Accueil</a></li>
+              <li><a href="/contact" className="hover:text-white">Contact</a></li>
               <li><a href="/mention-legales" className="hover:text-white">Mentions légales</a></li>
             </ul>
           </div>
