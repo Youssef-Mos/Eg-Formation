@@ -65,9 +65,11 @@ export default function Nav() {
             <Link href="/Home">
               <li className="hover:text-zinc-300 transition duration-200 ease-in-out cursor-pointer">Home</li>
             </Link>
+            <Link href="/contact">
             <li className={`hover:text-zinc-300 transition duration-200 ease-in-out cursor-pointer ${isOpen ? '' : 'mr-5'}`}>
               Contact
             </li>
+            </Link>
 
             {/* Affichage pour mobile */}
             <div className="sm:hidden flex flex-col gap-5 items-center">
@@ -77,7 +79,7 @@ export default function Nav() {
                     Se connecter
                   </Button>
                   <Link href="/register">
-                    <Button variant="outline" className="cursor-pointer">S'enregistrer</Button>
+                    <Button variant="outline" className="cursor-pointer bg-">S'enregistrer</Button>
                   </Link>
                 </>
               ) : (
