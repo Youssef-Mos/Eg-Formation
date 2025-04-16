@@ -47,10 +47,10 @@ export default async function ReservationPage({ params }: { params: ReservationP
         </p>
         <p className="mb-2"><strong>Horaires : </strong>{stage.HeureDebut} - {stage.HeureFin}</p>
         <p className="mb-2"><strong>Prix : </strong>{stage.Prix}€</p>
-
-        <div className="flex flex-col border w-lg gap-2 justify-center">
+        <div className="flex justify-center">
+        <div className="flex flex-col border-2 border-zinc-700 rounded-2xl w-lg gap-2 justify-center">
             <h1 className="text-center font-bold mb-2.5 text-xl">Type de stage :</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 pl-3">
                     <input type="radio" 
                       name="gender" 
                       className="radio-md cursor-pointer items-center flex justify-center"  
@@ -58,7 +58,7 @@ export default async function ReservationPage({ params }: { params: ReservationP
                       /> 
                     <p>Cas n°1 : Récupération des points</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pl-3">
                     <input type="radio" 
                       name="gender" 
                       className="radio-md cursor-pointer items-center flex justify-center"  
@@ -66,7 +66,7 @@ export default async function ReservationPage({ params }: { params: ReservationP
                       /> 
                     <p>Cas n°2 : Permis probatoire (lettre Réf. 48N)</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pl-3">
                     <input type="radio" 
                       name="gender" 
                       className="radio-md cursor-pointer items-center flex justify-center"  
@@ -74,7 +74,7 @@ export default async function ReservationPage({ params }: { params: ReservationP
                       /> 
                     <p> Cas n°3 : Alternative aux poursuites pénales</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pl-3">
                     <input type="radio" 
                       name="gender" 
                       className="radio-md cursor-pointer items-center flex justify-center"  
@@ -82,6 +82,7 @@ export default async function ReservationPage({ params }: { params: ReservationP
                       /> 
                     <p>Cas n°4 : Peine complémentaire</p>
                   </div>
+        </div>
         </div>
         <div className="flex gap-1 justify-end">
         
