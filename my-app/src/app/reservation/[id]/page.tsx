@@ -25,8 +25,8 @@ async function getStage(id: string) {
 }
 
 export default async function ReservationPage({ params }: { params: ReservationParams }) {
-    
-  const stage = await getStage(params.id);
+  const { id } = params;
+  const stage = await getStage(id);
   if (!stage) {
     notFound();
   }

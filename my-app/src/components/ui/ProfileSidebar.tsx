@@ -1,156 +1,154 @@
+// components/ui-profile/SidebarDemo.tsx
 "use client";
 import React, { useState } from "react";
-import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import {
-  IconArrowLeft,
-  IconBrandTabler,
-  IconSettings,
-  IconUserBolt,
-} from "@tabler/icons-react";
-import Link from "next/link";
-import { motion } from "motion/react";
-import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { useSession } from "next-auth/react";
-import { signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
+import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar";
+import { IconArrowLeft, IconBrandTabler, IconSettings, IconUserBolt } from "@tabler/icons-react";
+import MesReservations from "@/components/ui-profile/SlideBarCompo/MesReservation";
+import Settings from "@/components/ui-profile/SlideBarCompo/parametre";
+import ProfilePro from "@/components/ui-profile/SlideBarCompo/Profile-profile";
+import { motion } from "framer-motion";
+import Link from 'next/link';
+import HistoriqueResa from "../ui-profile/SlideBarCompo/HisotoriquesResa";
+
+// ReservationLinkAdmin.tsx
+export const ReservationLinkAdmin = (setSelectedTab: any, setOpen: any) => ({
+  label: "Historique des réservations",
+  icon: <IconBrandTabler className="h-5 w-5" />,
+  onClick: () => {
+    setSelectedTab("reservations");
+    setOpen(false);
+  },
+});
+
+// ReservationLinkUser.tsx
+export const ReservationLinkUser = (setSelectedTab: any, setOpen: any) => ({
+  label: "Mes réservations",
+  icon: <IconBrandTabler className="h-5 w-5" />,
+  onClick: () => {
+    setSelectedTab("reservations");
+    setOpen(false);
+  },
+});
+
+
+function SidebarLogo() {
+  const { open } = useSidebar();
+  return (
+    <div className="mb-6 text-nowrap">
+  <motion.div
+    initial={false}
+    animate={{ opacity: 1, width: open ? "auto" : "auto" }}
+    transition={{ duration: 0.3, ease: "easeInOut" }}
+    className="flex items-center gap-2 py-1 overflow-hidden whitespace-nowrap text-nowrap text-black dark:text-white"
+  >
+    <Link href="/" className="text-nowrap flex items-center gap-2 text-lg font-bold text-black dark:text-white">
+      <div className="h-5 w-6 bg-black dark:bg-white rounded" />
+      <motion.span
+        initial={false}
+        animate={{ opacity: open ? 1 : 0, x: open ? 5 : 10 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="font-medium text-nowrap"
+      >
+        <span className="text-nowrap">
+        Eg-Formation
+        </span>
+      </motion.span>
+    </Link>
+  </motion.div>
+</div>
+
+  );
+}
 
 export function SidebarDemo() {
   const { data: session } = useSession();
+  const reservationLabel = session?.user?.role === "admin"
+    ? "Historique des réservations"
+    : "Mes réservations";
 
-  // Définir le libellé du premier lien en fonction du rôle de l'utilisateur
-  const reservationLabel =
-    session?.user?.role === "admin"
-      ? "Historique des reservations"
-      : "Mes réservation";
+  const [open, setOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<"historique"|"reservations"|"profile"|"settings">("reservations");
 
   const links = [
-    {
-      label: reservationLabel,
-      href: "/profil/mes-reservations",
-      icon: (
-        <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
+    session?.user?.role === "admin"
+    ? {
+        label: "Historique des réservations",
+        href: "#",
+        icon: <IconBrandTabler className="h-5 w-5" />,
+        onClick: () => {
+          setSelectedTab("historique");
+           if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setOpen(false);
+    }
+        },
+      }
+    : {
+        label: "Mes réservations",
+        href: "#",
+        icon: <IconBrandTabler className="h-5 w-5" />,
+        onClick: () => {
+          setSelectedTab("reservations");
+           if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setOpen(false);
+    }
+        },
+      },
+
+
+
     {
       label: "Profile",
       href: "#",
-      icon: (
-        <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
+      icon: <IconUserBolt className="h-5 w-5" />,
+      onClick: () => {setSelectedTab("profile")
+         if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setOpen(false);
+    }
+      },
     },
     {
       label: "Settings",
       href: "#",
-      icon: (
-        <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
+      icon: <IconSettings className="h-5 w-5" />,
+      onClick: () => {setSelectedTab("settings")
+         if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setOpen(false);
+    }
+
+      },
     },
     {
       label: "Se déconnecter",
-        
       href: "#",
-      icon: (
-        <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-      onClick: async (e: any) => {
-        e.preventDefault(); // Empêche la navigation
+      icon: <IconArrowLeft className="h-5 w-5" />,
+      onClick: async (e:any) => {
+        e.preventDefault();
         await signOut({ callbackUrl: "/" });
       },
-      
     },
   ];
 
-  const [open, setOpen] = useState(false);
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
-        "h-[60vh]" // pour ton cas, tu peux utiliser `h-screen` à la place
-      )}
-    >
+    <div className="flex h-screen">
       <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {open ? <Logo /> : <LogoIcon />}
-            <div className="mt-8 flex flex-col gap-2">
-              {links.map((link, idx) => (
-                <SidebarLink key={idx} link={link} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <SidebarLink
-              link={{
-                label: "Manu Arora",
-                href: "#",
-                icon: (
-                  <Image
-                    src="/next.svg"
-                    className="h-7 w-7 shrink-0 rounded-full"
-                    width={50}
-                    height={50}
-                    alt="Avatar"
-                  />
-                ),
-              }}
-            />
+        <SidebarBody>
+          <SidebarLogo />
+          <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
+            {links.map((link, idx) => (
+              <SidebarLink key={idx} link={link} />
+            ))}
           </div>
         </SidebarBody>
       </Sidebar>
-      <Dashboard />
+  
+      <main className="flex-1 p-6 overflow-auto">
+        {selectedTab === "reservations" && session?.user?.role !== "admin" && <MesReservations />}
+        {selectedTab === "historique" && session?.user?.role === "admin" && <HistoriqueResa />}
+        {selectedTab === "profile" && <ProfilePro />}
+        {selectedTab === "settings" && <Settings />}
+      </main>
+    
     </div>
   );
 }
-export const Logo = () => {
-  return (
-    <Link
-      href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black "
-    >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-black dark:text-white hover:scale-105 transition-all duration-300 ease-in"
-      >
-        Eg-Formation
-      </motion.span>
-    </Link>
-  );
-};
-export const LogoIcon = () => {
-  return (
-    <Link
-      href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
-    >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
-    </Link>
-  );
-};
-
-// Dummy dashboard component with content
-const Dashboard = () => {
-  return (
-    <div className="flex flex-1">
-      <div className="flex h-full w-full flex-1 flex-col gap-2 rounded-tl-2xl border border-neutral-200 bg-white p-2 md:p-10 dark:border-neutral-700 dark:bg-neutral-900">
-        <div className="flex gap-2">
-          {[...new Array(4)].map((i, idx) => (
-            <div
-              key={"first-array-demo-1" + idx}
-              className="h-20 w-full animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800"
-            ></div>
-          ))}
-        </div>
-        <div className="flex flex-1 gap-2">
-          {[...new Array(2)].map((i, idx) => (
-            <div
-              key={"second-array-demo-1" + idx}
-              className="h-full w-full animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800"
-            ></div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};

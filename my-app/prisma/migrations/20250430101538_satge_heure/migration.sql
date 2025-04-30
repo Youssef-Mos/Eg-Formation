@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Stage" ADD COLUMN     "HeureDebut2" TEXT NOT NULL DEFAULT '08:00',
+ADD COLUMN     "HeureFin2" TEXT NOT NULL DEFAULT '18:00';

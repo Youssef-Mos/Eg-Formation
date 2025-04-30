@@ -20,6 +20,8 @@ export async function POST(request: Request) {
         DateFin: new Date(data.DateFin),
         HeureDebut: data.HeureDebut,
         HeureFin: data.HeureFin,
+        HeureDebut2: data.HeureDebut2,
+        HeureFin2: data.HeureFin2,
         Prix: Number(data.Prix),
       },
     });

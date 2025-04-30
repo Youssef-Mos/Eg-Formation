@@ -1,3 +1,4 @@
+"use client"
 import 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,10 @@ import {
 import ReservationSection from './reservation-section';
 
 export const Body = () => {
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
   return (
 <>
     <div className="flex flex-col gap-4 w-full border-b-2 border-zinc-500 pb-5">
@@ -36,10 +41,11 @@ export const Body = () => {
             </AccordionItem>
           </Accordion>
           <div className="flex gap-5 items-center justify-center">
-            <Button variant="default" className='cursor-pointer'>Réserve ton stage</Button>
+            <Button onClick={() => scrollToSection("stageResa")} variant="default" className='cursor-pointer' >Réserve ton stage</Button>
             <Button variant="outline" className='cursor-pointer'>En savoir plus</Button>
         </div>
     </div>
+    <span id='stageResa'></span>
     <ReservationSection />
     
     

@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Vérification minimale côté serveur (tu peux adapter selon tes besoins)
-    const requiredFields = ['email', 'password', 'username', 'lastName', 'firstName', 'birthDate', 'birthPlace', 'address1', 'postalCode', 'city', 'phone1', 'permitNumber', 'permitIssuedAt'];
+    const requiredFields = ['email', 'password', 'username', 'lastName', 'firstName', 'birthDate', 'birthPlace', 'address1', 'postalCode', 'city', 'phone1', 'permitNumber', 'permitIssuedAt', 'acceptTerms'];
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(

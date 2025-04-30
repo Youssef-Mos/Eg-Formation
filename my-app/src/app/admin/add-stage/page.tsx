@@ -19,6 +19,8 @@ export default function AddStagePage() {
     DateFin: new Date(),
     HeureDebut: "",
     HeureFin: "",
+    HeureDebut2:"",
+    HeureFin2:"",
     Prix: "",
   });
 
@@ -131,23 +133,58 @@ export default function AddStagePage() {
         </label>
 
         <div className="flex justify-center">
-            <DatePickerStageDébut onDateChange={(date) => setFormData({...formData, DateDebut: date})} />
+            <DatePickerStageDébut onDateChange={(date) => setFormData({...formData, DateDebut: date || new Date()})} />
         </div>
 
         <div className="flex justify-center">
-            <DatePickerStageFin onDateChange={(date) => setFormData({...formData, DateFin: date})} />
+            <DatePickerStageFin onDateChange={(date) => setFormData({...formData, DateFin: date || new Date()})} />
         </div>
-
+        <p className="text-center">Heure du premier jour :</p>
+        <div className="flex justify-center gap-5 w-full ">
+          
         <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
           <span className="!bg-white">Heure de Début *</span>
           <input
             type="time"
             name="HeureDebut"
             placeholder="Heure de début..."
-            className="bg-zinc-50 outline-0 text-zinc-900 input w-full  rounded-lg shadow-md"
+            className="bg-zinc-50 outline-0 text-zinc-900 input w-xs  rounded-lg shadow-md"
             value={formData.HeureDebut}
             onChange={(e) =>
               setFormData({ ...formData, HeureDebut: e.target.value })
+            }
+            required
+          />
+        </label>
+
+
+        <label className="floating-label label  flex items-center  text-zinc-900 rounded-lg border border-gray-300">
+          <span className="!bg-white">Heure de Fin *</span>
+          <input
+            type="time"
+            name="HeureFin"
+            placeholder="Heure de fin..."
+            className="bg-zinc-50 outline-0 text-zinc-900 input w-xs  rounded-lg shadow-md flex items-center"
+            value={formData.HeureFin}
+            onChange={(e) =>
+              setFormData({ ...formData, HeureFin: e.target.value })
+            }
+            required
+          />
+        </label>
+        </div>
+        <p className="text-center">Heure du deuxième jour :</p>
+        <div className="flex justify-center gap-5 w-full ">
+        <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
+          <span className="!bg-white">Heure de Début *</span>
+          <input
+            type="time"
+            name="HeureDebut"
+            placeholder="Heure de début..."
+            className="bg-zinc-50 outline-0 text-zinc-900 input w-xs  rounded-lg shadow-md"
+            value={formData.HeureDebut2}
+            onChange={(e) =>
+              setFormData({ ...formData, HeureDebut2: e.target.value })
             }
             required
           />
@@ -159,15 +196,15 @@ export default function AddStagePage() {
             type="time"
             name="HeureFin"
             placeholder="Heure de fin..."
-            className="bg-zinc-50 outline-0 text-zinc-900 input w-full  rounded-lg shadow-md flex items-center"
-            value={formData.HeureFin}
+            className="bg-zinc-50 outline-0 text-zinc-900 input w-xs  rounded-lg shadow-md flex items-center"
+            value={formData.HeureFin2}
             onChange={(e) =>
-              setFormData({ ...formData, HeureFin: e.target.value })
+              setFormData({ ...formData, HeureFin2: e.target.value })
             }
             required
           />
         </label>
-
+        </div>
         <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
           <span className="!bg-white">Prix *</span>
           <input

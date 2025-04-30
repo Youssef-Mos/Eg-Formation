@@ -9,6 +9,9 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Footer from "@/components/footer";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { LinkPreview } from "@/components/ui/link-preview";
 
 export default function Register() {
   const router = useRouter();
@@ -34,7 +37,8 @@ export default function Register() {
     permitIssuedAt: '',
     permitDate: new Date(),
     username: '',
-    password: ''
+    password: '',
+    acceptTerms: false,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,7 +106,7 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="z-50">
           <div className="border-2 z-50 bg-zinc-50 px-10 py-10 rounded-xl mt-4 hover:shadow-2xl transition-all duration-200 ease-in gap-5 w-max max-sm:w-sm md:max-w-3xl lg:max-w-4xl xl:max-w-screen-xl 2xl:max-w-screen-2xl">
             <h1 className="text-2xl md:text-4xl font-bold text-center mt-5 mb-5">
-              Créer votre compte :
+              S'inscrire pour un stage :
             </h1>
             {/* Conteneur principal en grid responsive */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 xl:gap-x-16 xl:gap-y-10 items-start">
@@ -173,7 +177,7 @@ export default function Register() {
                   </label>
                 </div>
                 <div>
-                  <DatePicker onDateChange={(date) => setFormData({...formData, birthDate: date})} />
+                  <DatePicker onDateChange={(date) => setFormData({...formData, birthDate: date || new Date()})} />
                 </div>
                 <div>
                   <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
@@ -334,7 +338,7 @@ export default function Register() {
                   </label>
                 </div>
                 <div>
-                  <DatePickerPermis onDateChange={(date) => setFormData({...formData, permitDate: date})} />
+                  <DatePickerPermis onDateChange={(date) => setFormData({...formData, permitDate: date || new Date()})} />
                 </div>
               </div>
               
@@ -389,8 +393,32 @@ export default function Register() {
                 </div>
               </div>
             </div>
+            <div className="flex items-start gap-3 mt-7">
+              <input
+                type="checkbox"
+                checked={formData.acceptTerms}
+                onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer"
+                id="acceptTerms"
+              />
+              <label htmlFor="acceptTerms" className="text-sm text-gray-700">
+                Je déclare avoir pris connaissance et accepté{' '}
+                <LinkPreview url="http://localhost:3000/register/CGU" className="font-bold text-blue-500 underline">
+                  les Conditions Générales d’Utilisation (CGU)
+                </LinkPreview>{' '}
+                ainsi que la Politique de Confidentialité.
+              </label>
+            </div>
+
+            {/* Bouton d'enregistrement désactivé tant que non accepté */}
             <div className="flex justify-center">
-              <Button className="mt-10 cursor-pointer" type="submit">S'enregistrer</Button>
+              <Button
+                type="submit"
+                disabled={!formData.acceptTerms}
+                className="mt-10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                S'enregistrer
+              </Button>
             </div>
           </div>
           </form>

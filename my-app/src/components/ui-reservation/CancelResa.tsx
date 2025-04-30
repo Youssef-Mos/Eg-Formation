@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { toast } from 'sonner';
 
 export default function CancelReservationDialog() {
   const router = useRouter();
@@ -41,7 +42,11 @@ export default function CancelReservationDialog() {
           </AlertDialogCancel>
           <AlertDialogAction
             className="cursor-pointer"
-            onClick={() => router.push("/")}
+            onClick={() => {router.push("/")
+              toast("Réservation annulée avec succès !")
+            }}
+            
+            
           >
             Continuer
           </AlertDialogAction>

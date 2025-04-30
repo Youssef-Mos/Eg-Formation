@@ -23,8 +23,11 @@ model Stage {
   // Plage horaire (stockée en chaîne ou sous forme de DateTime si tu préfères inclure une date fictive)
   HeureDebut      String
   HeureFin        String
+  HeureDebut2 String @default("08:00")
+  HeureFin2   String @default("18:00")
   Prix          Float
   createdAt      DateTime @default(now())
+  reservations Reservation[]
 }
 
 model User {
@@ -59,10 +62,12 @@ model User {
   createdAt      DateTime @default(now())
   emailVerified  DateTime?
   image          String?
-
+  acceptTerms   Boolean @default(false) // Champ pour accepter les CGU
   // Relations vers les autres modèles NextAuth
   accounts       Account[]
   sessions       Session[]
+
+  reservations Reservation[]
 }
 
 model Account {
@@ -101,4 +106,18 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+
+model Reservation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  stageId   Int
+  createdAt DateTime @default(now())
+
+  // Relations
+  user  User  @relation(fields: [userId],  references: [id])
+  stage Stage @relation(fields: [stageId], references: [id])
+
+  @@unique([userId, stageId]) // optionnel : un même user ne peut réserver deux fois le même stage
 }

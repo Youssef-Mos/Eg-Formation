@@ -10,7 +10,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: Request) {
   try {
-    const { stageId, stageTitle, stagePrice } = await request.json();
+    const { stageId, stageTitle, stagePrice, userId } = await request.json();
     
     // Crée une session de paiement
     const session = await stripe.checkout.sessions.create({
@@ -31,8 +31,16 @@ export async function POST(request: Request) {
       // Réussite et annulation — personnalise ces URLs si besoin
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/reservation/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/reservation/${stageId}`,
+      metadata: {
+        userId: String(userId), 
+             // toujours des chaînes de caractères
+        stageId: String(stageId),
+      },
+      
 
     });
+    console.log("User ID:", userId); 
+    
 
     return NextResponse.json({ url: session.url });
   } catch (error) {

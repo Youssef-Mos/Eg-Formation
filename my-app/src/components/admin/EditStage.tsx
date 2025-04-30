@@ -19,6 +19,8 @@ export interface Stage {
   DateFin: Date;
   HeureDebut: string;
   HeureFin: string;
+  HeureDebut2: string;
+  HeureFin2: string;
   Prix: number;
   // Ajoutez d'autres propriétés si nécessaire
 }
