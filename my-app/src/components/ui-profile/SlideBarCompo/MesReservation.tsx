@@ -34,7 +34,6 @@ export default function MesReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Pagination
   const ITEMS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(reservations.length / ITEMS_PER_PAGE);
@@ -54,11 +53,11 @@ export default function MesReservations() {
   const fetchReservations = async () => {
     setLoading(true);
     try {
-        const res = await fetch("/api/reservationuser", {
+      const res = await fetch("/api/reservationuser", {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",}
-          });
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log(res);
       if (!res.ok) throw new Error("Erreur chargement réservations");
       const data: Reservation[] = await res.json();
       setReservations(data);
@@ -93,24 +92,16 @@ export default function MesReservations() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {paginated.map((r) => (
-          <div
-            key={r.id}
-            className="border p-4 rounded-lg bg-white shadow-sm"
-          >
+          <div key={r.id} className="border p-4 rounded-lg bg-white shadow-sm">
             <h2 className="text-xl font-semibold mb-2">{r.stage.Titre}</h2>
             <p className="mb-1">
-              Dates:{" "}
-              {new Date(r.stage.DateDebut).toLocaleDateString("fr-FR")} —{" "}
-              {new Date(r.stage.DateFin).toLocaleDateString("fr-FR")}
+              Dates: {new Date(r.stage.DateDebut).toLocaleDateString("fr-FR")} — {new Date(r.stage.DateFin).toLocaleDateString("fr-FR")}
             </p>
             <p className="mb-1">
               Horaires: {r.stage.HeureDebut} — {r.stage.HeureFin}
             </p>
             <p className="mb-2 text-lg font-bold">Prix: {r.stage.Prix}€</p>
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/stage/${r.stage.id}`)}
-            >
+            <Button variant="outline" onClick={() => router.push(`/stage/${r.stage.id}`)}>
               Voir le stage
             </Button>
           </div>
@@ -119,30 +110,17 @@ export default function MesReservations() {
 
       {totalPages > 1 && (
         <Pagination className="mt-6">
-          <PaginationPrevious
-            onClick={() =>
-              currentPage > 1 && setCurrentPage((p) => p - 1)
-            }
-          />
+          <PaginationPrevious onClick={() => currentPage > 1 && setCurrentPage(p => p - 1)} />
           <PaginationContent>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-              (num) => (
-                <PaginationItem key={num}>
-                  <PaginationLink
-                    isActive={num === currentPage}
-                    onClick={() => setCurrentPage(num)}
-                  >
-                    {num}
-                  </PaginationLink>
-                </PaginationItem>
-              )
-            )}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+              <PaginationItem key={num}>
+                <PaginationLink isActive={num === currentPage} onClick={() => setCurrentPage(num)}>
+                  {num}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
           </PaginationContent>
-          <PaginationNext
-            onClick={() =>
-              currentPage < totalPages && setCurrentPage((p) => p + 1)
-            }
-          />
+          <PaginationNext onClick={() => currentPage < totalPages && setCurrentPage(p => p + 1)} />
         </Pagination>
       )}
     </div>
