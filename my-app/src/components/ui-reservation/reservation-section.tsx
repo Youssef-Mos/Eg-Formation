@@ -9,6 +9,14 @@ import Link from "next/link";
 import ListeStages from "../ui-stage/LiseStage";
 import StageFilter from "./StageFilter";
 
+// Define or import the FilterValues type
+type FilterValues = {
+  ville: string;
+  departement: string;
+  date: Date | null;
+  motsCles: string;
+};
+
 
 
 
@@ -31,13 +39,17 @@ export default function ReservationSection() {
   useEffect(() => {
     const fetchStages = async () => {
       const res = await fetch("/api/Stage/RecupStage");
-      const data = await res.json();
+      const data: { Ville: string }[] = await res.json();
       const villes = Array.from(new Set(data.map((stage) => stage.Ville))).sort();
       setVillesDisponibles(villes);
     };
   
     fetchStages();
   }, []);
+
+
+
+  
     return (
       <section className="flex flex-col gap-5 justify-center items-center">
         {session?.user?.role === "admin" && (
@@ -62,7 +74,7 @@ export default function ReservationSection() {
 />
         <div className="bg-white flex justify-center max-sm:w-sm max-md:w-xl md:w-2xl lg:w-4xl xl:w-6xl 2xl:w-8xl border-2 rounded-xl hover:shadow-2xl transition duration-300 ease-in-out ">
           <div>
-            <ListeStages />
+            <ListeStages filters={filters} />
           </div>
         </div>
       </section>

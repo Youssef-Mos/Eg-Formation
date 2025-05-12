@@ -10,7 +10,6 @@ import EditStageModal from "../admin/EditStage";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -33,7 +32,18 @@ interface Stage {
   Prix: number;
 }
 
-export default function ListeStages() {
+interface FilterValues {
+  ville: string;
+  departement: string;
+  date: Date | null;
+  motsCles: string;
+}
+
+interface ListeStagesProps {
+  filters: FilterValues;
+}
+
+export default function ListeStages({ filters }: ListeStagesProps) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoginOpen, setLoginOpen] = useState(false);
@@ -42,7 +52,6 @@ export default function ListeStages() {
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
 
-  // Pagination state
   const ITEMS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
   const { data: session } = useSession();
@@ -53,7 +62,6 @@ export default function ListeStages() {
       try {
         const res = await fetch("/api/Stage/RecupStage");
         if (!res.ok) throw new Error("Erreur de récupération");
-
         const data = await res.json();
         setStages(data);
       } catch (error) {
@@ -69,7 +77,7 @@ export default function ListeStages() {
 
   const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR');
+    return date.toLocaleDateString("fr-FR");
   };
 
   const handleDelete = async (id: number) => {
@@ -77,7 +85,7 @@ export default function ListeStages() {
       const res = await fetch(`/api/Stage/DeleteStage/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Erreur lors de la suppression");
 
-      setStages((prevStages) => prevStages.filter((stage) => stage.id !== id));
+      setStages((prev) => prev.filter((stage) => stage.id !== id));
       toast.success("Stage supprimé avec succès");
     } catch (error) {
       console.error("Erreur lors de la suppression :", error);
@@ -100,17 +108,37 @@ export default function ListeStages() {
     setEditModalOpen(true);
   };
 
-  // Fonction de callback pour actualiser le stage après modification.
   const handleUpdateStage = (updatedStage: Stage) => {
-    setStages((prevStages) =>
-      prevStages.map((stage) => (stage.id === updatedStage.id ? updatedStage : stage))
+    setStages((prev) =>
+      prev.map((stage) => (stage.id === updatedStage.id ? updatedStage : stage))
     );
   };
 
-  // Calculate pagination
-  const totalPages = Math.ceil(stages.length / ITEMS_PER_PAGE);
+  // Filtrage avant pagination
+  const filteredStages = stages.filter((stage) => {
+    const matchVille =
+      !filters.ville ||
+      stage.Ville?.toLowerCase().includes(filters.ville.toLowerCase());
+
+    const matchDepartement =
+      !filters.departement ||
+      stage.CodePostal.startsWith(filters.departement);
+
+    const matchMotsCles =
+      !filters.motsCles ||
+      stage.Titre?.toLowerCase().includes(filters.motsCles.toLowerCase());
+
+    const matchDate =
+      !filters.date ||
+      new Date(stage.DateDebut).toDateString() === new Date(filters.date).toDateString();
+
+    return matchVille && matchDepartement && matchMotsCles && matchDate;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredStages.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedStages = stages.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedStages = filteredStages.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <div className="container mx-auto p-4">
@@ -120,6 +148,8 @@ export default function ListeStages() {
         <div className="flex justify-center items-center h-40">
           <span className="loading loading-spinner loading-lg"></span>
         </div>
+      ) : filteredStages.length === 0 ? (
+        <p className="text-center text-gray-500">Aucun stage ne correspond aux critères.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
           {paginatedStages.map((stage) => (
@@ -134,7 +164,7 @@ export default function ListeStages() {
               </p>
               <p className="mb-1">Places disponibles: {stage.PlaceDisponibles}</p>
               <p className="mb-1">
-                Du : {formatDate(stage.DateDebut)} de {stage.HeureDebut} à {stage.HeureFin} 
+                Du : {formatDate(stage.DateDebut)} de {stage.HeureDebut} à {stage.HeureFin}
               </p>
               <p className="mb-1">
                 Au : {formatDate(stage.DateFin)} de {stage.HeureDebut2} à {stage.HeureFin2}

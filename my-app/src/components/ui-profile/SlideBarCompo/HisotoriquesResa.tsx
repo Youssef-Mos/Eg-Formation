@@ -14,6 +14,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { DeplacementClient } from "../Composant/DeplacementClient";
 
 interface Stage {
   id: number;
@@ -38,6 +39,7 @@ export default function HistoriqueResa() {
   // Pagination state
   const ITEMS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
+  const [isGlobalLoading, setIsGlobalLoading] = useState(false);
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -93,10 +95,20 @@ export default function HistoriqueResa() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedStages = stages.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  if (isGlobalLoading) {
+    return (
+      <div className="container mx-auto p-10 text-center">
+        <h1 className="text-2xl font-bold mb-4">Mise à jour en cours...</h1>
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
+  }
   return (
+  
+    
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4 text-center">Historique des Réservations</h1>
-
+  
       {loadingStages ? (
         <div className="flex justify-center items-center h-40">
           <span className="loading loading-spinner loading-lg"></span>
@@ -124,7 +136,7 @@ export default function HistoriqueResa() {
                     {selectedStage === stage.id ? 'Masquer profils' : 'Voir profils'}
                   </Button>
                 </div>
-
+  
                 {selectedStage === stage.id && (
                   <div className="mt-4">
                     {loadingProfiles ? (
@@ -132,8 +144,21 @@ export default function HistoriqueResa() {
                     ) : profiles.length > 0 ? (
                       <ul className="space-y-2">
                         {profiles.map(p => (
-                          <li key={p.id} className="border p-2 rounded">
-                            {p.prenom} {p.nom} (<a href={`mailto:${p.email}`} className="text-blue-500 underline">{p.email}</a>)
+                          <li
+                            key={p.id}
+                            className="border p-2 rounded flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2"
+                          >
+                            <div>
+                              {p.prenom} {p.nom} (<a href={`mailto:${p.email}`} className="text-blue-500 underline">{p.email}</a>)
+                            </div>
+  
+                            <DeplacementClient
+                              user={p}
+                              fromStageId={stage.id}
+                              stages={stages}
+                              refresh={() => loadProfiles(stage.id)}
+                              setGlobalLoading={setIsGlobalLoading}
+                            />
                           </li>
                         ))}
                       </ul>
@@ -145,8 +170,7 @@ export default function HistoriqueResa() {
               </div>
             ))}
           </div>
-
-          {/* Pagination */}
+  
           {totalPages > 1 && (
             <Pagination className="mt-6">
               <PaginationPrevious onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)} />
@@ -169,4 +193,6 @@ export default function HistoriqueResa() {
       )}
     </div>
   );
+  
+  
 }
