@@ -25,6 +25,7 @@ interface Stage {
   PlaceDisponibles: number;
   DateDebut: Date;
   DateFin: Date;
+  NumeroStage: number;
   HeureDebut: string;
   HeureFin: string;
   HeureDebut2: string;
@@ -156,7 +157,10 @@ export default function ListeStages({ filters }: ListeStagesProps) {
             <div
               key={stage.id}
               className="cursor-default border border-zinc-300 p-4 rounded-lg bg-zinc-50 hover:shadow-md hover:shadow-zinc-300 transition-all duration-200 ease-in hover:bg-zinc-100 hover:border-zinc-300 xl:w-lg"
-            >
+            > 
+            <div className="flex">
+              
+              <div className="flex flex-col">
               <h2 className="text-xl font-semibold mb-2">{stage.Titre}</h2>
               <p className="mb-1">{stage.Adresse}</p>
               <p className="mb-1">
@@ -164,13 +168,15 @@ export default function ListeStages({ filters }: ListeStagesProps) {
               </p>
               <p className="mb-1">Places disponibles: {stage.PlaceDisponibles}</p>
               <p className="mb-1">
-                Du : {formatDate(stage.DateDebut)} de {stage.HeureDebut} à {stage.HeureFin}
+                Du : {formatDate(stage.DateDebut)} Au : {formatDate(stage.DateFin)} 
               </p>
               <p className="mb-1">
-                Au : {formatDate(stage.DateFin)} de {stage.HeureDebut2} à {stage.HeureFin2}
+                De {stage.HeureDebut} à {stage.HeureFin} et de {stage.HeureDebut2} à {stage.HeureFin2}
               </p>
               <p className="text-lg font-bold mt-2">Prix: {stage.Prix}€</p>
-
+              </div>
+              <div className="justify-end">N°Identification : {stage.NumeroStage}</div>
+            </div>
               {session?.user?.role === "admin" ? (
                 <div className="flex gap-2 justify-end mt-2">
                   <Button

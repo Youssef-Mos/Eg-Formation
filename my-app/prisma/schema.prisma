@@ -21,6 +21,7 @@ model Stage {
   DateDebut      DateTime
   DateFin        DateTime
   // Plage horaire (stockée en chaîne ou sous forme de DateTime si tu préfères inclure une date fictive)
+  NumeroStage     Int @default(0)
   HeureDebut      String
   HeureFin        String
   HeureDebut2 String @default("08:00")
@@ -120,4 +121,15 @@ model Reservation {
   stage Stage @relation(fields: [stageId], references: [id])
 
   @@unique([userId, stageId]) // optionnel : un même user ne peut réserver deux fois le même stage
+}
+
+
+model contact {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  prenom    String
+  email     String
+  telephone String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
 }

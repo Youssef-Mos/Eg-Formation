@@ -17,6 +17,7 @@ export interface Stage {
   PlaceDisponibles: number;
   DateDebut: Date;
   DateFin: Date;
+  NumeroStage : number;
   HeureDebut: string;
   HeureFin: string;
   HeureDebut2: string;

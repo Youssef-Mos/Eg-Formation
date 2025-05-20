@@ -51,7 +51,7 @@ export default function StageFilter({
   };
 
   return (
-    <div className="w-full bg-white p-6 mb-8 rounded-xl border shadow-sm flex flex-col gap-6 md:flex-row md:items-end md:gap-6">
+    <div className="w-full lg:w-6xl xl:w-7xl bg-white p-6 mb-8 rounded-xl border shadow-sm flex flex-col gap-6 md:flex-row md:items-end md:gap-6">
       
       {/* VILLE - Combobox */}
       <div className="flex flex-col gap-1 w-full md:w-1/4">

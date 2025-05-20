@@ -42,7 +42,7 @@ export const Body = () => {
           </Accordion>
           <div className="flex gap-5 items-center justify-center">
             <Button onClick={() => scrollToSection("stageResa")} variant="default" className='cursor-pointer' >Réserve ton stage</Button>
-            <Button variant="outline" className='cursor-pointer'>En savoir plus</Button>
+            <a href='/Home'><Button variant="outline" className='cursor-pointer'>En savoir plus</Button></a>
         </div>
     </div>
     <span id='stageResa'></span>
