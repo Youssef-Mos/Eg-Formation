@@ -113,6 +113,7 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    const typeStage = session.metadata?.typeStage || "stage"; // valeur par défaut
     console.log("📦 Session metadata :", session.metadata);
 
     const userId = Number(session.metadata?.userId);
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
       if (!existingReservation) {
         // 1. Créer réservation
         await prisma.reservation.create({
-          data: { userId, stageId },
+          data: { userId, stageId, TypeStage : typeStage },
         });
         console.log("✅ Réservation ajoutée");
 
