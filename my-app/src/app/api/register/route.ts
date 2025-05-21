@@ -8,9 +8,15 @@ const prisma = new PrismaClient();
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
-    // Vérification minimale côté serveur (tu peux adapter selon tes besoins)
-    const requiredFields = ['email', 'password', 'username', 'lastName', 'firstName', 'birthDate', 'birthPlace', 'address1', 'postalCode', 'city', 'phone1', 'permitNumber', 'permitIssuedAt', 'acceptTerms'];
+    
+    // Vérification minimale côté serveur
+    const requiredFields = [
+      'email', 'password', 'username', 'lastName', 'firstName', 
+      'birthDate', 'birthPlace', 'address1', 'postalCode', 
+      'city', 'phone1', 'permitNumber', 'permitIssuedAt',
+      'acceptTerms', 'acceptRules', 'confirmPointsCheck'
+    ];
+    
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -19,24 +25,28 @@ export async function POST(request: Request) {
         );
       }
     }
-
+    
     // Hachage du mot de passe
     const hashedPassword = await bcrypt.hash(body.password, 12);
-
+    
+    // Supprimer les champs qui ne sont pas dans le modèle Prisma
+    const { confirmPassword, ...userData } = body;
+    
     // Création de l'utilisateur
     const user = await prisma.user.create({
       data: {
-        ...body,
+        ...userData,
         password: hashedPassword,
         birthDate: new Date(body.birthDate),
         permitDate: new Date(body.permitDate),
       },
     });
-
+    
     return NextResponse.json(user, { status: 201 });
   } catch (error: any) {
     console.error('Erreur création utilisateur:', error);
-    // Vérification d'une erreur d'unicité (ex: email ou username déjà utilisé)
+    
+    // Vérification d'une erreur d'unicité
     if (error.code === 'P2002') {
       const duplicatedField = error.meta?.target;
       return NextResponse.json(
@@ -44,7 +54,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
+    
     return NextResponse.json(
       { error: 'Erreur lors de la création du compte' },
       { status: 500 }

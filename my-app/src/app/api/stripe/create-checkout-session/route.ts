@@ -21,7 +21,6 @@ export async function POST(request: Request) {
 
     // Crée une session de paiement
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
@@ -43,6 +42,8 @@ export async function POST(request: Request) {
         userId: String(userId),
         stageId: String(stageId),
         typeStage: typeStage,
+        paymentMethod: "card",
+        paid : "true",
       },
     });
     

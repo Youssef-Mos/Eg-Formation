@@ -64,6 +64,8 @@ model User {
   emailVerified  DateTime?
   image          String?
   acceptTerms   Boolean @default(false) // Champ pour accepter les CGU
+  acceptRules   Boolean  @default(false) // Acceptation du règlement intérieur
+  confirmPointsCheck Boolean @default(false) // Vérification des points
   // Relations vers les autres modèles NextAuth
   accounts       Account[]
   sessions       Session[]
@@ -117,6 +119,8 @@ model Reservation {
   createdAt DateTime @default(now())
   TypeStage   String @default("stage") // Type de réservation (stage, cours, etc.)
 
+  paymentMethod String @default("card") // Valeurs possibles: "card", "check", "cash", "transfer"
+  paid       Boolean  @default(false)   // Pour indiquer si le paiement a été effectué
   // Relations
   user  User  @relation(fields: [userId],  references: [id])
   stage Stage @relation(fields: [stageId], references: [id])

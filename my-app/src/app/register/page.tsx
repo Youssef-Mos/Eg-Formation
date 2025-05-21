@@ -1,10 +1,8 @@
 'use client';
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Nav from "@/components/nav";
-import { DatePicker } from "@/components/ui-reservation/datapicker";
-import { DatePickerPermis } from "@/components/ui-reservation/datapicker copy";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -12,14 +10,52 @@ import Footer from "@/components/footer";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LinkPreview } from "@/components/ui/link-preview";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { CalendarIcon, Loader2, User, MapPin, Car, Save, ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export default function Register() {
   const router = useRouter();
-
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
-  const [formData, setFormData] = React.useState({
-    gender: '',
+  
+  // État actif pour la navigation et la barre de progression
+  const [activeTab, setActiveTab] = useState("personal");
+  const tabs = ["personal", "address", "permit", "account", "terms"];
+  const tabIndex = tabs.indexOf(activeTab);
+  const progress = ((tabIndex + 1) / tabs.length) * 100;
+  
+  const [formData, setFormData] = useState({
+    gender: 'male',
     lastName: '',
     firstName: '',
     name: '',
@@ -38,20 +74,156 @@ export default function Register() {
     permitDate: new Date(),
     username: '',
     password: '',
+    confirmPassword: '',
     acceptTerms: false,
+    acceptRules: false, // Nouveau champ pour le règlement intérieur
+    confirmPointsCheck: false, // Nouveau champ pour la vérification des points
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Vérification côté client : exemple pour quelques champs obligatoires
-    const requiredFields = ['email', 'password', 'username', 'lastName', 'firstName', 'birthDate', 'birthPlace', 'address1', 'postalCode', 'city', 'phone1', 'permitNumber', 'permitIssuedAt'];
-    for (const field of requiredFields) {
-      if (!formData[field as keyof typeof formData]) {
-        toast.error(`Le champ ${field} est requis.`);
-        return;
-      }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
+    });
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const handleDateChange = (name: string, date: Date | undefined) => {
+    setFormData({
+      ...formData,
+      [name]: date,
+    });
+  };
+
+  const goToNextTab = () => {
+    const currentIndex = tabs.indexOf(activeTab);
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1]);
+      window.scrollTo(0, 0);
     }
+  };
+
+  const goToPreviousTab = () => {
+    const currentIndex = tabs.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(tabs[currentIndex - 1]);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const validateCurrentTab = () => {
+    switch (activeTab) {
+      case "personal":
+        if (!formData.firstName.trim()) {
+          toast.error("Le prénom est requis");
+          return false;
+        }
+        if (!formData.lastName.trim()) {
+          toast.error("Le nom est requis");
+          return false;
+        }
+        if (!formData.birthPlace.trim()) {
+          toast.error("Le lieu de naissance est requis");
+          return false;
+        }
+        return true;
+        
+      case "address":
+        if (!formData.address1.trim()) {
+          toast.error("L'adresse est requise");
+          return false;
+        }
+        if (!formData.postalCode.trim()) {
+          toast.error("Le code postal est requis");
+          return false;
+        }
+        if (!formData.city.trim()) {
+          toast.error("La ville est requise");
+          return false;
+        }
+        if (!formData.phone1.trim()) {
+          toast.error("Le téléphone est requis");
+          return false;
+        }
+        return true;
+        
+      case "permit":
+        if (!formData.permitNumber.trim()) {
+          toast.error("Le numéro de permis est requis");
+          return false;
+        }
+        if (!formData.permitIssuedAt.trim()) {
+          toast.error("Le lieu de délivrance du permis est requis");
+          return false;
+        }
+        return true;
+        
+      case "account":
+        if (!formData.email.trim()) {
+          toast.error("L'email est requis");
+          return false;
+        }
+        if (!formData.email.includes('@')) {
+          toast.error("Veuillez entrer un email valide");
+          return false;
+        }
+        if (!formData.username.trim()) {
+          toast.error("Le nom d'utilisateur est requis");
+          return false;
+        }
+        if (formData.password.length < 6) {
+          toast.error("Le mot de passe doit contenir au moins 6 caractères");
+          return false;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          toast.error("Les mots de passe ne correspondent pas");
+          return false;
+        }
+        return true;
+
+      case "terms":
+        if (!formData.acceptTerms) {
+          toast.error("Vous devez accepter les conditions générales d'utilisation");
+          return false;
+        }
+        if (!formData.acceptRules) {
+          toast.error("Vous devez accepter le règlement intérieur");
+          return false;
+        }
+        if (!formData.confirmPointsCheck) {
+          toast.error("Vous devez confirmer avoir vérifié votre solde de points");
+          return false;
+        }
+        return true;
+        
+      default:
+        return true;
+    }
+  };
+
+  const handleNextClick = () => {
+    if (validateCurrentTab()) {
+      goToNextTab();
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!validateCurrentTab()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
 
     try {
       // Conversion des dates en ISO string
@@ -73,6 +245,7 @@ export default function Register() {
   
       if (!response.ok) {
         toast.error(result.error || 'Échec de l\'inscription');
+        setIsSubmitting(false);
         return;
       }
   
@@ -88,345 +261,567 @@ export default function Register() {
       if (loginResult?.error) {
         toast.error('Erreur lors de la connexion automatique.');
       } else {
-        
         // Redirige vers la page souhaitée
         router.push(callbackUrl ? callbackUrl : '/');
       }
     } catch (error) {
       console.error('Erreur:', error);
       toast.error("Échec de l'inscription");
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <>
-      <div className="flex flex-col items-center justify-center  gap-5 z-50">
-        <Nav /> 
-        <div className="">
-          <form onSubmit={handleSubmit} className="z-50">
-          <div className="border-2 z-50 bg-zinc-50 px-10 py-10 rounded-xl mt-4 hover:shadow-2xl transition-all duration-200 ease-in gap-5 w-max max-sm:w-sm md:max-w-3xl lg:max-w-4xl xl:max-w-screen-xl 2xl:max-w-screen-2xl">
-            <h1 className="text-2xl md:text-4xl font-bold text-center mt-5 mb-5">
-              S'inscrire pour un stage :
-            </h1>
-            {/* Conteneur principal en grid responsive */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 xl:gap-x-16 xl:gap-y-10 items-start">
-              {/* Bloc 1 : Informations de contacts */}
-              <div className="flex flex-col items-center justify-center gap-4 mt-4">
-                <p className="text-xl md:text-2xl font-bold text-center">
-                  Vos informations de contacts :
-                </p>
-                <div className="flex flex-col gap-1">
-                  <div className="flex gap-2">
-                    <input type="radio" 
-                      name="gender" 
-                      className="radio-md cursor-pointer"  
-                      value="male"
-                      checked={formData.gender === 'male'}
-                      onChange={(e) => setFormData({...formData, gender: e.target.value})} /> 
-                    <p>Masculin</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <input type="radio" 
-                      name="gender" 
-                      className="radio-md cursor-pointer"  
-                      value="female"
-                      checked={formData.gender === 'female'}
-                      onChange={(e) => setFormData({...formData, gender: e.target.value})}  /> 
-                    <p>Féminin</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Nom *</span>
-                    <input
-                      type="text"
-                      name="lastName"
-                      placeholder="Votre nom..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                      required
-                    />
-                  </label>
-                </div>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Prénom *</span>
-                    <input
-                      type="text"
-                      name="firstName"
-                      placeholder="Votre prénom..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                      required
-                    />
-                  </label>
-                </div>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Nom d'usage</span>
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="Votre nom d'usage..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    />
-                  </label>
-                </div>
-                <div>
-                  <DatePicker onDateChange={(date) => setFormData({...formData, birthDate: date || new Date()})} />
-                </div>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Lieu de naissance *</span>
-                    <input
-                      type="text"
-                      name="birthPlace"
-                      placeholder="Votre lieu de naissance..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                      value={formData.birthPlace}
-                      onChange={(e) => setFormData({...formData, birthPlace: e.target.value})}
-                      required
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Bloc 2 : Informations complémentaires */}
-              <div className="flex flex-col justify-center items-center gap-3 p-4 rounded">
-                <p className="text-xl md:text-2xl font-bold text-center mb-5 md:mb-18 lg:mb-9 xl:mb-18">
-                  Vos informations complémentaires :
-                </p>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Adresse 1 *</span>
-                    <input
-                      type="text"
-                      name="address1"
-                      placeholder="Votre Adresse 1..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                      value={formData.address1}
-                      onChange={(e) => setFormData({...formData, address1: e.target.value})}
-                      required
-                    />
-                  </label>
-                </div>
-                <div className="flex gap-5 xl:gap-2">
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Adresse 2</span>
-                      <input
-                        type="text"
-                        name="address2"
-                        placeholder="Votre Adresse 2..."
-                        className="bg-zinc-50 xl:text-xs outline-0 text-zinc-900 input w-full sm:w-40 md:w-36 xl:w-30 rounded-lg shadow-md"
-                        value={formData.address2}
-                        onChange={(e) => setFormData({...formData, address2: e.target.value})}
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Adresse 3</span>
-                      <input
-                        type="text"
-                        name="address3"
-                        placeholder="Votre Adresse 3..."
-                        className="bg-zinc-50 xl:text-xs outline-0 text-zinc-900 input w-full sm:w-40 md:w-36 xl:w-30 rounded-lg shadow-md"
-                        value={formData.address3}
-                        onChange={(e) => setFormData({...formData, address3: e.target.value})}
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div className="flex gap-5 xl:gap-2">
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Code postal *</span>
-                      <input
-                        type="text"
-                        name="postalCode"
-                        placeholder="Votre Code postal..."
-                        className="bg-zinc-50 outline-0 xl:text-xs text-zinc-900 input w-full sm:w-40 md:w-36 xl:w-30 rounded-lg shadow-md"
-                        value={formData.postalCode}
-                        onChange={(e) => setFormData({...formData, postalCode: e.target.value})}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Ville *</span>
-                      <input
-                        type="text"
-                        name="city"
-                        placeholder="Votre Ville..."
-                        className="bg-zinc-50 outline-0 xl:text-xs text-zinc-900 input w-full sm:w-40 md:w-36 xl:w-30 rounded-lg shadow-md"
-                        value={formData.city}
-                        onChange={(e) => setFormData({...formData, city: e.target.value})}
-                        required
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div className="flex gap-5 xl:gap-2">
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Téléphone 1 *</span>
-                      <input
-                        type="text"
-                        name="phone1"
-                        placeholder="Votre Téléphone 1..."
-                        className="bg-zinc-50 outline-0 xl:text-xs text-zinc-900 input w-full sm:w-40 md:w-36 xl:w-30 rounded-lg shadow-md"
-                        value={formData.phone1}
-                        onChange={(e) => setFormData({...formData, phone1: e.target.value})}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Téléphone 2</span>
-                      <input
-                        type="text"
-                        name="phone2"
-                        placeholder="Votre Téléphone 2..."
-                        className="bg-zinc-50 outline-0 xl:text-xs text-zinc-900 input w-full sm:w-40 md:w-36 xl:w-30 rounded-lg shadow-md"
-                        value={formData.phone2}
-                        onChange={(e) => setFormData({...formData, phone2: e.target.value})}
-                      />
-                    </label>
-                  </div>
-                </div>
-                
-              </div>
-              
-              {/* Bloc 3A : Informations relatives au permis */}
-              <div className="flex flex-col justify-center items-center gap-3 p-4 rounded">
-                <p className="text-xl md:text-2xl font-bold text-center xl:mb-6">
-                  Informations relatives à votre permis :
-                </p>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Numéro de permis *</span>
-                    <input
-                      type="text"
-                      name="permitNumber"
-                      placeholder="Votre Numéro de permis..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-46 rounded-lg shadow-md"
-                      value={formData.permitNumber}
-                      onChange={(e) => setFormData({...formData, permitNumber: e.target.value})}
-                      required
-                    />
-                  </label>
-                </div>
-                <div>
-                  <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                    <span className="!bg-white">Permis délivré à *</span>
-                    <input
-                      type="text"
-                      name="permitIssuedAt"
-                      placeholder="Votre Permis délivré à..."
-                      className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-46 rounded-lg shadow-md"
-                      value={formData.permitIssuedAt}
-                      onChange={(e) => setFormData({...formData, permitIssuedAt: e.target.value})}
-                      required
-                    />
-                  </label>
-                </div>
-                <div>
-                  <DatePickerPermis onDateChange={(date) => setFormData({...formData, permitDate: date || new Date()})} />
-                </div>
-              </div>
-              
-              {/* Bloc 3B : Informations concernant votre compte */}
-              <div className="flex flex-col justify-center items-center gap-1 p-4 rounded">
-                <p className="text-xl md:text-2xl font-bold text-center mb-7 xl:mb-6">
-                  Informations concernant votre compte :
-                </p>
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Pseudo *</span>
-                      <input
-                        type="text"
-                        name="username"
-                        placeholder="Votre pseudo..."
-                        className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                        value={formData.username}
-                        onChange={(e) => setFormData({...formData, username: e.target.value})}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">E-mail *</span>
-                      <input
-                        type="text"
-                        name="email"
-                        placeholder="Votre e-mail..."
-                        className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="floating-label label bg-white text-zinc-900 rounded-lg border border-gray-300">
-                      <span className="!bg-white">Mot de passe *</span>
-                      <input
-                        type="password"
-                        name="password"
-                        placeholder="Votre mot de passe..."
-                        className="bg-zinc-50 outline-0 text-zinc-900 input w-full sm:w-40 md:w-48 lg:w-56 xl:w-64 rounded-lg shadow-md"
-                        value={formData.password}
-                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        required
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 mt-7">
-              <input
-                type="checkbox"
-                checked={formData.acceptTerms}
-                onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded cursor-pointer"
-                id="acceptTerms"
-              />
-              <label htmlFor="acceptTerms" className="text-sm text-gray-700">
-                Je déclare avoir pris connaissance et accepté{' '}
-                <LinkPreview url="http://localhost:3000/register/CGU" className="font-bold text-blue-500 underline">
-                  les Conditions Générales d’Utilisation (CGU)
-                </LinkPreview>{' '}
-                ainsi que la Politique de Confidentialité.
-              </label>
-            </div>
-
-            {/* Bouton d'enregistrement désactivé tant que non accepté */}
-            <div className="flex justify-center">
-              <Button
-                type="submit"
-                disabled={!formData.acceptTerms}
-                className="mt-10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                S'enregistrer
-              </Button>
-            </div>
-          </div>
-          </form>
-        </div>
-        <div className=" bottom-0 w-screen"><Footer /></div>
+    <div className="min-h-screen flex flex-col">
+      
+      
+      
+      <div className="flex-1 container max-w-5xl mx-auto py-10 px-4">
+        <h1 className="text-3xl font-bold mb-6 text-center">Inscription à EG-Formation</h1>
         
+        {/* Barre de progression */}
+        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">
+          <div 
+            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+        
+        {/* Étapes sous forme de texte */}
+        <div className="flex justify-between text-sm mb-8 px-1">
+          <div className={`flex flex-col items-center ${tabIndex >= 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              {tabIndex > 0 ? <CheckCircle2 className="w-5 h-5" /> : "1"}
+            </div>
+            <span>Informations</span>
+          </div>
+          <div className={`flex flex-col items-center ${tabIndex >= 1 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 1 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              {tabIndex > 1 ? <CheckCircle2 className="w-5 h-5" /> : "2"}
+            </div>
+            <span>Adresse</span>
+          </div>
+          <div className={`flex flex-col items-center ${tabIndex >= 2 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 2 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              {tabIndex > 2 ? <CheckCircle2 className="w-5 h-5" /> : "3"}
+            </div>
+            <span>Permis</span>
+          </div>
+          <div className={`flex flex-col items-center ${tabIndex >= 3 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 3 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              {tabIndex > 3 ? <CheckCircle2 className="w-5 h-5" /> : "4"}
+            </div>
+            <span>Compte</span>
+          </div>
+          <div className={`flex flex-col items-center ${tabIndex >= 4 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 4 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              "5"
+            </div>
+            <span>Conditions</span>
+          </div>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Onglet 1: Informations personnelles */}
+            <TabsContent value="personal">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <User className="w-5 h-5 mr-2" />
+                    Informations personnelles
+                  </CardTitle>
+                  <CardDescription>
+                    Entrez vos informations personnelles pour votre inscription.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Genre</Label>
+                      <Select 
+                        value={formData.gender} 
+                        onValueChange={(value) => handleSelectChange("gender", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez votre genre" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Homme</SelectItem>
+                          <SelectItem value="female">Femme</SelectItem>
+                          <SelectItem value="other">Autre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Date de naissance</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !formData.birthDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.birthDate ? (
+                              format(formData.birthDate, "PPP", {
+                                locale: fr,
+                              })
+                            ) : (
+                              <span>Sélectionnez une date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={formData.birthDate}
+                            onSelect={(date) => handleDateChange("birthDate", date)}
+                            initialFocus
+                            captionLayout="dropdown-buttons"
+                            fromYear={1930}
+                            toYear={2010}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Nom</Label>
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        placeholder="Entrez votre nom"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">Prénom</Label>
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        placeholder="Entrez votre prénom"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nom d'usage <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        placeholder="Entrez votre nom d'usage si différent"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="birthPlace">Lieu de naissance</Label>
+                      <Input
+                        id="birthPlace"
+                        name="birthPlace"
+                        value={formData.birthPlace}
+                        onChange={handleChange}
+                        placeholder="Entrez votre lieu de naissance"
+                        required
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                  <Button type="button" onClick={handleNextClick}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Onglet 2: Adresse et contact */}
+            <TabsContent value="address">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MapPin className="w-5 h-5 mr-2" />
+                    Adresse et informations de contact
+                  </CardTitle>
+                  <CardDescription>
+                    Fournissez votre adresse et vos coordonnées.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="address1">Adresse (ligne 1)</Label>
+                      <Input
+                        id="address1"
+                        name="address1"
+                        value={formData.address1}
+                        onChange={handleChange}
+                        placeholder="Numéro et nom de rue"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="address2">Adresse (ligne 2) <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                      <Input
+                        id="address2"
+                        name="address2"
+                        value={formData.address2 || ""}
+                        onChange={handleChange}
+                        placeholder="Complément d'adresse"
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="address3">Complément d'adresse <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                      <Input
+                        id="address3"
+                        name="address3"
+                        value={formData.address3 || ""}
+                        onChange={handleChange}
+                        placeholder="Bâtiment, résidence, etc."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="postalCode">Code postal</Label>
+                      <Input
+                        id="postalCode"
+                        name="postalCode"
+                        value={formData.postalCode}
+                        onChange={handleChange}
+                        placeholder="Code postal"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Ville</Label>
+                      <Input
+                        id="city"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        placeholder="Ville"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone1">Téléphone principal</Label>
+                      <Input
+                        id="phone1"
+                        name="phone1"
+                        value={formData.phone1}
+                        onChange={handleChange}
+                        type="tel"
+                        placeholder="Téléphone principal"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone2">Téléphone secondaire <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                      <Input
+                        id="phone2"
+                        name="phone2"
+                        value={formData.phone2 || ""}
+                        onChange={handleChange}
+                        type="tel"
+                        placeholder="Téléphone secondaire"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button type="button" variant="outline" onClick={goToPreviousTab}>
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+                  </Button>
+                  <Button type="button" onClick={handleNextClick}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Onglet 3: Permis de conduire */}
+            <TabsContent value="permit">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Car className="w-5 h-5 mr-2" />
+                    Informations sur le permis de conduire
+                  </CardTitle>
+                  <CardDescription>
+                    Détails concernant votre permis de conduire.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="permitNumber">Numéro de permis</Label>
+                      <Input
+                        id="permitNumber"
+                        name="permitNumber"
+                        value={formData.permitNumber}
+                        onChange={handleChange}
+                        placeholder="Numéro de permis de conduire"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="permitIssuedAt">Délivré par</Label>
+                      <Input
+                        id="permitIssuedAt"
+                        name="permitIssuedAt"
+                        value={formData.permitIssuedAt}
+                        onChange={handleChange}
+                        placeholder="Autorité ayant délivré le permis"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="permitDate">Date d'obtention</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !formData.permitDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.permitDate ? (
+                              format(formData.permitDate, "PPP", {
+                                locale: fr,
+                              })
+                            ) : (
+                              <span>Sélectionnez une date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={formData.permitDate}
+                            onSelect={(date) => handleDateChange("permitDate", date)}
+                            initialFocus
+                            captionLayout="dropdown-buttons"
+                            fromYear={1970}
+                            toYear={2025}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button type="button" variant="outline" onClick={goToPreviousTab}>
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+                  </Button>
+                  <Button type="button" onClick={handleNextClick}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Onglet 4: Compte utilisateur */}
+            <TabsContent value="account">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <User className="w-5 h-5 mr-2" />
+                    Créer votre compte
+                  </CardTitle>
+                  <CardDescription>
+                    Définissez vos identifiants de connexion.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="email">Adresse e-mail</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        type="email"
+                        placeholder="votre.email@exemple.com"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="username">Nom d'utilisateur</Label>
+                      <Input
+                        id="username"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleChange}
+                        placeholder="Choisissez un nom d'utilisateur"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Mot de passe</Label>
+                      <Input
+                        id="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        type="password"
+                        placeholder="Choisissez un mot de passe"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        type="password"
+                        placeholder="Confirmez votre mot de passe"
+                        required
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button type="button" variant="outline" onClick={goToPreviousTab}>
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+                  </Button>
+                  <Button type="button" onClick={handleNextClick}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Onglet 5: Conditions générales */}
+            <TabsContent value="terms">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Conditions et vérifications</CardTitle>
+                  <CardDescription>
+                    Veuillez lire et accepter les conditions pour finaliser votre inscription.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <Checkbox 
+                        id="acceptTerms" 
+                        checked={formData.acceptTerms}
+                        onCheckedChange={(checked) => setFormData({...formData, acceptTerms: checked === true})}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor="acceptTerms"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Le stagiaire déclare adhérer aux conditions générales d'inscription d'EG-FORMATIONS
+                        </label>
+                        <div className="text-sm text-muted-foreground">
+                        Consultez les{" "}
+                        <LinkPreview url="http://localhost:3000/register/CGU" className="font-medium text-blue-600 hover:underline">
+                          Conditions Générales d'Utilisation (CGU)
+                        </LinkPreview>
+                      </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3">
+                      <Checkbox 
+                        id="acceptRules" 
+                        checked={formData.acceptRules}
+                        onCheckedChange={(checked) => setFormData({...formData, acceptRules: checked === true})}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor="acceptRules"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Le stagiaire déclare avoir pris connaissance du règlement intérieur et en avoir compris tous les termes
+                        </label>
+                        <div className="text-sm text-muted-foreground">
+                        Consultez le{" "}
+                        <LinkPreview url="http://localhost:3000/register/reglement" className="font-medium text-blue-600 hover:underline">
+                          Règlement intérieur
+                        </LinkPreview>
+                      </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3">
+                      <Checkbox 
+                        id="confirmPointsCheck" 
+                        checked={formData.confirmPointsCheck}
+                        onCheckedChange={(checked) => setFormData({...formData, confirmPointsCheck: checked === true})}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor="confirmPointsCheck"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Le stagiaire déclare avoir pris connaissance de son solde de points (relevé d'information RII) et ne pas faire l'objet d'une invalidation de son permis de conduire
+                        </label>
+                        <div className="text-sm text-muted-foreground">
+                        Consultez le{" "}
+                        <LinkPreview url="http://localhost:3000/register/reglement" className="font-medium text-blue-600 hover:underline">
+                          Règlement intérieur
+                        </LinkPreview>
+                      </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button type="button" variant="outline" onClick={goToPreviousTab}>
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || !formData.acceptTerms || !formData.acceptRules || !formData.confirmPointsCheck}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Inscription en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Finaliser l'inscription
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </form>
       </div>
       
-    </>
+      <Footer />
+    </div>
   );
 }

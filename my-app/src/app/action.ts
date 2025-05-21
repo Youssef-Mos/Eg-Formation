@@ -24,11 +24,12 @@ export async function createUser(formData: FormData) {
       firstName,
       lastName,
       email,
+      username: email, // Utilise l'email comme username ou adapte selon ton formulaire
       password: hashedPassword,
-      phone1,
-      phone2,
-      address1,
-      address2,
+      phone1: phone1 ?? undefined,
+      phone2: phone2 ?? undefined,
+      address1: address1 ?? undefined,
+      address2: address2 ?? undefined,
     },
   });
 }

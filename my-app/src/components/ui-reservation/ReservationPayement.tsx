@@ -2,38 +2,60 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import PaymentButton from "@/components/Stripe/paymentButton";
+import ReserveWithoutPaymentButton from "@/components/Stripe/ReserveWithoutPaymentButton";
 import CancelReservationDialog from "@/components/ui-reservation/CancelResa";
-import { toast } from "sonner"; // Make sure to import toast
+import { getSession } from "next-auth/react";
+import { toast } from "sonner";
 
 export default function ReservationFormClient({ stage }: { stage: any }) {
   const [typeStage, setTypeStage] = useState<string | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+  
+  // Récupérer la session et l'ID utilisateur
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const session = await getSession();
+        console.log("Session:", session);
+        const uid = session?.user?.id;
+        if (uid) {
+          setUserId(Number(uid));
+        } else {
+          console.error("No user ID in session:", session);
+        }
+      } catch (error) {
+        console.error("Error fetching session:", error);
+      }
+    };
+    
+    fetchSession();
+  }, []);
   
   // Log when type changes for debugging
   useEffect(() => {
     console.log("Type de stage sélectionné:", typeStage);
   }, [typeStage]);
-
+  
   const handleTypeChange = (value: string) => {
     setTypeStage(value);
     console.log(`Type changé à: ${value}`);
   };
-
+  
   return (
     <div className="flex flex-col mt-8 border gap-2 p-4 rounded-2xl shadow-md bg-zinc-50">
       <h1 className="text-center font-bold text-2xl mb-3">
         Récapitulatif de votre réservation pour le {stage.Titre}
       </h1>
-      
       {/* Infos stage */}
       <p><strong>Adresse : </strong>{stage.Adresse}, {stage.CodePostal} {stage.Ville}</p>
       <p><strong>Dates : </strong>{new Date(stage.DateDebut).toLocaleDateString("fr-FR")} - {new Date(stage.DateFin).toLocaleDateString("fr-FR")}</p>
       <p><strong>Horaires : </strong>{stage.HeureDebut} - {stage.HeureFin}</p>
       <p><strong>Prix : </strong>{stage.Prix}€</p>
+      <p><strong>Places disponibles : </strong>{stage.PlaceDisponibles}</p>
       
       {/* Sélection du type de stage */}
       <div className="border-2 border-zinc-700 rounded-2xl p-4 mt-4">
         <h2 className="text-xl font-bold mb-3">Type de stage :</h2>
-        
         {[
           { value: "recuperation_points", label: "Cas n°1 : Récupération des points" },
           { value: "permis_probatoire", label: "Cas n°2 : Permis probatoire (lettre Réf. 48N)" },
@@ -55,16 +77,17 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
         ))}
       </div>
       
-      {/* Selected type display for debugging */}
-      {typeStage && (
-        <div className="bg-green-100 p-2 rounded mt-2">
-          Type sélectionné: {typeStage}
-        </div>
-      )}
-      
       {/* Boutons */}
-      <div className="flex gap-3 justify-end mt-6">
+      <div className="flex flex-wrap gap-3 justify-end mt-6">
         <CancelReservationDialog />
+        <ReserveWithoutPaymentButton
+          stageId={stage.id}
+          stageTitle={stage.Titre}
+          stagePrice={stage.Prix}
+          typeStage={typeStage}
+          userId={userId}
+          placesDisponibles={stage.PlaceDisponibles}
+        />
         <PaymentButton
           stageId={stage.id}
           stageTitle={stage.Titre}
