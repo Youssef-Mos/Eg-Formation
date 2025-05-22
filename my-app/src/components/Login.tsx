@@ -203,9 +203,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <div className="mt-6 pt-4 border-t border-gray-100 text-center">
                 <p className="text-xs text-gray-500">
                   En vous connectant, vous acceptez nos{' '}
-                  <a href="#" className="text-blue-600 hover:underline">conditions d'utilisation</a>
+                  <a href="/mention-legales" className="text-blue-600 hover:underline">conditions d'utilisation</a>
                   {' '}et notre{' '}
-                  <a href="#" className="text-blue-600 hover:underline">politique de confidentialité</a>
+                  <a href="/mention-legales" className="text-blue-600 hover:underline">politique de confidentialité</a>
                 </p>
               </div>
             </div>

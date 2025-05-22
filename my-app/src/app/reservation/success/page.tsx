@@ -188,7 +188,7 @@ export default function SuccessPage() {
                   <ClockIcon className="w-5 h-5 mr-2 text-zinc-500" />
                   Horaires :
                 </div>
-                <div className="text-zinc-800">{stage.HeureDebut} - {stage.HeureFin}</div>
+                <div className="text-zinc-800">{stage.HeureDebut} - {stage.HeureFin} et {stage.HeureDebut2} - {stage.HeureFin2}</div>
               </div>
               
               <div className="flex flex-col sm:flex-row sm:items-center">

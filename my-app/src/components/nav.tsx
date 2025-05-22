@@ -65,10 +65,10 @@ export default function Nav() {
                 <li className="hover:text-blue-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Réservation</li>
               </Link>
               <Link href="/Home">
-                <li className="hover:text-blue-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Home</li>
+                <li className="hover:text-zinc-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Home</li>
               </Link>
               <Link href="/contact">
-                <li className="hover:text-blue-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Contact</li>
+                <li className="hover:text-red-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Contact</li>
               </Link>
             </div>
           </ul>
@@ -130,10 +130,10 @@ export default function Nav() {
               <li className="hover:text-blue-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Réservation</li>
             </Link>
             <Link href="/Home">
-              <li className="hover:text-blue-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Home</li>
+              <li className="hover:text-zinc-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Home</li>
             </Link>
             <Link href="/contact">
-              <li className="hover:text-blue-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Contact</li>
+              <li className="hover:text-red-400 hover:scale-105 transition-all duration-200 ease-in-out cursor-pointer font-medium px-2 md:px-3 py-2 rounded-lg hover:bg-zinc-700/50 text-sm md:text-base whitespace-nowrap">Contact</li>
             </Link>
 
             {/* Navigation mobile - boutons */}

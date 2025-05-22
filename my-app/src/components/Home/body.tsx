@@ -54,11 +54,11 @@ export default function BodyHome () {
         </AnimatedSection>
         <AnimatedSection>
             <AnimatedCard delay={250}>
-                <div className="w-lg md:w-2xl lg:w-4xl mt-10 text-gray-700 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="max-sm:w-xs w-lg m-auto md:w-2xl lg:w-4xl mt-10 text-gray-700 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://permisdeconduire.ants.gouv.fr" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel ANTS du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
                 </div>
             </ AnimatedCard>    
-            <div className="flex justify-center gap-5 mt-5">
+            <div className="flex justify-center gap-2 md:gap-5 mt-5">
             
             <AnimatedCard delay={350}>
                 <a href="/"><Button variant="default" className="bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-white font-medium shadow-md hover:shadow-lg transition-all rounded-lg cursor-pointer text-md">Réservez maintenant</Button></a>
@@ -94,7 +94,7 @@ export default function BodyHome () {
         <div className="mb-3 mt-3 w-80 h-64 md:ml-10 overflow-hidden rounded-xl shadow-md">
           <ImagesSliderDemo2 />
         </div>
-        <div className="w-lg mx-7 mt-3.5 text-zinc-800">
+        <div className="w-lg mx-7  text-zinc-800">
           <div className="mb-2 mx-3.5 indent-4 font-semibold">Le permis à points est conçu pour encourager une <span className="text-amber-400">conduite responsable</span>. Plusieurs options s'offrent à vous pour reconstituer votre capital :</div>
           <div className="flex flex-col mx-3.5 my-3.5 gap-3">
             <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Récupération automatique : 1 point après 6 mois, ou totalité après 2 ou 3 ans sans infraction</span>
