@@ -230,10 +230,8 @@ export default function StageDetail() {
 
   return (
     <>
-      <div className="sticky flex justify-center items-center flex-col gap-10 z-50">
-        <div className="sticky top-0 z-50">
+      <div className="min-h-screen flex max-sm:items-center justify-center gap-10 flex-col">
           <Nav />
-        </div>
         <div className="container mx-auto p-4 py-8 min-h-screen">
           <div className="max-w-4xl mx-auto">
             {/* En-tête */}

@@ -5,10 +5,10 @@ import Footer from "@/components/footer";
 export default function Home() {
   return (
   <>
-    <div className="flex justify-center items-center flex-col gap-10 z-50">
-      <div className="sticky top-0 z-50">
+    
+      <div className="min-h-screen flex max-sm:items-center justify-center gap-10 flex-col">
             <Nav />
-        </div>
+        
       
       <Body />
       

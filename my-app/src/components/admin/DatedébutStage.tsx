@@ -37,7 +37,7 @@ export function DatePickerStageDébut({ onDateChange }: { onDateChange: (date: D
             selected={selectedDate}
             onSelect={handleDateChange}
             disabled={(date) =>
-              date > new Date() || date < new Date("1900-01-01")
+              date < new Date("1900-01-01")
             }
             initialFocus
             // Si ton composant Calendar supporte une prop pour activer la sélection rapide d'année,

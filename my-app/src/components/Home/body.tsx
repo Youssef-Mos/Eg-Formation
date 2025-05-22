@@ -12,9 +12,9 @@ export default function BodyHome () {
     return (
         <>
         <AnimatedSection>
-        <div className="flex max-md:flex-col gap-10 xl:text-lg xl:gap-20">
+        <div className="flex flex-col md:flex-row gap-5 lg:gap-10 xl:text-lg xl:gap-20">
             <AnimatedCard delay={100}>
-            <div className="relative gap-3 h-max rounded-2xl flex flex-col justify-center items-center py-10 px-7 text-center md:w-xl lg:w-xs w-52 text-sm lg:text-md border shadow-lg bg-gradient-to-b from-blue-50 to-white border-blue-200 hover:shadow-xl transition-all duration-300">
+            <div className="relative gap-3 h-max rounded-2xl flex flex-col justify-center items-center py-10 px-7 text-center md:w-2xs lg:w-xs sm:w-3xs w-72 text-sm lg:text-md border shadow-lg bg-gradient-to-b from-blue-50 to-white border-blue-200 hover:shadow-xl transition-all duration-300">
               <div className="absolute -top-3 -right-3 bg-blue-600 text-white p-2 rounded-full shadow-md">
                 <FileCheck className="w-5 h-5" />
               </div>
@@ -27,7 +27,7 @@ export default function BodyHome () {
             </div></div>
             </AnimatedCard>
             <AnimatedCard delay={200}>
-            <div className="relative translate-y-10 gap-3 rounded-2xl h-max flex flex-col justify-center items-center py-10 px-7 md:w-2xs lg:w-xs w-52 text-sm lg:text-md border shadow-lg bg-gradient-to-b from-zinc-50 to-white border-zinc-200 hover:shadow-xl transition-all duration-300">
+            <div className="relative translate-y-10 gap-3 rounded-2xl h-max flex flex-col justify-center items-center py-10 px-7 md:w-2xs lg:w-xs sm:w-3xs w-72 text-sm lg:text-md border shadow-lg bg-gradient-to-b from-zinc-50 to-white border-zinc-200 hover:shadow-xl transition-all duration-300">
               <div className="absolute -top-3 -right-3 bg-zinc-700 text-white p-2 rounded-full shadow-md">
                 <Shield className="w-5 h-5" />
               </div>
@@ -40,7 +40,7 @@ export default function BodyHome () {
             </div></div>
             </AnimatedCard>
             <AnimatedCard delay={300}>
-            <div className="relative translate-y-20 mb-16 gap-3 flex flex-col rounded-2xl justify-center items-center py-10 px-7 md:w-2xs lg:w-xs w-52 text-sm lg:text-md border shadow-lg bg-gradient-to-b from-rose-50 to-white border-rose-200 hover:shadow-xl transition-all duration-300">
+            <div className="relative translate-y-20 mb-16 gap-3 flex flex-col rounded-2xl justify-center items-center py-10 px-7 md:w-2xs lg:w-xs sm:w-3xs w-72 text-sm lg:text-md border shadow-lg bg-gradient-to-b from-rose-50 to-white border-rose-200 hover:shadow-xl transition-all duration-300">
               <div className="absolute -top-3 -right-3 bg-red-500 text-white p-2 rounded-full shadow-md">
                 <Search className="w-5 h-5" />
               </div>
@@ -90,11 +90,11 @@ export default function BodyHome () {
 <div className="flex w-full mr-20 justify-end items-start">
   <AnimatedSection>
     <AnimatedCard delay={500}>
-      <div className="flex items-center sm:h-full md:h-auto flex-col md:flex-row sm:py-10 sm:px-12 md:px-0 justify-center md:justify-end w-lg md:w-2xl lg:w-4xl text-sm md:text-md lg:text-lg rounded-2xl mt-10 h-96 bg-gradient-to-br from-amber-50 to-white shadow-lg hover:shadow-xl transition-all border border-amber-100">
+      <div className="flex items-center sm:h-full md:h-auto flex-col md:flex-row sm:py-10 sm:px-10 md:px-0 justify-center md:justify-end w-lg md:w-2xl lg:w-4xl text-sm md:text-md lg:text-lg rounded-2xl mt-10 h-96 bg-gradient-to-br from-amber-50 to-white shadow-lg hover:shadow-xl transition-all border border-amber-100">
         <div className="mb-3 mt-3 w-80 h-64 md:ml-10 overflow-hidden rounded-xl shadow-md">
           <ImagesSliderDemo2 />
         </div>
-        <div className="w-lg mx-7 text-zinc-800">
+        <div className="w-lg mx-7 mt-3.5 text-zinc-800">
           <div className="mb-2 mx-3.5 indent-4 font-semibold">Le permis à points est conçu pour encourager une <span className="text-amber-400">conduite responsable</span>. Plusieurs options s'offrent à vous pour reconstituer votre capital :</div>
           <div className="flex flex-col mx-3.5 my-3.5 gap-3">
             <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Récupération automatique : 1 point après 6 mois, ou totalité après 2 ou 3 ans sans infraction</span>

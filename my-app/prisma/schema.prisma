@@ -21,7 +21,7 @@ model Stage {
   DateDebut      DateTime
   DateFin        DateTime
   // Plage horaire (stockée en chaîne ou sous forme de DateTime si tu préfères inclure une date fictive)
-  NumeroStage     Int @default(0)
+  NumeroStage     String @default("")
   HeureDebut      String
   HeureFin        String
   HeureDebut2 String @default("08:00")
@@ -54,6 +54,8 @@ model User {
   permitDate     DateTime @default(now())         // Date actuelle temporaire
   username       String   @unique // Tu peux ajouter une logique pour générer le pseudo si besoin
 
+  resetToken   String?  // Token de réinitialisation de mot de passe
+  resetTokenExp  DateTime? // Date d'expiration du token de réinitialisation 
   // Champs optionnels (pas besoin de default)
   address2       String?  
   address3       String?  

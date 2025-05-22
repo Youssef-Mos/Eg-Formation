@@ -9,10 +9,8 @@ export default function Accueil() {
     return (
         <>
         
-        <div className="flex  items-center  flex-col gap-5 h-screen z-50">
-        <div className="fixed top-0 z-50">
+        <div className="min-h-screen flex max-sm:items-center justify-center gap-10 flex-col">
             <Nav />
-        </div>
         <div className="">
         <LampDemo />
         </div>

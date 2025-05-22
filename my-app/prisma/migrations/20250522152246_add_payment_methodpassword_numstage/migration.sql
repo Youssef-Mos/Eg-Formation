@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Stage" ALTER COLUMN "NumeroStage" SET DEFAULT '',
+ALTER COLUMN "NumeroStage" SET DATA TYPE TEXT;

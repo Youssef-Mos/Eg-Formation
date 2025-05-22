@@ -383,7 +383,12 @@ export default function Register() {
                             initialFocus
                             captionLayout="dropdown-buttons"
                             fromYear={1930}
-                            toYear={2010}
+                            toYear={new Date().getFullYear()} // Année actuelle max
+                            disabled={(date) => {
+                              // Bloquer les dates futures
+                              return date > new Date() || date < new Date("1900-01-01");
+                            }}
+                            defaultMonth={new Date(1990, 0)} // Ouvrir sur 1990 par défaut
                           />
                         </PopoverContent>
                       </Popover>
@@ -437,11 +442,18 @@ export default function Register() {
                     </div>
                   </div>
                 </CardContent>
+                <CardContent className="flex w-full">
                 <CardFooter className="flex justify-end">
                   <Button type="button" onClick={handleNextClick}>
                     Suivant <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardFooter>
+                <CardFooter className="flex justify-start">
+                  <Button type="button" onClick={handleNextClick}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+                </CardContent>
               </Card>
             </TabsContent>
 
