@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { CalendarIcon, Loader2, User, MapPin, Car, Save, ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, Loader2, User, MapPin, Car, Save, ChevronRight, ChevronLeft, CheckCircle2, Leaf } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -42,6 +42,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+
+import CancelRegisterDialog from "@/components/ui-profile/Composant/CancelRegister";
 
 export default function Register() {
   const router = useRouter();
@@ -209,6 +211,14 @@ export default function Register() {
         return true;
     }
   };
+
+    const handleAlert = () => {
+      router.push("/");
+    };
+
+    const handleRetourTotal = () => {
+      router.push("/");
+    };
 
   const handleNextClick = () => {
     if (validateCurrentTab()) {
@@ -442,18 +452,14 @@ export default function Register() {
                     </div>
                   </div>
                 </CardContent>
-                <CardContent className="flex w-full">
-                <CardFooter className="flex justify-end">
-                  <Button type="button" onClick={handleNextClick}>
+                <CardFooter className="flex justify-between">
+                    <CancelRegisterDialog /> 
+                  
+                
+                  <Button className="cursor-pointer" type="button" onClick={handleNextClick}>
                     Suivant <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardFooter>
-                <CardFooter className="flex justify-start">
-                  <Button type="button" onClick={handleNextClick}>
-                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-                </CardContent>
               </Card>
             </TabsContent>
 
