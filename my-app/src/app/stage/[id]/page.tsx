@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Euro, FileText, CheckCircle, AlertCircle, CreditCard, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, MapPin, Euro, FileText, CheckCircle, AlertCircle, CreditCard, AlertTriangle, Receipt } from "lucide-react";
 import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 
@@ -33,6 +33,15 @@ interface Reservation {
   TypeStage: string;
   paymentMethod?: string;
   paid?: boolean;
+}
+
+interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
 }
 
 const formatTypeStage = (type: string): string => {
@@ -66,8 +75,10 @@ export default function StageDetail() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage | null>(null);
   const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
@@ -99,22 +110,36 @@ export default function StageDetail() {
         if (reservationRes.ok) {
           const reservationData = await reservationRes.json();
           setReservation(reservationData);
+          
+          // 3. Fetch invoice for this reservation if it exists
+          if (reservationData?.id && reservationData.paid) {
+            fetchInvoice(reservationData.id);
+          }
         } else if (reservationRes.status === 404) {
-          // Pas de réservation trouvée, c'est normal
           setReservation(null);
         } else {
           console.error("Erreur réservation:", await reservationRes.json());
-          // Ne pas bloquer l'affichage du stage si la réservation échoue
         }
       } catch (resErr) {
         console.error("Erreur lors du chargement de la réservation:", resErr);
-        // Ne pas bloquer l'affichage du stage si la réservation échoue
       }
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Impossible de charger les détails du stage");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInvoice = async (reservationId: number) => {
+    try {
+      const invoiceRes = await fetch(`/api/invoice/by-reservation?reservationId=${reservationId}`);
+      if (invoiceRes.ok) {
+        const invoiceData = await invoiceRes.json();
+        setInvoice(invoiceData);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement de la facture:", err);
     }
   };
 
@@ -163,7 +188,6 @@ export default function StageDetail() {
   const handleDownloadPDF = async () => {
     if (!reservation || !stage || !session?.user?.id) return;
     
-    // Vérifier si le paiement a été effectué
     if (reservation.paid === false) {
       toast.error("Veuillez régler votre réservation pour télécharger l'attestation");
       return;
@@ -171,18 +195,35 @@ export default function StageDetail() {
     
     setPdfLoading(true);
     try {
-      // Create the URL with query parameters
       const downloadUrl = `/api/reservation/download-pdf?userId=${session.user.id}&stageId=${stage.id}&typeStage=${reservation.TypeStage}`;
-      
-      // Open in a new tab/window
       window.open(downloadUrl, '_blank');
-      
       toast.success("Téléchargement de l'attestation démarré");
     } catch (error) {
       console.error("Erreur de téléchargement:", error);
       toast.error("Erreur lors du téléchargement de l'attestation");
     } finally {
       setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!reservation || !session?.user?.id) return;
+    
+    if (reservation.paid === false) {
+      toast.error("Veuillez régler votre réservation pour télécharger la facture");
+      return;
+    }
+    
+    setInvoiceLoading(true);
+    try {
+      const downloadUrl = `/api/invoice/download?reservationId=${reservation.id}`;
+      window.open(downloadUrl, '_blank');
+      toast.success("Téléchargement de la facture démarré");
+    } catch (error) {
+      console.error("Erreur de téléchargement de la facture:", error);
+      toast.error("Erreur lors du téléchargement de la facture");
+    } finally {
+      setInvoiceLoading(false);
     }
   };
 
@@ -249,7 +290,7 @@ export default function StageDetail() {
                 <p className="text-zinc-600 mb-4">{stage.Description}</p>
               )}
               
-              {/* Alerte de paiement en attente avec option de paiement */}
+              {/* Alerte de paiement en attente */}
               {reservation && reservation.paid === false && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
                   <h3 className="font-semibold text-amber-800 mb-2 flex items-center">
@@ -262,10 +303,9 @@ export default function StageDetail() {
                   <ul className="list-disc list-inside text-amber-700 space-y-1 mb-3">
                     <li>Garantir votre place au stage</li>
                     <li>Recevoir votre attestation par email</li>
-                    <li>Pouvoir télécharger votre attestation</li>
+                    <li>Pouvoir télécharger votre attestation et facture</li>
                   </ul>
                   
-                  {/* Option de paiement immédiat */}
                   <div className="mt-4 border-t border-amber-200 pt-4">
                     <p className="text-amber-800 font-medium mb-3">
                       Souhaitez-vous payer maintenant par carte bancaire ?
@@ -281,23 +321,51 @@ export default function StageDetail() {
                 </div>
               )}
               
-              {/* Bannière d'attestation si réservé ET payé */}
+              {/* Documents disponibles si réservé ET payé */}
               {reservation && (reservation.paid !== false) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
-                    <FileText className="w-5 h-5 mr-2" />
-                    Attestation de réservation
-                  </h3>
-                  <p className="text-blue-700 mb-3">
-                    Vous pouvez télécharger votre attestation de réservation à tout moment.
-                  </p>
-                  <Button 
-                    onClick={handleDownloadPDF} 
-                    disabled={pdfLoading}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
-                  </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Attestation */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
+                      <FileText className="w-5 h-5 mr-2" />
+                      Attestation de réservation
+                    </h3>
+                    <p className="text-blue-700 mb-3 text-sm">
+                      Document officiel de votre inscription au stage.
+                    </p>
+                    <Button 
+                      onClick={handleDownloadPDF} 
+                      disabled={pdfLoading}
+                      className="bg-blue-600 hover:bg-blue-700 w-full"
+                      size="sm"
+                    >
+                      {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
+                    </Button>
+                  </div>
+
+                  {/* Facture */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-green-800 mb-2 flex items-center">
+                      <Receipt className="w-5 h-5 mr-2" />
+                      Facture
+                      {invoice && (
+                        <span className="ml-2 text-xs bg-green-200 text-green-800 px-2 py-1 rounded">
+                          {invoice.invoiceNumber}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-green-700 mb-3 text-sm">
+                      Facture acquittée pour le paiement de votre stage.
+                    </p>
+                    <Button 
+                      onClick={handleDownloadInvoice} 
+                      disabled={invoiceLoading}
+                      className="bg-green-600 hover:bg-green-700 w-full"
+                      size="sm"
+                    >
+                      {invoiceLoading ? "Téléchargement..." : "Télécharger la facture"}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -339,7 +407,6 @@ export default function StageDetail() {
                     </div>
                   </div>
                   
-                  {/* Ajout du mode de paiement */}
                   {reservation && reservation.paymentMethod && (
                     <div className="flex items-start">
                       <CreditCard className="w-5 h-5 mr-3 text-zinc-500 mt-0.5" />
@@ -383,6 +450,19 @@ export default function StageDetail() {
                       </p>
                     </div>
                   </div>
+
+                  {invoice && (
+                    <div className="flex items-start">
+                      <Receipt className="w-5 h-5 mr-3 text-zinc-500 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-zinc-700">Facture</p>
+                        <p className="text-zinc-800">{invoice.invoiceNumber}</p>
+                        <p className="text-green-600 text-sm">
+                          Émise le {new Date(invoice.createdAt).toLocaleDateString("fr-FR")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -429,13 +509,23 @@ export default function StageDetail() {
               )}
               
               {reservation && (reservation.paid !== false) && (
-                <Button 
-                  onClick={handleDownloadPDF} 
-                  disabled={pdfLoading}
-                  className="w-full sm:w-auto"
-                >
-                  {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
-                </Button>
+                <>
+                  <Button 
+                    onClick={handleDownloadPDF} 
+                    disabled={pdfLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleDownloadInvoice} 
+                    disabled={invoiceLoading}
+                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                  >
+                    {invoiceLoading ? "Téléchargement..." : "Télécharger la facture"}
+                  </Button>
+                </>
               )}
             </div>
           </div>

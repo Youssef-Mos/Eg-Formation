@@ -1,7 +1,10 @@
 // app/api/reservation/download-pdf/route.ts
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { generateReservationPDF } from "@/app/api/webhook/utils";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+// CHANGEMENT PRINCIPAL : Utiliser le nouveau générateur jsPDF
+import { generateReservationPDF } from "@/app/utils/convocationGeneratorJsPDF";
 
 const prisma = new PrismaClient();
 
@@ -18,38 +21,71 @@ function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
 }
 
 export async function GET(request: Request) {
+  // Vérifier l'authentification
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json(
+      { error: "Vous devez être connecté pour télécharger une attestation" },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const userId = Number(searchParams.get('userId'));
   const stageId = Number(searchParams.get('stageId'));
   const typeStage = searchParams.get('typeStage') || "recuperation_points";
   
   if (!userId || !stageId) {
-    return NextResponse.json({ error: "Paramètres manquants (userId et stageId requis)" }, { status: 400 });
+    return NextResponse.json({ 
+      error: "Paramètres manquants (userId et stageId requis)" 
+    }, { status: 400 });
+  }
+
+  // Vérifier que l'utilisateur demande ses propres documents
+  if (userId !== Number(session.user.id)) {
+    return NextResponse.json(
+      { error: "Vous ne pouvez télécharger que vos propres attestations" },
+      { status: 403 }
+    );
   }
 
   try {
-    // Récupérer les informations du stage et de l'utilisateur
-    const stage = await prisma.stage.findUnique({
-      where: { id: stageId }
+    // Récupérer les informations du stage et de l'utilisateur avec vérification de la réservation
+    const reservation = await prisma.reservation.findFirst({
+      where: {
+        userId: userId,
+        stageId: stageId
+      },
+      include: {
+        stage: true,
+        user: true
+      }
     });
     
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-    
-    if (!stage || !user) {
+    if (!reservation || !reservation.stage || !reservation.user) {
       return NextResponse.json({ 
-        error: "Stage ou utilisateur non trouvé",
+        error: "Réservation non trouvée ou accès non autorisé",
         details: {
-          stageFound: !!stage,
-          userFound: !!user
+          reservationFound: !!reservation,
+          stageFound: !!reservation?.stage,
+          userFound: !!reservation?.user
         }
       }, { status: 404 });
     }
 
-    console.log(`📄 Génération PDF pour stage ${stageId}, utilisateur ${userId}, type: ${typeStage}`);
+    // Vérifier que la réservation est payée (optionnel - à adapter selon vos règles)
+    if (reservation.paid === false) {
+      return NextResponse.json({ 
+        error: "Veuillez régler votre réservation pour télécharger l'attestation" 
+      }, { status: 402 }); // 402 Payment Required
+    }
+
+    const stage = reservation.stage;
+    const user = reservation.user;
+
+    console.log(`📄 Génération PDF avec jsPDF pour stage ${stageId}, utilisateur ${userId}, type: ${typeStage}`);
     
-    // Transformer les données pour correspondre aux interfaces utils
+    // Transformer les données pour correspondre aux interfaces
     const stageData = {
       id: stage.id,
       Titre: stage.Titre,
@@ -77,16 +113,16 @@ export async function GET(request: Request) {
       stageType: mapTypeStageToNumber(typeStage)
     };
     
-    // Générer le PDF en utilisant la fonction utils
+    // Générer le PDF en utilisant la nouvelle fonction jsPDF
     const pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);
     
-    console.log(`✅ PDF généré avec succès (${pdfBuffer.length} bytes)`);
+    console.log(`✅ PDF généré avec succès avec jsPDF (${pdfBuffer.length} bytes)`);
     
     // Convertir le Buffer en Uint8Array pour compatibilité Web
     const pdfUint8Array = new Uint8Array(pdfBuffer);
 
-    // Nom de fichier descriptif
-    const filename = `convocation_stage_${stage.NumeroStage}_${user.lastName.toLowerCase()}.pdf`;
+    // Nom de fichier descriptif avec le numéro de stage
+    const filename = `convocation_stage_${stage.NumeroStage}_${user.lastName.toLowerCase()}_${user.firstName.toLowerCase()}.pdf`;
 
     // Renvoyer le PDF avec les headers appropriés
     return new NextResponse(pdfUint8Array, {
@@ -102,10 +138,17 @@ export async function GET(request: Request) {
     });
     
   } catch (error: any) {
-    console.error("❌ Erreur lors de la génération du PDF:", error);
+    console.error("❌ Erreur lors de la génération du PDF avec jsPDF:", error);
     
     // Log détaillé pour debugging
     console.error("Stack trace:", error.stack);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      userId,
+      stageId,
+      typeStage
+    });
     
     return NextResponse.json({ 
       error: "Erreur lors de la génération du PDF",
@@ -118,14 +161,32 @@ export async function GET(request: Request) {
   }
 }
 
-// Fonction GET pour tester l'API (optionnel - pour développement)
+// Fonction POST pour une approche alternative (optionnel)
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: "Authentification requise" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { userId, stageId, typeStage } = body;
     
     if (!userId || !stageId) {
-      return NextResponse.json({ error: "userId et stageId sont requis" }, { status: 400 });
+      return NextResponse.json({ 
+        error: "userId et stageId sont requis" 
+      }, { status: 400 });
+    }
+
+    // Vérifier que l'utilisateur demande ses propres documents
+    if (userId !== Number(session.user.id)) {
+      return NextResponse.json(
+        { error: "Accès non autorisé" },
+        { status: 403 }
+      );
     }
 
     // Rediriger vers la méthode GET avec les paramètres
@@ -134,9 +195,16 @@ export async function POST(request: Request) {
     url.searchParams.set('stageId', stageId.toString());
     if (typeStage) url.searchParams.set('typeStage', typeStage);
     
-    return NextResponse.redirect(url.toString());
+    // Pour une méthode POST, il vaut mieux traiter directement plutôt que rediriger
+    // Appeler directement la logique de génération
+    const getRequest = new Request(url.toString());
+    return await GET(getRequest);
     
-  } catch (error) {
-    return NextResponse.json({ error: "Erreur lors du traitement de la requête POST" }, { status: 500 });
+  } catch (error: any) {
+    console.error("❌ Erreur lors du traitement de la requête POST:", error);
+    return NextResponse.json({ 
+      error: "Erreur lors du traitement de la requête POST",
+      message: error.message 
+    }, { status: 500 });
   }
 }

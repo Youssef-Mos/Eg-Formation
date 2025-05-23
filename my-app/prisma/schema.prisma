@@ -73,6 +73,8 @@ model User {
   sessions       Session[]
 
   reservations Reservation[]
+
+  Invoice Invoice[]
 }
 
 model Account {
@@ -127,8 +129,31 @@ model Reservation {
   user  User  @relation(fields: [userId],  references: [id])
   stage Stage @relation(fields: [stageId], references: [id])
   @@unique([userId, stageId]) // optionnel : un même user ne peut réserver deux fois le même stage
+  Invoice Invoice[]
 }
 
+model Invoice {
+  id                Int      @id @default(autoincrement())
+  invoiceNumber     String   @unique
+  amount            Float
+  currency          String   @default("EUR")
+  status            String   @default("paid") // paid, pending, cancelled
+  customerEmail     String
+  customerName      String
+  stripePaymentId   String?
+  pdfData           Bytes?   // Stockage du PDF en base
+  createdAt         DateTime @default(now())
+  dueDate           DateTime
+  
+  // Relations
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id])
+  reservationId     Int?
+  reservation       Reservation? @relation(fields: [reservationId], references: [id])
+  
+  @@index([invoiceNumber])
+  @@index([customerEmail])
+}
 
 model contact {
   id        Int      @id @default(autoincrement())

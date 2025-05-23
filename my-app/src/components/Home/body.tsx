@@ -53,78 +53,82 @@ export default function BodyHome () {
         </div>
         </AnimatedSection>
         <AnimatedSection>
-            <AnimatedCard delay={250}>
-                <div className="max-sm:w-xs w-lg m-auto md:w-2xl lg:w-4xl mt-10 text-gray-700 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://permisdeconduire.ants.gouv.fr" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel ANTS du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
+    <AnimatedCard delay={250}>
+        <div className="max-sm:w-xs w-lg m-auto md:w-2xl lg:w-4xl mt-10 text-gray-700 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://permisdeconduire.ants.gouv.fr" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel ANTS du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
+        </div>
+    </AnimatedCard>    
+    
+    {/* Boutons responsive - vertical sur mobile, horizontal sur desktop */}
+    <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-2 md:gap-5 mt-5">
+        <AnimatedCard delay={350}>
+            <a href="/"><Button variant="default" className="bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-white font-medium shadow-md hover:shadow-lg transition-all rounded-lg cursor-pointer text-md w-full sm:w-auto">Réservez maintenant</Button></a>
+        </AnimatedCard>
+
+        <AnimatedCard delay={350}>
+            <a href="/contact"><Button variant="outline" className="px-6 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 font-medium hover:bg-zinc-100 transition-all cursor-pointer text-md w-full sm:w-auto">Contactez-nous</Button></a>
+        </AnimatedCard>
+    </div>
+</AnimatedSection>
+
+{/* Carte 1 - Centrée sur mobile, alignée à gauche sur desktop */}
+<div className="flex w-full justify-center md:ml-20 md:justify-start items-start">
+    <AnimatedSection>
+        <AnimatedCard delay={400}>
+            <div className="flex gap-4 sm:gap-7 items-center flex-col md:flex-row sm:py-6 md:py-10 px-4 sm:px-6 md:px-0 justify-center md:justify-start text-sm md:text-md lg:text-lg w-full max-w-sm sm:max-w-lg md:max-w-3xl lg:max-w-4xl rounded-2xl mt-10 min-h-80 md:h-96 bg-gradient-to-br from-teal-100 to-white shadow-lg hover:shadow-xl transition-all border border-teal-100">
+                <div className="w-full max-w-xs sm:w-80 h-48 sm:h-56 md:h-64 mb-3 mt-3 md:ml-10 overflow-hidden rounded-xl shadow-md flex-shrink-0">
+                    <ImagesSliderDemo1 />
                 </div>
-            </ AnimatedCard>    
-            <div className="flex justify-center gap-2 md:gap-5 mt-5">
-            
-            <AnimatedCard delay={350}>
-                <a href="/"><Button variant="default" className="bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-white font-medium shadow-md hover:shadow-lg transition-all rounded-lg cursor-pointer text-md">Réservez maintenant</Button></a>
-            </AnimatedCard>
-
-            <AnimatedCard delay={350}>
-                <a href="/contact"><Button variant="outline" className="px-6 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 font-medium hover:bg-zinc-100 transition-all cursor-pointer text-md">Contactez-nous</Button></a>
-            </AnimatedCard>
+                <div className="w-full md:w-xl mx-4 md:mx-10 text-zinc-800">
+                    <p className="text-lg sm:text-xl mb-2 mx-2 sm:mx-3.5 font-semibold">Récupérez jusqu'à <span className="text-teal-400">4 points</span> sur votre permis en seulement 2 jours !</p>
+                    <p className="text-sm my-2 sm:my-3.5 mx-2 sm:mx-3.5 leading-relaxed">Nos stages de sensibilisation à la sécurité routière, agréés par la Préfecture, se déroulent sur 14 heures consécutives. Encadrés par un binôme pédagogique qualifié (expert en sécurité routière et psychologue), nos formations respectent scrupuleusement le cadre légal du Code de la route pour garantir la restitution de vos points.</p>
+                </div>
             </div>
-        </AnimatedSection>
-
-        
-        <div className="flex w-full ml-20 justify-baseline items-start">
-  <AnimatedSection>
-    <AnimatedCard delay={400}>
-      <div className="flex gap-7 sm:h-full md:h-auto items-center flex-col md:flex-row sm:py-10 sm:px-10 md:px-0 justify-center md:justify-start text-sm md:text-md lg:text-lg w-lg md:w-2xl lg:w-4xl rounded-2xl mt-10 h-96 bg-gradient-to-br from-teal-100 to-white shadow-lg hover:shadow-xl transition-all border border-teal-100">
-        <div className=" w-80 h-64 mb-3 mt-3 md:ml-10 overflow-hidden rounded-xl shadow-md">
-          <ImagesSliderDemo1 />
-        </div>
-        <div className="w-lg mx-10 text-zinc-800">
-          <p className="text-xl mb-2 mx-3.5 font-semibold indent-4">Récupérez jusqu'à <span className="text-teal-400">4 points</span> sur votre permis en seulement 2 jours !</p>
-          <p className="text-sm my-3.5 mx-3.5">Nos stages de sensibilisation à la sécurité routière, agréés par la Préfecture, se déroulent sur 14 heures consécutives. Encadrés par un binôme pédagogique qualifié (expert en sécurité routière et psychologue), nos formations respectent scrupuleusement le cadre légal du Code de la route pour garantir la restitution de vos points.</p>
-        </div>
-      </div>
-    </AnimatedCard>
-  </AnimatedSection>
+        </AnimatedCard>
+    </AnimatedSection>
 </div>
 
-<div className="flex w-full mr-20 justify-end items-start">
-  <AnimatedSection>
-    <AnimatedCard delay={500}>
-      <div className="flex items-center sm:h-full md:h-auto flex-col md:flex-row sm:py-10 sm:px-10 md:px-0 justify-center md:justify-end w-lg md:w-2xl lg:w-4xl text-sm md:text-md lg:text-lg rounded-2xl mt-10 h-96 bg-gradient-to-br from-amber-50 to-white shadow-lg hover:shadow-xl transition-all border border-amber-100">
-        <div className="mb-3 mt-3 w-80 h-64 md:ml-10 overflow-hidden rounded-xl shadow-md">
-          <ImagesSliderDemo2 />
-        </div>
-        <div className="w-lg mx-7  text-zinc-800">
-          <div className="mb-2 mx-3.5 indent-4 font-semibold">Le permis à points est conçu pour encourager une <span className="text-amber-400">conduite responsable</span>. Plusieurs options s'offrent à vous pour reconstituer votre capital :</div>
-          <div className="flex flex-col mx-3.5 my-3.5 gap-3">
-            <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Récupération automatique : 1 point après 6 mois, ou totalité après 2 ou 3 ans sans infraction</span>
-            <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Stage volontaire : jusqu'à 4 points récupérés immédiatement (limité à un stage par an)</span>
-            <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Stage obligatoire : imposé aux conducteurs en période probatoire ayant commis des infractions graves</span>
-          </div>
-        </div>
-      </div>
-    </AnimatedCard>
-  </AnimatedSection>
+{/* Carte 2 - Centrée sur mobile, alignée à droite sur desktop */}
+<div className="flex w-full justify-center md:mr-20 md:justify-end items-start">
+    <AnimatedSection>
+        <AnimatedCard delay={500}>
+            <div className="flex gap-4 sm:gap-7 items-center flex-col md:flex-row sm:py-6 md:py-10 px-4 sm:px-6 md:px-0 justify-center md:justify-end w-full max-w-sm sm:max-w-lg md:max-w-3xl lg:max-w-4xl text-sm md:text-md lg:text-lg rounded-2xl mt-10 min-h-80 md:h-96 bg-gradient-to-br from-amber-50 to-white shadow-lg hover:shadow-xl transition-all border border-amber-100">
+                <div className="w-full max-w-xs sm:w-80 h-48 sm:h-56 md:h-64 mb-3 mt-3 md:ml-10 overflow-hidden rounded-xl shadow-md flex-shrink-0 md:order-first">
+                    <ImagesSliderDemo2 />
+                </div>
+                <div className="w-full md:w-xl mx-4 md:mx-7 text-zinc-800">
+                    <div className="mb-2 mx-2 sm:mx-3.5 font-semibold">Le permis à points est conçu pour encourager une <span className="text-amber-400">conduite responsable</span>. Plusieurs options s'offrent à vous pour reconstituer votre capital :</div>
+                    <div className="flex flex-col mx-2 sm:mx-3.5 my-2 sm:my-3.5 gap-2 sm:gap-3">
+                        <span className="flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Récupération automatique : 1 point après 6 mois, ou totalité après 2 ou 3 ans sans infraction</span>
+                        <span className="flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Stage volontaire : jusqu'à 4 points récupérés immédiatement (limité à un stage par an)</span>
+                        <span className="flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Stage obligatoire : imposé aux conducteurs en période probatoire ayant commis des infractions graves</span>
+                    </div>
+                </div>
+            </div>
+        </AnimatedCard>
+    </AnimatedSection>
 </div>
 
-<div className="flex w-full ml-20 justify-baseline items-start">
-  <AnimatedSection>
-    <AnimatedCard delay={600}>
-      <div className="flex items-center flex-col sm:h-full md:h-auto md:flex-row sm:py-10 sm:px-10 md:px-0 justify-center md:justify-end w-lg md:w-2xl lg:w-4xl rounded-2xl text-sm md:text-md lg:text-lg mt-10 h-96 bg-gradient-to-br from-fuchsia-50 to-white shadow-lg hover:shadow-xl transition-all border border-fuchsia-100">
-        <div className="mb-3 mt-3 w-80 h-64 md:ml-10 overflow-hidden rounded-xl shadow-md">
-          <ImagesSliderDemo3 />
-        </div>
-        <div className="w-lg mx-7 text-zinc-800">
-          <div className="mb-2 mx-3.5 indent-4 font-semibold">Nos stages sont <span className="text-fuchsia-400">interactifs</span> et <span className="text-fuchsia-400">adaptés</span> à tous les profils de conducteurs :</div>
-          <div className="flex flex-col mx-3.5 my-3.5 gap-3">
-            <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Alternance de sessions théoriques et d'ateliers pratiques sur les comportements à risque</span>
-            <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Échanges constructifs entre participants et formateurs dans un cadre bienveillant</span>
-            <span className="indent-8 flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Aucun examen final : votre présence active aux 14 heures garantit la récupération de vos points dès le lendemain</span>
-          </div>
-        </div>
-      </div>
-    </AnimatedCard>
-  </AnimatedSection>
+{/* Carte 3 - Centrée sur mobile, alignée à gauche sur desktop */}
+<div className="flex w-full justify-center md:ml-20 md:justify-start items-start">
+    <AnimatedSection>
+        <AnimatedCard delay={600}>
+            <div className="flex gap-4 sm:gap-7 items-center flex-col md:flex-row sm:py-6 md:py-10 px-4 sm:px-6 md:px-0 justify-center md:justify-end w-full max-w-sm sm:max-w-lg md:max-w-3xl lg:max-w-4xl rounded-2xl text-sm md:text-md lg:text-lg mt-10 min-h-80 md:h-96 bg-gradient-to-br from-fuchsia-50 to-white shadow-lg hover:shadow-xl transition-all border border-fuchsia-100">
+                <div className="w-full max-w-xs sm:w-80 h-48 sm:h-56 md:h-64 mb-3 mt-3 md:ml-10 overflow-hidden rounded-xl shadow-md flex-shrink-0">
+                    <ImagesSliderDemo3 />
+                </div>
+                <div className="w-full md:w-xl mx-4 md:mx-7 text-zinc-800">
+                    <div className="mb-2 mx-2 sm:mx-3.5 font-semibold">Nos stages sont <span className="text-fuchsia-400">interactifs</span> et <span className="text-fuchsia-400">adaptés</span> à tous les profils de conducteurs :</div>
+                    <div className="flex flex-col mx-2 sm:mx-3.5 my-2 sm:my-3.5 gap-2 sm:gap-3">
+                        <span className="flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Alternance de sessions théoriques et d'ateliers pratiques sur les comportements à risque</span>
+                        <span className="flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Échanges constructifs entre participants et formateurs dans un cadre bienveillant</span>
+                        <span className="flex items-start"><CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-1 flex-shrink-0" />Aucun examen final : votre présence active aux 14 heures garantit la récupération de vos points dès le lendemain</span>
+                    </div>
+                </div>
+            </div>
+        </AnimatedCard>
+    </AnimatedSection>
+
         </div>
         </>
     )

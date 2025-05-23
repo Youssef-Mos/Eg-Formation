@@ -4,6 +4,7 @@ import "./globals.css";
 import { Background } from "@/components/background";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./Provider";
+import CookieConsent from "@/components/Cookies/cookie-consent";
 
 const inter = Inter();
 
@@ -30,6 +31,7 @@ export default function RootLayout({
        
         <Providers>
           {children}
+          <CookieConsent />
         </Providers>
         
         <Toaster />

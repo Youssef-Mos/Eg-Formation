@@ -17,3 +17,10 @@ declare module "next-auth" {
     role: string;
   }
 }
+
+declare global {
+  interface Window {
+    GA_INITIALIZED?: boolean;
+    gtag?: (...args: any[]) => void;
+  }
+}

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { PrismaClient } from "@prisma/client";
+import { processInvoiceAfterPayment } from "@/app/utils/invoiceGeneratorJsPDF";
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -10,11 +11,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-// IMPORTANT: Cette configuration pour Next.js App Router
 export async function POST(request: Request) {
-  console.log("🔄 Webhook reçu"); // Log pour vérifier si la route est appelée
+  console.log("🔄 Webhook reçu");
   
-  // Récupérer la signature et le corps brut
   const signature = request.headers.get("stripe-signature");
   
   if (!signature) {
@@ -23,10 +22,8 @@ export async function POST(request: Request) {
   }
   
   try {
-    // Récupérer le corps brut de la requête
     const body = await request.text();
     
-    // Vérifier la signature
     const event = stripe.webhooks.constructEvent(
       body,
       signature,
@@ -35,7 +32,6 @@ export async function POST(request: Request) {
     
     console.log("✅ Événement Stripe validé:", event.type);
     
-    // Traiter l'événement
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       console.log("📦 Session Stripe complétée:", session.id);
@@ -51,10 +47,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Metadata manquante" }, { status: 400 });
       }
       
-      // Votre logique de traitement ici...
-      // Création ou mise à jour de la réservation
+      let finalReservationId = reservationId;
       
-      // Pour débuter, créons simplement la réservation
       if (reservationId) {
         // Mise à jour du mode de paiement
         await prisma.reservation.update({
@@ -84,6 +78,7 @@ export async function POST(request: Request) {
             }
           });
           console.log("✅ Nouvelle réservation créée:", newReservation.id);
+          finalReservationId = newReservation.id;
 
           // Mettre à jour le nombre de places
           await prisma.stage.update({
@@ -104,7 +99,99 @@ export async function POST(request: Request) {
             }
           });
           console.log("✅ Réservation existante mise à jour:", existingReservation.id);
+          finalReservationId = existingReservation.id;
         }
+      }
+
+      // Générer et envoyer la facture
+      if (finalReservationId && session.payment_intent) {
+        try {
+          console.log("🧾 Génération de la facture...");
+          
+          const paymentIntentId = typeof session.payment_intent === 'string' 
+            ? session.payment_intent 
+            : session.payment_intent.id;
+          
+          const amount = session.amount_total || 0;
+          const currency = session.currency || 'eur';
+          
+          const result = await processInvoiceAfterPayment(
+            finalReservationId,
+            paymentIntentId,
+            amount,
+            currency.toUpperCase()
+          );
+          
+          console.log("✅ Facture générée avec succès:", result.invoiceNumber);
+        } catch (invoiceError) {
+          console.error("❌ Erreur lors de la génération de la facture:", invoiceError);
+          // Ne pas faire échouer le webhook à cause d'une erreur de facture
+        }
+      }
+
+      // Envoyer l'email de confirmation (si vous avez cette fonction)
+      try {
+        const reservation = await prisma.reservation.findUnique({
+          where: { id: finalReservationId! },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            },
+            stage: {
+              select: {
+                id: true,
+                Titre: true,
+                Adresse: true,
+                CodePostal: true,
+                Ville: true,
+                DateDebut: true,
+                DateFin: true,
+                HeureDebut: true,
+                HeureFin: true,
+                HeureDebut2: true,
+                HeureFin2: true,
+                Prix: true,
+                NumeroStage: true
+              }
+            }
+          }
+        });
+
+        if (reservation?.user?.email && reservation?.stage) {
+          console.log("📧 Envoi de l'email de confirmation...");
+          
+          // Import dynamique de la fonction d'envoi d'email si elle existe
+          try {
+            const { sendConfirmationEmail } = await import('@/app/utils/convocationGeneratorJsPDF');
+            
+            function mapStageTypeToNumber(typeStage: string): 1 | 2 | 3 | 4 {
+              const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
+                "recuperation_points": 1,
+                "permis_probatoire": 2,
+                "alternative_poursuites": 3,
+                "peine_complementaire": 4
+              };
+              return typeMapping[typeStage] || 1;
+            }
+
+            await sendConfirmationEmail(
+              reservation.user,
+              reservation.stage,
+              { stageType: mapStageTypeToNumber(typeStage) }
+            );
+            
+            console.log("✅ Email de confirmation envoyé");
+          } catch (utilsError) {
+            console.log("ℹ️ Fonction sendConfirmationEmail non disponible, email non envoyé");
+          }
+        }
+      } catch (emailError) {
+        console.error("❌ Erreur lors de l'envoi de l'email de confirmation:", emailError);
       }
     }
     
@@ -115,5 +202,7 @@ export async function POST(request: Request) {
       { error: "Erreur de validation webhook" },
       { status: 400 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
