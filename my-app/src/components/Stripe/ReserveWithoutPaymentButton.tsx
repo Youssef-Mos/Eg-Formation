@@ -20,6 +20,7 @@ interface ReserveWithoutPaymentProps {
   typeStage: string | null;
   userId: number | null;
   placesDisponibles: number;
+  disabled?: boolean;
 }
 
 export default function ReserveWithoutPaymentButton({

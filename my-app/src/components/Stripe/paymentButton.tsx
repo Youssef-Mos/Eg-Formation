@@ -12,6 +12,7 @@ interface PaymentButtonProps {
   stageTitle: string;
   stagePrice: number;
   typeStage: string | null;
+  disabled?: boolean;
 }
 
 export default function PaymentButton({ stageId, stageTitle, stagePrice, typeStage }: PaymentButtonProps) {
