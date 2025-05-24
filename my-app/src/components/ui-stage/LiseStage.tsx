@@ -15,7 +15,9 @@ import {
   Euro, 
   Hash,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  Ban
 } from "lucide-react";
 import {
   Pagination,
@@ -54,11 +56,37 @@ interface ListeStagesProps {
   filters: FilterValues;
 }
 
+// Fonction pour envoyer une notification email à l'admin
+const sendAdminNotification = async (stage: Stage) => {
+  try {
+    const response = await fetch('/api/admin/stage-complete-notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        stageId: stage.id,
+        stageTitle: stage.Titre,
+        stageNumber: stage.NumeroStage,
+        stageDate: stage.DateDebut,
+        stageLocation: `${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}`,
+      }),
+    });
+
+    if (response.ok) {
+      console.log('✅ Notification admin envoyée pour le stage complet:', stage.NumeroStage);
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'envoi de la notification admin:', error);
+  }
+};
+
 export default function ListeStages({ filters }: ListeStagesProps) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
+  const [notifiedStages, setNotifiedStages] = useState<Set<number>>(new Set());
 
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -74,6 +102,15 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         const res = await fetch("/api/Stage/RecupStage");
         if (!res.ok) throw new Error("Erreur de récupération");
         const data = await res.json();
+        
+        // Vérifier les stages complets et envoyer des notifications
+        data.forEach((stage: Stage) => {
+          if (stage.PlaceDisponibles === 0 && !notifiedStages.has(stage.id)) {
+            sendAdminNotification(stage);
+            setNotifiedStages(prev => new Set(prev).add(stage.id));
+          }
+        });
+        
         setStages(data);
       } catch (error) {
         console.error(error);
@@ -84,7 +121,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     };
 
     fetchStages();
-  }, []);
+  }, [notifiedStages]);
 
   const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
@@ -104,8 +141,14 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     }
   };
 
-  const handleReservation = (id: number) => {
-    const targetUrl = `/reservation/${id}`;
+  const handleReservation = (stage: Stage) => {
+    // Vérifier si le stage a encore des places
+    if (stage.PlaceDisponibles === 0) {
+      toast.error("Ce stage est complet. Aucune place disponible.");
+      return;
+    }
+
+    const targetUrl = `/reservation/${stage.id}`;
     if (!session) {
       setCallbackUrl(targetUrl);
       setLoginOpen(true);
@@ -183,103 +226,195 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         <>
           {/* Grille des stages */}
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {paginatedStages.map((stage) => (
-              <div
-                key={stage.id}
-                className="group bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 ease-in-out hover:-translate-y-1"
-              >
-                {/* Header de la carte */}
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-2">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors duration-200 line-clamp-2">
-                    {stage.Titre}
-                  </h2>
-                  <div className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-full flex-shrink-0">
-                    <Hash className="w-3 h-3" />
-                    {stage.NumeroStage}
-                  </div>
-                </div>
-
-                {/* Informations principales */}
-                <div className="space-y-3 mb-6">
-                  {/* Localisation */}
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-gray-600 min-w-0">
-                      <p className="truncate">{stage.Adresse}</p>
-                      <p className="font-medium">{stage.CodePostal} {stage.Ville}</p>
+            {paginatedStages.map((stage) => {
+              const isComplete = stage.PlaceDisponibles === 0;
+              const isAlmostFull = stage.PlaceDisponibles <= 2 && stage.PlaceDisponibles > 0;
+              
+              return (
+                <div
+                  key={stage.id}
+                  className={`
+                    group relative border rounded-2xl p-4 sm:p-6 shadow-sm transition-all duration-300 ease-in-out
+                    ${isComplete 
+                      ? 'bg-gray-50 border-gray-300 opacity-75' 
+                      : 'bg-white border-gray-200 hover:shadow-xl hover:border-blue-200 hover:-translate-y-1'
+                    }
+                  `}
+                >
+                  {/* Badge "COMPLET" */}
+                  {isComplete && (
+                    <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+                      <Ban className="w-3 h-3" />
+                      COMPLET
                     </div>
-                  </div>
-
-                  {/* Dates */}
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <div className="text-sm text-gray-600 min-w-0">
-                      <span className="block sm:inline">
-                        Du {formatDate(stage.DateDebut)}
-                      </span>
-                      <span className="block sm:inline sm:ml-1">
-                        au {formatDate(stage.DateFin)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Horaires */}
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-gray-600 min-w-0">
-                      <p>{stage.HeureDebut} - {stage.HeureFin}</p>
-                      <p>{stage.HeureDebut2} - {stage.HeureFin2}</p>
-                    </div>
-                  </div>
-
-                  {/* Places disponibles */}
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                    <span className="text-sm text-gray-600">
-                      {stage.PlaceDisponibles} places disponibles
-                    </span>
-                  </div>
-                </div>
-
-                {/* Footer de la carte */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
-                  {/* Prix */}
-                  <div className="flex items-center gap-1">
-                    <Euro className="w-5 h-5 text-green-600" />
-                    <span className="text-xl font-bold text-gray-800">{stage.Prix}€</span>
-                  </div>
-
-                  {/* Boutons d'action */}
-                  {session?.user?.role === "admin" ? (
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200"
-                        onClick={() => handleDelete(stage.id)}
-                      >
-                        Supprimer
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200 bg-blue-600 hover:bg-blue-700"
-                        onClick={() => handleOpenEdit(stage)}
-                      >
-                        Modifier
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="w-full sm:w-auto cursor-pointer hover:scale-105 transition-transform duration-200 bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25"
-                      onClick={() => handleReservation(stage.id)}
-                    >
-                      Réserver maintenant
-                    </Button>
                   )}
+
+                  {/* Badge "Dernières places" */}
+                  {isAlmostFull && !isComplete && (
+                    <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+                      <AlertTriangle className="w-3 h-3" />
+                      DERNIÈRES PLACES
+                    </div>
+                  )}
+
+                  {/* Header de la carte */}
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-2">
+                    <h2 className={`
+                      text-lg sm:text-xl font-bold transition-colors duration-200 line-clamp-2
+                      ${isComplete 
+                        ? 'text-gray-500' 
+                        : 'text-gray-800 group-hover:text-blue-600'
+                      }
+                    `}>
+                      {stage.Titre}
+                    </h2>
+                    <div className={`
+                      flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full flex-shrink-0
+                      ${isComplete 
+                        ? 'text-gray-400 bg-gray-200' 
+                        : 'text-gray-500 bg-gray-50'
+                      }
+                    `}>
+                      <Hash className="w-3 h-3" />
+                      {stage.NumeroStage}
+                    </div>
+                  </div>
+
+                  {/* Informations principales */}
+                  <div className="space-y-3 mb-6">
+                    {/* Localisation */}
+                    <div className="flex items-start gap-2">
+                      <MapPin className={`
+                        w-4 h-4 mt-0.5 flex-shrink-0
+                        ${isComplete ? 'text-gray-400' : 'text-blue-500'}
+                      `} />
+                      <div className={`
+                        text-sm min-w-0
+                        ${isComplete ? 'text-gray-500' : 'text-gray-600'}
+                      `}>
+                        <p className="truncate">{stage.Adresse}</p>
+                        <p className="font-medium">{stage.CodePostal} {stage.Ville}</p>
+                      </div>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="flex items-center gap-2">
+                      <Calendar className={`
+                        w-4 h-4 flex-shrink-0
+                        ${isComplete ? 'text-gray-400' : 'text-green-500'}
+                      `} />
+                      <div className={`
+                        text-sm min-w-0
+                        ${isComplete ? 'text-gray-500' : 'text-gray-600'}
+                      `}>
+                        <span className="block sm:inline">
+                          Du {formatDate(stage.DateDebut)}
+                        </span>
+                        <span className="block sm:inline sm:ml-1">
+                          au {formatDate(stage.DateFin)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Horaires */}
+                    <div className="flex items-start gap-2">
+                      <Clock className={`
+                        w-4 h-4 mt-0.5 flex-shrink-0
+                        ${isComplete ? 'text-gray-400' : 'text-orange-500'}
+                      `} />
+                      <div className={`
+                        text-sm min-w-0
+                        ${isComplete ? 'text-gray-500' : 'text-gray-600'}
+                      `}>
+                        <p>{stage.HeureDebut} - {stage.HeureFin}</p>
+                        <p>{stage.HeureDebut2} - {stage.HeureFin2}</p>
+                      </div>
+                    </div>
+
+                    {/* Places disponibles */}
+                    <div className="flex items-center gap-2">
+                      <Users className={`
+                        w-4 h-4 flex-shrink-0
+                        ${isComplete ? 'text-red-500' : isAlmostFull ? 'text-orange-500' : 'text-purple-500'}
+                      `} />
+                      <span className={`
+                        text-sm font-medium
+                        ${isComplete ? 'text-red-600' : isAlmostFull ? 'text-orange-600' : 'text-gray-600'}
+                      `}>
+                        {isComplete 
+                          ? 'Aucune place disponible' 
+                          : `${stage.PlaceDisponibles} place${stage.PlaceDisponibles > 1 ? 's' : ''} disponible${stage.PlaceDisponibles > 1 ? 's' : ''}`
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Footer de la carte */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
+                    {/* Prix */}
+                    <div className="flex items-center gap-1">
+                      <Euro className={`
+                        w-5 h-5
+                        ${isComplete ? 'text-gray-400' : 'text-green-600'}
+                      `} />
+                      <span className={`
+                        text-xl font-bold
+                        ${isComplete ? 'text-gray-500' : 'text-gray-800'}
+                      `}>
+                        {stage.Prix}€
+                      </span>
+                    </div>
+
+                    {/* Boutons d'action */}
+                    {session?.user?.role === "admin" ? (
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200"
+                          onClick={() => handleDelete(stage.id)}
+                        >
+                          Supprimer
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200 bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleOpenEdit(stage)}
+                        >
+                          Modifier
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="w-full sm:w-auto">
+                        {isComplete ? (
+                          <Button
+                            size="sm"
+                            disabled
+                            className="w-full sm:w-auto bg-gray-300 text-gray-500 cursor-not-allowed"
+                          >
+                            Stage complet
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className={`
+                              w-full sm:w-auto cursor-pointer hover:scale-105 transition-transform duration-200 shadow-lg
+                              ${isAlmostFull 
+                                ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-orange-500/25' 
+                                : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/25'
+                              }
+                            `}
+                            onClick={() => handleReservation(stage)}
+                          >
+                            {isAlmostFull ? 'Réserver vite !' : 'Réserver maintenant'}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pagination modernisée */}
