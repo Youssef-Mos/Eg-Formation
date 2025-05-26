@@ -20,6 +20,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { motion } from "framer-motion";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function AddStagePage() {
   const router = useRouter();
@@ -79,6 +80,7 @@ export default function AddStagePage() {
   };
 
   return (
+    <AuthGuard requireAuth={true} requireAdmin={true}>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -378,5 +380,6 @@ export default function AddStagePage() {
         </motion.div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

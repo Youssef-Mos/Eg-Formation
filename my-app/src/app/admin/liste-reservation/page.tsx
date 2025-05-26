@@ -1,10 +1,11 @@
 import Nav from "@/components/nav";
 import React from "react";
-
+import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function ListeResa() {
     return (
         <>
+        <AuthGuard requireAuth={true} requireAdmin={true}>
             <div className="flex justify-center items-center  flex-col gap-10 z-50">
                 <div className="sticky top-0 z-50">
                     <Nav />
@@ -14,6 +15,7 @@ export default function ListeResa() {
                     <h2 className="text-lg max-md:text-sm mb-5 text-center">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</h2>
                 </div>
             </div>
+        </AuthGuard>
         </>
     )
 }

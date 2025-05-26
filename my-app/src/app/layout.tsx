@@ -5,6 +5,7 @@ import { Background } from "@/components/background";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./Provider";
 import CookieConsent from "@/components/Cookies/cookie-consent";
+import SecureSessionProvider from "@/components/providers/SecureSessionProvider";
 
 const inter = Inter();
 
@@ -28,12 +29,12 @@ export default function RootLayout({
         className={`${inter.className} antialiased`}
       > 
         <Background />
-       
+       <SecureSessionProvider>
         <Providers>
           {children}
           <CookieConsent />
         </Providers>
-        
+        </SecureSessionProvider>
         <Toaster />
         
       
