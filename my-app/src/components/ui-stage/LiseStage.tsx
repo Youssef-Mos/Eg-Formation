@@ -7,6 +7,16 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import LoginModalResa from "../ui-reservation/loginredirect";
 import EditStageModal from "../admin/EditStage";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Calendar, 
   MapPin, 
@@ -17,7 +27,10 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  Ban
+  Ban,
+  Trash2,
+  UserCheck,
+  AlertCircle
 } from "lucide-react";
 import {
   Pagination,
@@ -43,6 +56,7 @@ interface Stage {
   HeureDebut2: string;
   HeureFin2: string;
   Prix: number;
+  createdAt: Date; // Ajout pour le tri
 }
 
 interface FilterValues {
@@ -50,6 +64,7 @@ interface FilterValues {
   departement: string;
   date: Date | null;
   motsCles: string;
+  placesDisponibles: [number, number]; // NOUVEAU : Range [min, max]
 }
 
 interface ListeStagesProps {
@@ -81,6 +96,43 @@ const sendAdminNotification = async (stage: Stage) => {
   }
 };
 
+// Fonction pour obtenir un message d'erreur détaillé
+const getDeleteErrorMessage = (errorCode: string, reservationsCount?: number) => {
+  switch (errorCode) {
+    case 'STAGE_HAS_RESERVATIONS':
+      return {
+        title: 'Suppression impossible',
+        description: `Ce stage ne peut pas être supprimé car il contient ${reservationsCount || 'des'} réservation(s) active(s). Vous devez d'abord déplacer ou annuler toutes les réservations avant de pouvoir supprimer ce stage.`,
+        icon: <UserCheck className="w-6 h-6 text-orange-500" />
+      };
+    case 'INVALID_STAGE_ID':
+      return {
+        title: 'Erreur d\'identification',
+        description: 'L\'identifiant du stage est invalide. Veuillez rafraîchir la page et réessayer.',
+        icon: <AlertCircle className="w-6 h-6 text-red-500" />
+      };
+    case 'STAGE_NOT_FOUND':
+      return {
+        title: 'Stage introuvable',
+        description: 'Ce stage n\'existe plus dans la base de données. Il a peut-être déjà été supprimé.',
+        icon: <AlertTriangle className="w-6 h-6 text-yellow-500" />
+      };
+    case 'AUTH_REQUIRED':
+    case 'ADMIN_REQUIRED':
+      return {
+        title: 'Droits insuffisants',
+        description: 'Vous n\'avez pas les permissions nécessaires pour supprimer ce stage. Veuillez vous reconnecter en tant qu\'administrateur.',
+        icon: <Ban className="w-6 h-6 text-red-500" />
+      };
+    default:
+      return {
+        title: 'Erreur de suppression',
+        description: 'Une erreur inattendue s\'est produite lors de la suppression. Veuillez réessayer ou contacter le support technique.',
+        icon: <AlertTriangle className="w-6 h-6 text-red-500" />
+      };
+  }
+};
+
 export default function ListeStages({ filters }: ListeStagesProps) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +142,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
 
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
+
+  // États pour la confirmation de suppression
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const ITEMS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,15 +160,20 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         if (!res.ok) throw new Error("Erreur de récupération");
         const data = await res.json();
         
+        // Trier les stages par date de création (plus récents en premier)
+        const sortedStages = data.sort((a: Stage, b: Stage) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        
         // Vérifier les stages complets et envoyer des notifications
-        data.forEach((stage: Stage) => {
+        sortedStages.forEach((stage: Stage) => {
           if (stage.PlaceDisponibles === 0 && !notifiedStages.has(stage.id)) {
             sendAdminNotification(stage);
             setNotifiedStages(prev => new Set(prev).add(stage.id));
           }
         });
         
-        setStages(data);
+        setStages(sortedStages);
       } catch (error) {
         console.error(error);
         toast.error("Erreur réseau");
@@ -128,16 +190,55 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     return date.toLocaleDateString("fr-FR");
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      const res = await fetch(`/api/Stage/DeleteStage/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erreur lors de la suppression");
+  const handleDeleteClick = (stage: Stage) => {
+    setStageToDelete(stage);
+    setIsDeleteDialogOpen(true);
+  };
 
-      setStages((prev) => prev.filter((stage) => stage.id !== id));
-      toast.success("Stage supprimé avec succès");
+  const handleDeleteConfirm = async () => {
+    if (!stageToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/Stage/DeleteStage/${stageToDelete.id}`, { 
+        method: "DELETE" 
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorInfo = getDeleteErrorMessage(
+          errorData.code, 
+          errorData.reservationsCount
+        );
+        
+        // Afficher une alerte détaillée pour les erreurs spécifiques
+        toast.error(
+          <div className="flex items-start gap-3">
+            {errorInfo.icon}
+            <div>
+              <div className="font-semibold">{errorInfo.title}</div>
+              <div className="text-sm text-gray-600 mt-1">{errorInfo.description}</div>
+            </div>
+          </div>,
+          { duration: 8000 }
+        );
+        return;
+      }
+
+      setStages((prev) => prev.filter((stage) => stage.id !== stageToDelete.id));
+      toast.success(
+        <div className="flex items-center gap-2">
+          <Trash2 className="w-4 h-4" />
+          <span>Stage "{stageToDelete.Titre}" supprimé avec succès</span>
+        </div>
+      );
     } catch (error) {
       console.error("Erreur lors de la suppression :", error);
-      toast.error("Erreur lors de la suppression du stage");
+      toast.error("Erreur réseau lors de la suppression du stage");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setStageToDelete(null);
     }
   };
 
@@ -186,7 +287,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
       !filters.date ||
       new Date(stage.DateDebut).toDateString() === new Date(filters.date).toDateString();
 
-    return matchVille && matchDepartement && matchMotsCles && matchDate;
+    // NOUVEAU : Filtrage par places disponibles
+    const [minPlaces, maxPlaces] = filters.placesDisponibles;
+    const matchPlaces = stage.PlaceDisponibles >= minPlaces && stage.PlaceDisponibles <= maxPlaces;
+
+    return matchVille && matchDepartement && matchMotsCles && matchDate && matchPlaces;
   });
 
   // Pagination
@@ -203,7 +308,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         </h1>
         <p className="text-gray-600 text-sm sm:text-base">
           {filteredStages.length > 0 
-            ? `${filteredStages.length} stage(s) disponible(s)`
+            ? `${filteredStages.length} stage(s) disponible(s) • Triés par date d'ajout`
             : "Aucun stage trouvé"
           }
         </p>
@@ -371,9 +476,10 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200"
-                          onClick={() => handleDelete(stage.id)}
+                          className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200 flex items-center gap-1"
+                          onClick={() => handleDeleteClick(stage)}
                         >
+                          <Trash2 className="w-4 h-4" />
                           Supprimer
                         </Button>
                         <Button
@@ -482,6 +588,62 @@ export default function ListeStages({ filters }: ListeStagesProps) {
           )}
         </>
       )}
+
+      {/* AlertDialog pour la confirmation de suppression */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Confirmer la suppression
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <div>
+                Êtes-vous sûr de vouloir supprimer le stage suivant ?
+              </div>
+              {stageToDelete && (
+                <div className="bg-gray-50 p-3 rounded-lg border space-y-1">
+                  <div className="font-semibold text-gray-800">{stageToDelete.Titre}</div>
+                  <div className="text-sm text-gray-600">
+                    📍 {stageToDelete.Adresse}, {stageToDelete.CodePostal} {stageToDelete.Ville}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    📅 Du {formatDate(stageToDelete.DateDebut)} au {formatDate(stageToDelete.DateFin)}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    #{stageToDelete.NumeroStage} • {stageToDelete.PlaceDisponibles} places disponibles
+                  </div>
+                </div>
+              )}
+              <div className="text-sm text-red-600 font-medium">
+                ⚠️ Cette action est irréversible et supprimera définitivement toutes les données associées.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Suppression...
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <Trash2 className="w-4 h-4" />
+                  Supprimer définitivement
+                </div>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <LoginModalResa
         isOpen={isLoginOpen}

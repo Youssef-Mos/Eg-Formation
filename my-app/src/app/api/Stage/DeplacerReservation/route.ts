@@ -1,10 +1,22 @@
 // app/api/reservation/deplacer-resa/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { withAdminAuth, validateRequestData, logApiAccess } from "@/lib/apiSecurity";
 import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 
 const prisma = new PrismaClient();
+
+// Validateur pour les données de déplacement
+const isValidMoveData = (data: any): data is { userId: number; fromStageId: number; toStageId: number } => {
+  return (
+    typeof data === "object" &&
+    typeof data.userId === "number" && data.userId > 0 &&
+    typeof data.fromStageId === "number" && data.fromStageId > 0 &&
+    typeof data.toStageId === "number" && data.toStageId > 0 &&
+    data.fromStageId !== data.toStageId
+  );
+};
 
 // Fonction pour générer l'attestation PDF (similaire à celle utilisée pour validate-payment)
 async function generateReservationPDF(stage: any, user: any, typeStage: string): Promise<Buffer> {
@@ -106,25 +118,29 @@ async function sendEmailNotification(email: string, userName: string, oldStage: 
   });
 }
 
-export async function POST(request: Request) {
-  const body = await request.json();
-  const { userId, fromStageId, toStageId } = body;
+export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
+  const { data, error } = await validateRequestData(request, isValidMoveData);
   
-  if (!userId || !fromStageId || !toStageId) {
-    return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
+  if (error) {
+    logApiAccess(request, session, false, "INVALID_MOVE_DATA");
+    return error;
   }
+
+  const { userId, fromStageId, toStageId } = data!;
   
   try {
     // 1. Récupérer la réservation avec tous ses détails
     const reservation = await prisma.reservation.findFirst({
       where: { userId, stageId: fromStageId },
-      include: {
-        user: true  // Inclure les détails de l'utilisateur
-      }
+      include: { user: true }
     });
     
     if (!reservation) {
-      return NextResponse.json({ error: "Réservation non trouvée" }, { status: 404 });
+      logApiAccess(request, session, false, "RESERVATION_NOT_FOUND");
+      return NextResponse.json(
+        { error: "Réservation non trouvée", code: "RESERVATION_NOT_FOUND" },
+        { status: 404 }
+      );
     }
     
     // 2. Récupérer les détails des deux stages
@@ -134,14 +150,22 @@ export async function POST(request: Request) {
     ]);
     
     if (!fromStage || !toStage) {
-      return NextResponse.json({ error: "Stage non trouvé" }, { status: 404 });
+      logApiAccess(request, session, false, "STAGE_NOT_FOUND");
+      return NextResponse.json(
+        { error: "Stage non trouvé", code: "STAGE_NOT_FOUND" },
+        { status: 404 }
+      );
     }
     
     if (toStage.PlaceDisponibles <= 0) {
-      return NextResponse.json({ error: "Pas de place dans le stage cible" }, { status: 400 });
+      logApiAccess(request, session, false, "NO_PLACES_AVAILABLE");
+      return NextResponse.json(
+        { error: "Pas de place dans le stage cible", code: "NO_PLACES_AVAILABLE" },
+        { status: 400 }
+      );
     }
     
-    // 3. Mettre à jour la réservation (préserver toutes les propriétés, seulement changer le stageId)
+    // 3. Mettre à jour la réservation
     await prisma.reservation.update({
       where: { id: reservation.id },
       data: { stageId: toStageId }
@@ -159,39 +183,30 @@ export async function POST(request: Request) {
       })
     ]);
     
-    // 5. Générer l'attestation PDF
+    // 5. Générer et envoyer l'attestation
     try {
-      const pdfBuffer = await generateReservationPDF(
-        toStage, 
-        reservation.user,
-        reservation.TypeStage
-      );
-      
-      // 6. Envoyer l'email de notification avec l'attestation
+      const pdfBuffer = await generateReservationPDF(toStage, reservation.user, reservation.TypeStage);
       const userName = reservation.user.firstName || reservation.user.lastName 
         ? `${reservation.user.firstName} ${reservation.user.lastName}`.trim()
         : reservation.user.email;
       
-      await sendEmailNotification(
-        reservation.user.email,
-        userName,
-        fromStage,
-        toStage,
-        pdfBuffer
-      );
-      
+      await sendEmailNotification(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
       console.log(`Email de notification envoyé à ${reservation.user.email}`);
     } catch (emailError) {
       console.error("Erreur lors de l'envoi de l'email:", emailError);
-      // Ne pas bloquer la mise à jour même si l'email échoue
     }
     
+    logApiAccess(request, session, true);
     return NextResponse.json({ 
       success: true,
       message: "Réservation déplacée avec succès et client notifié par email"
     });
   } catch (error) {
     console.error("Erreur déplacement:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    logApiAccess(request, session, false, "MOVE_FAILED");
+    return NextResponse.json(
+      { error: "Erreur serveur", code: "MOVE_FAILED" },
+      { status: 500 }
+    );
   }
-}
+});

@@ -1,70 +1,58 @@
 // app/api/reservation/user-stage/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // Adjust this path based on where your authOptions is defined
+import { withAuth, validators, logApiAccess } from "@/lib/apiSecurity";
 
 const prisma = new PrismaClient();
 
-export async function GET(request: Request) {
-  // Get the current user session
-  const session = await getServerSession(authOptions);
-  
-  console.log("Session in API:", session?.user); // Log for debugging
-  
-  if (!session || !session.user) {
-    return NextResponse.json(
-      { error: "Vous devez être connecté pour accéder à cette ressource" },
-      { status: 401 }
-    );
-  }
-
-  const userId = session.user.id;
-  if (!userId) {
-    return NextResponse.json(
-      { error: "ID utilisateur non trouvé dans la session" },
-      { status: 401 }
-    );
-  }
-
+export const GET = withAuth(async (request: NextRequest, { session }) => {
   const { searchParams } = new URL(request.url);
   const stageId = searchParams.get('stageId');
   
   if (!stageId) {
+    logApiAccess(request, session, false, "MISSING_STAGE_ID");
     return NextResponse.json(
-      { error: "L'identifiant du stage est requis" },
+      { error: "L'identifiant du stage est requis", code: "MISSING_STAGE_ID" },
+      { status: 400 }
+    );
+  }
+
+  const stageIdNum = Number(stageId);
+  if (!validators.isValidId(stageIdNum)) {
+    logApiAccess(request, session, false, "INVALID_STAGE_ID");
+    return NextResponse.json(
+      { error: "ID du stage invalide", code: "INVALID_STAGE_ID" },
       { status: 400 }
     );
   }
 
   try {
-    console.log(`Recherche de réservation pour userId: ${userId}, stageId: ${stageId}`);
-    
-    // Find the reservation for this user and stage
+    const userId = Number(session.user.id);
     const reservation = await prisma.reservation.findUnique({
       where: {
         userId_stageId: {
-          userId: Number(userId),
-          stageId: Number(stageId)
+          userId,
+          stageId: stageIdNum
         }
       }
     });
 
     if (!reservation) {
-      console.log("Aucune réservation trouvée");
+      logApiAccess(request, session, false, "RESERVATION_NOT_FOUND");
       return NextResponse.json(
-        { error: "Aucune réservation trouvée pour ce stage" },
+        { error: "Aucune réservation trouvée pour ce stage", code: "RESERVATION_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    console.log("Réservation trouvée:", reservation);
+    logApiAccess(request, session, true);
     return NextResponse.json(reservation);
   } catch (error: any) {
     console.error("Erreur lors de la récupération de la réservation:", error);
+    logApiAccess(request, session, false, "FETCH_FAILED");
     return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération de la réservation" },
+      { error: "Erreur serveur", code: "FETCH_FAILED" },
       { status: 500 }
     );
   }
-}
+});

@@ -1,7 +1,7 @@
 import ReservationFormClient from "@/components/ui-reservation/ReservationPayement";
 import { notFound } from "next/navigation";
-
-async function getStage(id: string) {
+import AuthGuard from "@/components/auth/AuthGuard";
+  async function getStage(id: string) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/Stage/RecupStage`, {
     next: { revalidate: 60 }
   });
@@ -21,8 +21,11 @@ export default async function ReservationPage({ params }: { params: { id: string
   if (!stage) notFound();
 
   return (
+    <AuthGuard requireAuth={true} fallbackUrl="/">
     <div className="container mx-auto p-4">
       <ReservationFormClient stage={stage} />
     </div>
+    </AuthGuard>
+    
   );
 }

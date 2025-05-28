@@ -1,18 +1,44 @@
 // app/api/admin/stage-complete-notification/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withAdminAuth, validateRequestData, logApiAccess } from "@/lib/apiSecurity";
 import nodemailer from "nodemailer";
 
-export async function POST(request: Request) {
+// Validateur pour les données de notification
+const isValidNotificationData = (data: any): data is {
+  stageId: number;
+  stageTitle: string;
+  stageNumber: string;
+  stageDate: string;
+  stageLocation: string;
+} => {
+  return (
+    typeof data === "object" &&
+    typeof data.stageId === "number" && data.stageId > 0 &&
+    typeof data.stageTitle === "string" && data.stageTitle.trim().length > 0 &&
+    typeof data.stageNumber === "string" && data.stageNumber.trim().length > 0 &&
+    typeof data.stageDate === "string" &&
+    typeof data.stageLocation === "string" && data.stageLocation.trim().length > 0
+  );
+};
+
+export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
+  // Validation des données
+  const { data, error } = await validateRequestData(request, isValidNotificationData);
+  if (error) {
+    logApiAccess(request, session, false, "INVALID_REQUEST_DATA");
+    return error;
+  }
+
+  if (!data) {
+    logApiAccess(request, session, false, "INVALID_REQUEST_DATA");
+    return NextResponse.json(
+      { error: "Données de notification manquantes ou invalides", code: "INVALID_REQUEST_DATA" },
+      { status: 400 }
+    );
+  }
+  const { stageId, stageTitle, stageNumber, stageDate, stageLocation } = data;
+
   try {
-    const { stageId, stageTitle, stageNumber, stageDate, stageLocation } = await request.json();
-
-    if (!stageId || !stageTitle || !stageNumber) {
-      return NextResponse.json(
-        { error: "Données manquantes pour la notification" },
-        { status: 400 }
-      );
-    }
-
     // Configuration du transporteur email
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -30,7 +56,7 @@ export async function POST(request: Request) {
       day: 'numeric'
     });
 
-    // Contenu de l'email
+    // Contenu de l'email (votre HTML existant)
     const emailContent = `
 <!DOCTYPE html>
 <html>
@@ -99,7 +125,7 @@ export async function POST(request: Request) {
     
     <div class="footer">
       <p>🏢 <strong>EG-FORMATIONS</strong> | Système de notification automatique</p>
-      <p>📧 Cette notification a été générée automatiquement le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+      <p>📧 Notification générée par ${session.user.email} le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
     </div>
   </div>
 </body>
@@ -128,30 +154,37 @@ Un stage de formation vient d'atteindre sa capacité maximale.
 Note : Ce stage n'apparaîtra plus comme réservable sur la plateforme.
 
 EG-FORMATIONS | Système de notification automatique
-Cette notification a été générée automatiquement le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+Notification générée par ${session.user.email} le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
     `;
 
     // Envoi de l'email
     await transporter.sendMail({
       from: `"EG-FORMATIONS - Système" <${process.env.MAIL_USER}>`,
-      to: process.env.ADMIN_EMAIL || process.env.MAIL_USER, // Email de l'admin
+      to: process.env.ADMIN_EMAIL || process.env.MAIL_USER,
       subject: `🚨 STAGE COMPLET - ${stageNumber} - ${stageTitle}`,
       text: textContent,
       html: emailContent,
     });
 
-    console.log(`✅ Notification admin envoyée pour le stage complet: ${stageNumber}`);
+    console.log(`✅ Notification admin envoyée pour le stage complet: ${stageNumber} par ${session.user.email}`);
+    logApiAccess(request, session, true);
 
     return NextResponse.json({
       success: true,
-      message: "Notification admin envoyée avec succès"
+      message: "Notification admin envoyée avec succès",
+      timestamp: new Date().toISOString()
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Erreur lors de l'envoi de la notification admin:", error);
+    logApiAccess(request, session, false, "EMAIL_SEND_ERROR");
     return NextResponse.json(
-      { error: "Erreur lors de l'envoi de la notification" },
+      { 
+        error: "Erreur lors de l'envoi de la notification",
+        code: "EMAIL_SEND_ERROR",
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
-}
+});

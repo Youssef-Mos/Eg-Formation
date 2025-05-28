@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Nav from "@/components/nav";
 import { toast } from "sonner";
@@ -31,19 +31,133 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { CalendarIcon, Loader2, User, MapPin, Car, Save, ChevronRight, ChevronLeft, CheckCircle2, Leaf } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { 
+  CalendarIcon, 
+  Loader2, 
+  User, 
+  MapPin, 
+  Car, 
+  Save, 
+  ChevronRight, 
+  ChevronLeft, 
+  CheckCircle2, 
+  Check,
+  ChevronsUpDown,
+  Eye,
+  EyeOff,
+  Shield,
+  AlertTriangle,
+  Globe
+} from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 import CancelRegisterDialog from "@/components/ui-profile/Composant/CancelRegister";
+
+// Liste des pays (échantillon)
+const COUNTRIES = [
+  { code: "FR", name: "France" },
+  { code: "BE", name: "Belgique" },
+  { code: "CH", name: "Suisse" },
+  { code: "LU", name: "Luxembourg" },
+  { code: "DE", name: "Allemagne" },
+  { code: "ES", name: "Espagne" },
+  { code: "IT", name: "Italie" },
+  { code: "PT", name: "Portugal" },
+  { code: "NL", name: "Pays-Bas" },
+  { code: "GB", name: "Royaume-Uni" },
+  // ... ajouter d'autres pays
+];
+
+// Simulateur d'API pour les adresses (remplacer par une vraie API)
+const useAddressAutocomplete = (query: string) => {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const searchAddresses = useCallback(async (searchQuery: string) => {
+    if (searchQuery.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    setIsLoading(true);
+    
+    // Simulation d'une API d'adresses (remplacer par l'API Gouv ou Google Places)
+    setTimeout(() => {
+      const mockSuggestions = [
+        `${searchQuery} Avenue de la République, 75011 Paris`,
+        `${searchQuery} Rue de Rivoli, 75001 Paris`,
+        `${searchQuery} Boulevard Saint-Germain, 75006 Paris`,
+        `${searchQuery} Avenue des Champs-Élysées, 75008 Paris`,
+        `${searchQuery} Rue de la Paix, 75002 Paris`,
+      ].filter(addr => addr.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      setSuggestions(mockSuggestions);
+      setIsLoading(false);
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    searchAddresses(query);
+  }, [query, searchAddresses]);
+
+  return { suggestions, isLoading };
+};
+
+// Composant de validation du mot de passe
+const PasswordValidator = ({ password }: { password: string }) => {
+  const validations = [
+    { test: password.length >= 6, label: "Au moins 6 caractères" },
+    { test: /[A-Z]/.test(password), label: "Une majuscule" },
+    { test: /[0-9]/.test(password), label: "Un chiffre" },
+    { test: /[^A-Za-z0-9]/.test(password), label: "Un caractère spécial" },
+  ];
+
+  const isValid = validations.every(v => v.test);
+
+  return (
+    <div className="space-y-2 mt-2">
+      <div className="flex items-center gap-2">
+        <Shield className={cn("w-4 h-4", isValid ? "text-green-500" : "text-gray-400")} />
+        <span className={cn("text-sm font-medium", isValid ? "text-green-600" : "text-gray-500")}>
+          Sécurité du mot de passe
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {validations.map((validation, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <div className={cn(
+              "w-2 h-2 rounded-full transition-colors",
+              validation.test ? "bg-green-500" : "bg-gray-300"
+            )} />
+            <span className={cn(
+              "text-xs transition-colors",
+              validation.test ? "text-green-600" : "text-gray-500"
+            )}>
+              {validation.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function Register() {
   const router = useRouter();
@@ -55,6 +169,15 @@ export default function Register() {
   const tabs = ["personal", "address", "permit", "account", "terms"];
   const tabIndex = tabs.indexOf(activeTab);
   const progress = ((tabIndex + 1) / tabs.length) * 100;
+  
+  // États pour les fonctionnalités avancées
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
+  
+  const { suggestions: addressSuggestions, isLoading: isLoadingAddresses } = useAddressAutocomplete(addressQuery);
   
   const [formData, setFormData] = useState({
     gender: 'male',
@@ -68,6 +191,7 @@ export default function Register() {
     address3: '',
     postalCode: '',
     city: '',
+    country: 'FR', // Nouveau champ pays
     phone1: '',
     phone2: '',
     email: '',
@@ -78,8 +202,8 @@ export default function Register() {
     password: '',
     confirmPassword: '',
     acceptTerms: false,
-    acceptRules: false, // Nouveau champ pour le règlement intérieur
-    confirmPointsCheck: false, // Nouveau champ pour la vérification des points
+    acceptRules: false,
+    confirmPointsCheck: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,6 +214,12 @@ export default function Register() {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+
+    // Gestion spéciale pour l'adresse
+    if (name === "address1") {
+      setAddressQuery(value);
+      setShowAddressSuggestions(value.length >= 3);
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -104,6 +234,36 @@ export default function Register() {
       ...formData,
       [name]: date,
     });
+  };
+
+  const handleAddressSelect = (address: string) => {
+    // Extraction automatique du code postal et de la ville depuis l'adresse
+    const parts = address.split(', ');
+    const lastPart = parts[parts.length - 1];
+    const [postalCode, ...cityParts] = lastPart.split(' ');
+    
+    setFormData({
+      ...formData,
+      address1: parts[0],
+      postalCode: postalCode || formData.postalCode,
+      city: cityParts.join(' ') || formData.city,
+    });
+    
+    setShowAddressSuggestions(false);
+    setAddressQuery(parts[0]);
+  };
+
+  // Validation renforcée du mot de passe
+  const validatePassword = (password: string) => {
+    const validations = [
+      { test: password.length >= 6, message: "Le mot de passe doit contenir au moins 6 caractères" },
+      { test: /[A-Z]/.test(password), message: "Le mot de passe doit contenir au moins une majuscule" },
+      { test: /[0-9]/.test(password), message: "Le mot de passe doit contenir au moins un chiffre" },
+      { test: /[^A-Za-z0-9]/.test(password), message: "Le mot de passe doit contenir au moins un caractère spécial" },
+    ];
+
+    const failedValidation = validations.find(v => !v.test);
+    return failedValidation ? failedValidation.message : null;
   };
 
   const goToNextTab = () => {
@@ -182,10 +342,14 @@ export default function Register() {
           toast.error("Le nom d'utilisateur est requis");
           return false;
         }
-        if (formData.password.length < 6) {
-          toast.error("Le mot de passe doit contenir au moins 6 caractères");
+        
+        // Validation renforcée du mot de passe
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) {
+          toast.error(passwordError);
           return false;
         }
+        
         if (formData.password !== formData.confirmPassword) {
           toast.error("Les mots de passe ne correspondent pas");
           return false;
@@ -212,13 +376,13 @@ export default function Register() {
     }
   };
 
-    const handleAlert = () => {
-      router.push("/");
-    };
+  const handleAlert = () => {
+    router.push("/");
+  };
 
-    const handleRetourTotal = () => {
-      router.push("/");
-    };
+  const handleRetourTotal = () => {
+    router.push("/");
+  };
 
   const handleNextClick = () => {
     if (validateCurrentTab()) {
@@ -265,13 +429,12 @@ export default function Register() {
       const loginResult = await signIn('credentials', {
         username: formData.username,
         password: formData.password,
-        redirect: false, // Nous gérons la redirection manuellement
+        redirect: false,
       });
   
       if (loginResult?.error) {
         toast.error('Erreur lors de la connexion automatique.');
       } else {
-        // Redirige vers la page souhaitée
         router.push(callbackUrl ? callbackUrl : '/');
       }
     } catch (error) {
@@ -283,9 +446,6 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      
-      
-      
       <div className="flex-1 container max-w-5xl mx-auto py-10 px-4">
         <h1 className="text-3xl font-bold mb-6 text-center">Inscription à EG-Formation</h1>
         
@@ -393,12 +553,11 @@ export default function Register() {
                             initialFocus
                             captionLayout="dropdown-buttons"
                             fromYear={1930}
-                            toYear={new Date().getFullYear()} // Année actuelle max
+                            toYear={new Date().getFullYear()}
                             disabled={(date) => {
-                              // Bloquer les dates futures
                               return date > new Date() || date < new Date("1900-01-01");
                             }}
-                            defaultMonth={new Date(1990, 0)} // Ouvrir sur 1990 par défaut
+                            defaultMonth={new Date(1990, 0)}
                           />
                         </PopoverContent>
                       </Popover>
@@ -453,9 +612,7 @@ export default function Register() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                    <CancelRegisterDialog /> 
-                  
-                
+                  <CancelRegisterDialog /> 
                   <Button className="cursor-pointer" type="button" onClick={handleNextClick}>
                     Suivant <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -477,16 +634,42 @@ export default function Register() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2 md:col-span-2">
+                    {/* Adresse avec autocomplétion */}
+                    <div className="space-y-2 md:col-span-2 relative">
                       <Label htmlFor="address1">Adresse (ligne 1)</Label>
                       <Input
                         id="address1"
                         name="address1"
                         value={formData.address1}
                         onChange={handleChange}
-                        placeholder="Numéro et nom de rue"
+                        placeholder="Commencez à taper votre adresse..."
                         required
+                        onFocus={() => setShowAddressSuggestions(addressQuery.length >= 3)}
+                        onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
                       />
+                      
+                      {/* Suggestions d'adresses */}
+                      {showAddressSuggestions && addressSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {isLoadingAddresses && (
+                            <div className="p-3 text-center text-gray-500">
+                              <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1" />
+                              Recherche d'adresses...
+                            </div>
+                          )}
+                          {addressSuggestions.map((address, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="w-full text-left p-3 hover:bg-gray-50 flex items-center gap-2"
+                              onClick={() => handleAddressSelect(address)}
+                            >
+                              <MapPin className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm">{address}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
@@ -533,6 +716,58 @@ export default function Register() {
                         placeholder="Ville"
                         required
                       />
+                    </div>
+
+                    {/* Sélecteur de pays */}
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Pays</Label>
+                      <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={countryOpen}
+                            className="w-full justify-between"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Globe className="w-4 h-4" />
+                              {formData.country ? 
+                                COUNTRIES.find(country => country.code === formData.country)?.name :
+                                "Sélectionnez un pays"
+                              }
+                            </div>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Rechercher un pays..." />
+                            <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandList>
+                                {COUNTRIES.map((country) => (
+                                  <CommandItem
+                                    key={country.code}
+                                    value={country.name}
+                                    onSelect={() => {
+                                      handleSelectChange("country", country.code);
+                                      setCountryOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        formData.country === country.code ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {country.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandList>
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
                     <div className="space-y-2">
@@ -696,30 +931,68 @@ export default function Register() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    {/* Mot de passe avec validation renforcée */}
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="password">Mot de passe</Label>
-                      <Input
-                        id="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        type="password"
-                        placeholder="Choisissez un mot de passe"
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Choisissez un mot de passe sécurisé"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {formData.password && <PasswordValidator password={formData.password} />}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                      <Input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        type="password"
-                        placeholder="Confirmez votre mot de passe"
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Confirmez votre mot de passe"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <AlertTriangle className="w-4 h-4 text-red-500" />
+                          <span className="text-sm text-red-600">Les mots de passe ne correspondent pas</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

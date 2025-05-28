@@ -1,155 +1,388 @@
 // app/api/user/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { withApiSecurity, validateRequestData, validators, logApiAccess } from "@/lib/apiSecurity";
 
 const prisma = new PrismaClient();
 
-// Récupérer un utilisateur
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+// Validateur pour les données utilisateur
+const isValidUserData = (data: any): data is {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  gender?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  address1?: string;
+  address2?: string;
+  address3?: string;
+  postalCode?: string;
+  city?: string;
+  phone1?: string;
+  phone2?: string;
+  permitNumber?: string;
+  permitIssuedAt?: string;
+  permitDate?: string;
+  role?: string;
+} => {
+  if (typeof data !== "object" || data === null) return false;
   
-  // Vérifier l'authentification et les autorisations
-  if (!session || !session.user) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  // Validation des champs optionnels s'ils sont présents
+  if (data.email && !validators.isValidEmail(data.email)) return false;
+  if (data.postalCode && (typeof data.postalCode !== "string" || !/^\d{5}$/.test(data.postalCode))) return false;
+  if (data.phone1 && (typeof data.phone1 !== "string" || !/^\d{10}$/.test(data.phone1.replace(/\s/g, '')))) return false;
+  if (data.phone2 && (typeof data.phone2 !== "string" || !/^\d{10}$/.test(data.phone2.replace(/\s/g, '')))) return false;
+  if (data.username && (typeof data.username !== "string" || data.username.trim().length < 3)) return false;
   
-  // Un utilisateur ne peut accéder qu'à son propre profil (sauf admin)
-  if (session.user.id !== params.id && session.user.role !== "admin") {
-    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  return true;
+};
+
+// Wrapper spécialisé pour les routes utilisateur avec vérification d'accès
+async function withUserAuthAndParams(
+  request: NextRequest,
+  params: { id: string },
+  handler: (request: NextRequest, context: { session: any; params: { id: string }; isOwnProfile: boolean; isAdmin: boolean }) => Promise<NextResponse>
+) {
+  const { session, error } = await withApiSecurity(request, { 
+    requireAuth: true 
+  });
+  
+  if (error) {
+    return error;
   }
 
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: Number(params.id) },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        gender: true,
-        birthDate: true,
-        birthPlace: true,
-        address1: true,
-        address2: true,
-        address3: true,
-        postalCode: true,
-        city: true,
-        phone1: true,
-        phone2: true,
-        permitNumber: true,
-        permitIssuedAt: true,
-        permitDate: true,
-        username: true,
-        role: true,
-        createdAt: true,
-        // Ne pas retourner le mot de passe
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "Utilisateur non trouvé" }, { status: 404 });
-    }
-
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur:", error);
+  const { id } = await params;
+  const userId = Number(id);
+  
+  if (!validators.isValidId(userId)) {
+    logApiAccess(request, session, false, "INVALID_USER_ID");
     return NextResponse.json(
-      { error: "Erreur serveur lors de la récupération de l'utilisateur" },
-      { status: 500 }
+      { error: "ID utilisateur invalide", code: "INVALID_USER_ID" },
+      { status: 400 }
     );
   }
+
+  const currentUserId = Number(session!.user.id);
+  const isAdmin = session!.user.role === "admin";
+  const isOwnProfile = currentUserId === userId;
+
+  // Vérifier les autorisations : soit son propre profil, soit admin
+  if (!isOwnProfile && !isAdmin) {
+    logApiAccess(request, session, false, "ACCESS_FORBIDDEN");
+    return NextResponse.json(
+      { 
+        error: "Accès refusé. Vous ne pouvez accéder qu'à votre propre profil.", 
+        code: "ACCESS_FORBIDDEN" 
+      },
+      { status: 403 }
+    );
+  }
+  
+  return handler(request, { session: session!, params, isOwnProfile, isAdmin });
+}
+
+// Récupérer un utilisateur
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withUserAuthAndParams(request, params, async (req, { session, params, isOwnProfile, isAdmin }) => {
+    const userId = Number(params.id);
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          gender: true,
+          birthDate: true,
+          birthPlace: true,
+          address1: true,
+          address2: true,
+          address3: true,
+          postalCode: true,
+          city: true,
+          phone1: true,
+          phone2: true,
+          permitNumber: true,
+          permitIssuedAt: true,
+          permitDate: true,
+          username: true,
+          role: true,
+          createdAt: true,
+          acceptTerms: true,
+          acceptRules: true,
+          confirmPointsCheck: true,
+          // Ne jamais retourner le mot de passe
+        },
+      });
+
+      if (!user) {
+        logApiAccess(req, session, false, "USER_NOT_FOUND");
+        return NextResponse.json(
+          { error: "Utilisateur non trouvé", code: "USER_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      logApiAccess(req, session, true);
+      return NextResponse.json(user);
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'utilisateur:", error);
+      logApiAccess(req, session, false, "FETCH_FAILED");
+      return NextResponse.json(
+        { 
+          error: "Erreur serveur lors de la récupération de l'utilisateur", 
+          code: "FETCH_FAILED" 
+        },
+        { status: 500 }
+      );
+    }
+  });
 }
 
 // Mettre à jour un utilisateur
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  
-  // Vérifier l'authentification et les autorisations
-  if (!session || !session.user) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-  
-  // Un utilisateur ne peut modifier que son propre profil (sauf admin)
-  if (session.user.id !== params.id && session.user.role !== "admin") {
-    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-  }
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withUserAuthAndParams(request, params, async (req, { session, params, isOwnProfile, isAdmin }) => {
+    const userId = Number(params.id);
 
-  try {
-    const userData = await request.json();
-    
-    // Sécurité : s'assurer qu'on ne peut pas changer le rôle
-    if (userData.role && session.user.role !== "admin") {
-      delete userData.role;
-    }
-    
-    // Ne jamais permettre la modification du mot de passe via cette route
-    if (userData.password) {
-      delete userData.password;
+    // Validation des données
+    const { data, error } = await validateRequestData(req, isValidUserData);
+    if (error) {
+      logApiAccess(req, session, false, "INVALID_USER_DATA");
+      return error;
     }
 
-    // Validation des données (exemple simple, à adapter selon vos besoins)
-    if (!userData.email || !userData.username) {
+    const userData = data!;
+
+    try {
+      // Sécurité : s'assurer qu'on ne peut pas changer le rôle sans être admin
+      if (userData.role && !isAdmin) {
+        delete userData.role;
+        console.warn(`Tentative de modification de rôle par utilisateur non-admin: ${session.user.id}`);
+      }
+
+      // Ne jamais permettre la modification du mot de passe via cette route
+      if ('password' in userData) {
+        delete (userData as any).password;
+        console.warn(`Tentative de modification de mot de passe via route profil: ${session.user.id}`);
+      }
+
+      // Validation des données requises
+      if (userData.email && !validators.isValidEmail(userData.email)) {
+        logApiAccess(req, session, false, "INVALID_EMAIL");
+        return NextResponse.json(
+          { error: "Adresse email invalide", code: "INVALID_EMAIL" },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier l'unicité de l'email
+      if (userData.email) {
+        const existingEmail = await prisma.user.findFirst({
+          where: {
+            email: userData.email,
+            id: { not: userId },
+          },
+        });
+
+        if (existingEmail) {
+          logApiAccess(req, session, false, "EMAIL_EXISTS");
+          return NextResponse.json(
+            { 
+              error: "Cet email est déjà utilisé par un autre compte", 
+              code: "EMAIL_EXISTS" 
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      // Vérifier l'unicité du username
+      if (userData.username) {
+        const existingUsername = await prisma.user.findFirst({
+          where: {
+            username: userData.username,
+            id: { not: userId },
+          },
+        });
+
+        if (existingUsername) {
+          logApiAccess(req, session, false, "USERNAME_EXISTS");
+          return NextResponse.json(
+            { 
+              error: "Ce nom d'utilisateur est déjà utilisé", 
+              code: "USERNAME_EXISTS" 
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      // Conversion des dates si nécessaire
+      const dataToUpdate: any = { ...userData };
+      if (dataToUpdate.birthDate) {
+        dataToUpdate.birthDate = new Date(dataToUpdate.birthDate);
+      }
+      if (dataToUpdate.permitDate) {
+        dataToUpdate.permitDate = new Date(dataToUpdate.permitDate);
+      }
+
+      // Mettre à jour l'utilisateur
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: dataToUpdate,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          gender: true,
+          birthDate: true,
+          birthPlace: true,
+          address1: true,
+          address2: true,
+          address3: true,
+          postalCode: true,
+          city: true,
+          phone1: true,
+          phone2: true,
+          permitNumber: true,
+          permitIssuedAt: true,
+          permitDate: true,
+          username: true,
+          role: true,
+          createdAt: true,
+          acceptTerms: true,
+          acceptRules: true,
+          confirmPointsCheck: true,
+        },
+      });
+
+      logApiAccess(req, session, true);
+      return NextResponse.json({
+        message: "Profil mis à jour avec succès",
+        user: updatedUser
+      });
+    } catch (error: any) {
+      console.error("Erreur lors de la mise à jour de l'utilisateur:", error);
+      logApiAccess(req, session, false, "UPDATE_FAILED");
+      
+      // Gestion spécifique des erreurs Prisma
+      if (error.code === 'P2002') {
+        const field = error.meta?.target?.[0];
+        return NextResponse.json(
+          { 
+            error: `Ce ${field === 'email' ? 'email' : 'nom d\'utilisateur'} est déjà utilisé`, 
+            code: "DUPLICATE_FIELD" 
+          },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "Email et nom d'utilisateur sont requis" },
+        { 
+          error: "Erreur serveur lors de la mise à jour de l'utilisateur", 
+          code: "UPDATE_FAILED" 
+        },
+        { status: 500 }
+      );
+    }
+  });
+}
+
+// DELETE - Supprimer un utilisateur (Admin uniquement)
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  return withUserAuthAndParams(request, params, async (req, { session, params, isOwnProfile, isAdmin }) => {
+    // Seuls les admins peuvent supprimer des utilisateurs
+    if (!isAdmin) {
+      logApiAccess(req, session, false, "ADMIN_REQUIRED");
+      return NextResponse.json(
+        { 
+          error: "Droits administrateur requis pour supprimer un utilisateur", 
+          code: "ADMIN_REQUIRED" 
+        },
+        { status: 403 }
+      );
+    }
+
+    const userId = Number(params.id);
+
+    // Empêcher l'admin de se supprimer lui-même
+    if (isOwnProfile) {
+      logApiAccess(req, session, false, "CANNOT_DELETE_SELF");
+      return NextResponse.json(
+        { 
+          error: "Vous ne pouvez pas supprimer votre propre compte", 
+          code: "CANNOT_DELETE_SELF" 
+        },
         { status: 400 }
       );
     }
 
-    // Vérifier si l'email ou le username existent déjà pour un autre utilisateur
-    if (userData.email) {
-      const existingEmail = await prisma.user.findFirst({
-        where: {
-          email: userData.email,
-          id: { not: Number(params.id) },
-        },
+    try {
+      // Vérifier si l'utilisateur a des réservations
+      const reservationsCount = await prisma.reservation.count({
+        where: { userId }
       });
 
-      if (existingEmail) {
+      if (reservationsCount > 0) {
+        logApiAccess(req, session, false, "USER_HAS_RESERVATIONS");
         return NextResponse.json(
-          { error: "Cet email est déjà utilisé par un autre compte" },
-          { status: 400 }
+          { 
+            error: "Impossible de supprimer un utilisateur avec des réservations actives", 
+            code: "USER_HAS_RESERVATIONS",
+            reservationsCount 
+          },
+          { status: 409 }
         );
       }
-    }
 
-    if (userData.username) {
-      const existingUsername = await prisma.user.findFirst({
-        where: {
-          username: userData.username,
-          id: { not: Number(params.id) },
-        },
+      // Supprimer l'utilisateur
+      const deletedUser = await prisma.user.delete({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          username: true
+        }
       });
 
-      if (existingUsername) {
+      logApiAccess(req, session, true);
+      return NextResponse.json({
+        message: "Utilisateur supprimé avec succès",
+        deletedUser
+      });
+    } catch (error: any) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      logApiAccess(req, session, false, "DELETE_FAILED");
+      
+      if (error.code === 'P2025') {
         return NextResponse.json(
-          { error: "Ce nom d'utilisateur est déjà utilisé" },
-          { status: 400 }
+          { error: "Utilisateur non trouvé", code: "USER_NOT_FOUND" },
+          { status: 404 }
         );
       }
+
+      return NextResponse.json(
+        { 
+          error: "Erreur serveur lors de la suppression de l'utilisateur", 
+          code: "DELETE_FAILED" 
+        },
+        { status: 500 }
+      );
     }
-
-    // Mettre à jour l'utilisateur
-    const updatedUser = await prisma.user.update({
-      where: { id: Number(params.id) },
-      data: userData,
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        username: true,
-        // Ne pas retourner le mot de passe
-      },
-    });
-
-    return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour de l'utilisateur:", error);
-    return NextResponse.json(
-      { error: "Erreur serveur lors de la mise à jour de l'utilisateur" },
-      { status: 500 }
-    );
-  }
+  });
 }

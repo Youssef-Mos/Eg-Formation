@@ -41,33 +41,68 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      // Permettre les opérations standard de NextAuth
-      const allowedNextAuthKeys = [
+      // ✅ LISTE ÉLARGIE DES CLÉS AUTORISÉES
+      const allowedKeys = [
+        // NextAuth
         'next-auth.session-token',
         'next-auth.csrf-token',
         'next-auth.callback-url',
-        'next-auth.pkce.code_verifier'
+        'next-auth.pkce.code_verifier',
+        // Cookies Consent
+        'cookie-consent',
+        // Préférences utilisateur légitimes
+        'theme',
+        'language',
+        'user-preferences',
+        // Analytics (si consentement donné)
+        '_ga',
+        '_gid',
+        '_gat',
+        // Autres clés d'application légitimes
+        'app-settings',
+        'ui-state',
+        'tour-completed',
+        'notification-settings', 
+        
       ];
 
-      // Si c'est une clé NextAuth autorisée, ce n'est pas suspect
-      if (allowedNextAuthKeys.some(allowedKey => key.includes(allowedKey))) {
+      // Si c'est une clé autorisée, ce n'est pas suspect
+      if (allowedKeys.some(allowedKey => 
+        key === allowedKey || 
+        key.includes(allowedKey) ||
+        allowedKey.includes(key)
+      )) {
         return false;
       }
 
-      // Vérifier si c'est une tentative de manipulation de clés sensibles
+      // ⚠️ PATTERNS VRAIMENT SUSPECTS SEULEMENT
       const sensitivePatterns = [
-        /nextauth.*session/i,
-        /nextauth.*token/i,
-        /auth.*secret/i,
-        /session.*id/i
+        /nextauth.*session.*admin/i,  // Tentative d'élévation de privilèges
+        /auth.*secret.*key/i,         // Clés secrètes
+        /session.*override/i,         // Tentative de override de session
+        /token.*bypass/i,             // Tentative de bypass de tokens
+        /<script/i,                   // Injection de script
+        /javascript:/i,               // Protocole javascript
+        /data:.*base64/i              // Data URL suspects
       ];
 
-      return sensitivePatterns.some(pattern => pattern.test(key));
+      const matchesSuspiciousPattern = sensitivePatterns.some(pattern => 
+        pattern.test(key) || pattern.test(JSON.stringify(arguments))
+      );
+
+      if (matchesSuspiciousPattern) {
+        console.log(`🔍 Clé suspecte détectée: ${key}`);
+        return true;
+      }
+
+      // ✅ Par défaut, autoriser (approche permissive pour l'UX)
+      return false;
     };
 
     // Surveillance des modifications non autorisées
     const originalSetItem = localStorage.setItem;
     const originalRemoveItem = localStorage.removeItem;
+    const originalGetItem = localStorage.getItem;
     const originalClear = localStorage.clear;
 
     localStorage.setItem = function(key: string, value: string) {
@@ -86,11 +121,27 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
       return originalRemoveItem.apply(this, [key]);
     };
 
+    // ✅ Ne pas intercepter getItem pour éviter les problèmes de lecture
+    // localStorage.getItem reste intact pour une meilleure compatibilité
+
     localStorage.clear = function() {
-      // Permettre clear() seulement si initié par NextAuth ou pendant la déconnexion
+      // Permettre clear() seulement si initié par NextAuth, app légitime ou pendant la déconnexion
       if (isInitializedRef.current) {
         const stack = new Error().stack;
-        if (!stack?.includes('next-auth') && !stack?.includes('signOut')) {
+        const legitimateClearSources = [
+          'next-auth',
+          'signOut',
+          'cookie-consent', // ✅ Autoriser clear pour les cookies
+          'logout',
+          'clearUserData'
+        ];
+        
+        const isLegitimate = legitimateClearSources.some(source => 
+          stack?.includes(source)
+        );
+        
+        if (!isLegitimate) {
+          console.warn("🚨 Tentative de clear() non autorisée");
           handleStorageAttack('clear', 'all');
           return;
         }
@@ -98,23 +149,26 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
       return originalClear.apply(this);
     };
 
-    // Surveillance des tentatives de modification des cookies
+    // Surveillance des tentatives de modification des cookies (version allégée)
     const originalCookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
     if (originalCookieDescriptor) {
       Object.defineProperty(document, 'cookie', {
         get: originalCookieDescriptor.get,
         set: function(value: string) {
-          // Permettre les cookies NextAuth légitimes
+          // ✅ Surveillance plus ciblée des cookies
           if (value.includes("next-auth") || value.includes("session")) {
-            // Vérifier si c'est une manipulation suspecte
-            const suspiciousPatterns = [
-              /next-auth\.session-token=.*;.*expires=/i,
-              /session.*=.*[<>"\\/]/i // Caractères suspects dans les valeurs
+            // Vérifier SEULEMENT les manipulations vraiment dangereuses
+            const dangerousPatterns = [
+              /<script/i,                    // Injection XSS
+              /javascript:/i,               // Protocole javascript
+              /data:.*base64.*script/i,     // Data URL avec script
+              /\.\.\/\.\.\//,               // Path traversal
+              /admin.*=.*true/i             // Tentative d'élévation admin
             ];
             
-            if (suspiciousPatterns.some(pattern => pattern.test(value))) {
-              console.warn("🚨 Tentative de manipulation suspecte des cookies de session");
-              toast.error("Manipulation des cookies détectée.");
+            if (dangerousPatterns.some(pattern => pattern.test(value))) {
+              console.warn("🚨 Tentative de manipulation dangereuse des cookies");
+              toast.error("Manipulation dangereuse des cookies détectée.");
               return;
             }
           }
@@ -129,6 +183,7 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
       // Restaurer les méthodes originales
       localStorage.setItem = originalSetItem;
       localStorage.removeItem = originalRemoveItem;
+      localStorage.getItem = originalGetItem;
       localStorage.clear = originalClear;
       
       if (originalCookieDescriptor) {
@@ -137,7 +192,7 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Surveillance de l'intégrité de la session (version améliorée)
+  // Surveillance de l'intégrité de la session (version optimisée)
   useEffect(() => {
     const checkSessionIntegrity = () => {
       // Attendre que NextAuth soit initialisé
@@ -156,7 +211,7 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
         // Vérification plus nuancée de l'intégrité
         if (sessionToken && !csrfToken) {
           console.warn("🚨 Token CSRF manquant");
-          // Ne pas forcer la déconnexion immédiatement, donner une chance à NextAuth de se synchroniser
+          // Délai plus long pour laisser NextAuth se synchroniser
           setTimeout(() => {
             const recheckCsrf = document.cookie
               .split(';')
@@ -166,7 +221,7 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
               toast.error("Erreur de sécurité détectée. Reconnexion requise.");
               window.location.href = "/api/auth/signout";
             }
-          }, 5000);
+          }, 10000); // 10 secondes au lieu de 5
         }
 
         // Vérifier la validité du format des tokens
@@ -180,11 +235,12 @@ function SessionMonitorWrapper({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error("Erreur lors de la vérification d'intégrité:", error);
+        // ✅ Ne pas bloquer l'app en cas d'erreur de vérification
       }
     };
 
-    // Vérification périodique de l'intégrité (moins fréquente)
-    const integrityInterval = setInterval(checkSessionIntegrity, 2 * 60 * 1000); // 2 minutes
+    // Vérification périodique de l'intégrité (moins fréquente pour les performances)
+    const integrityInterval = setInterval(checkSessionIntegrity, 3 * 60 * 1000); // 3 minutes
 
     return () => clearInterval(integrityInterval);
   }, []);

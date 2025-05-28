@@ -1,56 +1,60 @@
-import { NextResponse } from "next/server";
+// app/api/stages/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { withAdminAuth, validateRequestData, validators, logApiAccess } from "@/lib/apiSecurity";
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+type StageData = {
+  Titre: string;
+  Adresse: string;
+  CodePostal: string;
+  Ville: string;
+  PlaceDisponibles: number;
+  DateDebut: string;
+  DateFin: string;
+  Prix: number;
+  NumeroStage?: string; // Ajout de la propriété optionnelle
+};
+
+export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
+  const { data, error } = await validateRequestData<StageData>(request, validators.isValidStageData);
+  
+  if (error) {
+    logApiAccess(request, session, false, "INVALID_STAGE_DATA");
+    return error;
+  }
+
   try {
-    const data = await request.json();
-    console.log("Données reçues:", data);
+    // Vérifier si le numéro de stage existe déjà (si fourni)
+    if (data!.NumeroStage) {
+      const existingStage = await prisma.stage.findFirst({
+        where: { NumeroStage: String(data!.NumeroStage) }
+      });
 
-    // Validation des données obligatoires
-    const requiredFields = [
-      'Titre', 'Adresse', 'CodePostal', 'Ville', 
-      'PlaceDisponibles', 'NumeroStage', 'DateDebut', 
-      'DateFin', 'HeureDebut', 'HeureFin', 'HeureDebut2', 
-      'HeureFin2', 'Prix'
-    ];
-
-    const missingFields = requiredFields.filter(field => !data[field] && data[field] !== 0);
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { 
-          error: "Champs manquants", 
-          missingFields,
-          message: `Les champs suivants sont obligatoires: ${missingFields.join(', ')}`
-        }, 
-        { status: 400 }
-      );
-    }
-
-    // Vérifier si le numéro de stage existe déjà
-    const existingStage = await prisma.stage.findFirst({
-      where: { NumeroStage: String(data.NumeroStage) }
-    });
-
-    if (existingStage) {
-      return NextResponse.json(
-        { 
-          error: "Numéro de stage déjà utilisé", 
-          message: `Le numéro de stage ${data.NumeroStage} est déjà utilisé. Veuillez choisir un autre numéro.`
-        }, 
-        { status: 409 }
-      );
+      if (existingStage) {
+        logApiAccess(request, session, false, "STAGE_NUMBER_EXISTS");
+        return NextResponse.json(
+          { 
+            error: "Numéro de stage déjà utilisé", 
+            code: "STAGE_NUMBER_EXISTS",
+            message: `Le numéro de stage ${data!.NumeroStage} est déjà utilisé.`
+          }, 
+          { status: 409 }
+        );
+      }
     }
 
     // Validation des dates
-    const dateDebut = new Date(data.DateDebut);
-    const dateFin = new Date(data.DateFin);
+    const dateDebut = new Date(data!.DateDebut);
+    const dateFin = new Date(data!.DateFin);
     
     if (dateDebut >= dateFin) {
+      logApiAccess(request, session, false, "INVALID_DATES");
       return NextResponse.json(
         { 
           error: "Dates invalides", 
+          code: "INVALID_DATES",
           message: "La date de fin doit être postérieure à la date de début."
         }, 
         { status: 400 }
@@ -60,40 +64,35 @@ export async function POST(request: Request) {
     // Créer le stage
     const stage = await prisma.stage.create({
       data: {
-        Titre: data.Titre.trim(),
-        Adresse: data.Adresse.trim(),
-        CodePostal: data.CodePostal.trim(),
-        Ville: data.Ville.trim(),
-        PlaceDisponibles: Number(data.PlaceDisponibles),
-        NumeroStage: String(data.NumeroStage), // Nouveau champ ajouté
+        Titre: data!.Titre.trim(),
+        Adresse: data!.Adresse.trim(),
+        CodePostal: data!.CodePostal,
+        Ville: data!.Ville.trim(),
+        PlaceDisponibles: data!.PlaceDisponibles,
         DateDebut: dateDebut,
         DateFin: dateFin,
-        HeureDebut: data.HeureDebut,
-        HeureFin: data.HeureFin,
-        HeureDebut2: data.HeureDebut2,
-        HeureFin2: data.HeureFin2,
-        Prix: Number(data.Prix),
+        Prix: data!.Prix,
+        HeureDebut: "09:00", // Remplacez par la valeur appropriée ou récupérez-la depuis data!
+        HeureFin: "17:00",   // Remplacez par la valeur appropriée ou récupérez-la depuis data!
       },
     });
 
-    console.log("Stage créé avec succès:", stage);
+    logApiAccess(request, session, true);
     return NextResponse.json(
-      { 
-        message: "Stage créé avec succès", 
-        stage 
-      }, 
+      { message: "Stage créé avec succès", stage }, 
       { status: 201 }
     );
 
   } catch (error) {
     console.error("Erreur API:", error);
+    logApiAccess(request, session, false, "CREATE_FAILED");
     
-    // Gestion des erreurs Prisma spécifiques
     if (typeof error === "object" && error !== null && "code" in error && (error as any).code === 'P2002') {
       return NextResponse.json(
         { 
           error: "Conflit de données", 
-          message: "Ce numéro de stage existe déjà dans la base de données."
+          code: "DUPLICATE_DATA",
+          message: "Ces données existent déjà dans la base de données."
         }, 
         { status: 409 }
       );
@@ -102,11 +101,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { 
         error: "Erreur serveur", 
-        message: "Erreur lors de l'ajout du stage. Veuillez réessayer."
+        code: "CREATE_FAILED",
+        message: "Erreur lors de l'ajout du stage."
       }, 
       { status: 500 }
     );
   } finally {
     await prisma.$disconnect();
   }
-}
+});

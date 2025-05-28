@@ -1,36 +1,65 @@
 // app/api/contact/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from '@prisma/client';
-import { NextResponse } from 'next/server';
+import { withApiSecurity, validateRequestData, logApiAccess, validators } from '@/lib/apiSecurity';
 import nodemailer from 'nodemailer';
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+// Validateur pour les données de contact
+const isValidContactData = (data: any): data is {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  message: string;
+} => {
+  return (
+    typeof data === "object" &&
+    typeof data.nom === "string" && data.nom.trim().length > 0 &&
+    typeof data.prenom === "string" && data.prenom.trim().length > 0 &&
+    validators.isValidEmail(data.email) &&
+    typeof data.telephone === "string" && data.telephone.trim().length > 0 &&
+    typeof data.message === "string" && data.message.trim().length > 0
+  );
+};
+
+export async function POST(request: NextRequest) {
+  // Route publique mais avec surveillance de sécurité
+  const { session, error } = await withApiSecurity(request, { requireAuth: false });
+  if (error) return error;
+
+  // Validation des données
+  const { data, error: validationError } = await validateRequestData(request, isValidContactData);
+  if (validationError) {
+    logApiAccess(request, session, false, "INVALID_CONTACT_DATA");
+    return validationError;
+  }
+
+  if (!data) {
+    logApiAccess(request, session, false, "INVALID_CONTACT_DATA");
+    return NextResponse.json(
+      { 
+        error: 'Données de contact manquantes ou invalides',
+        code: "INVALID_CONTACT_DATA",
+        timestamp: new Date().toISOString()
+      },
+      { status: 400 }
+    );
+  }
+  const { nom, prenom, email, telephone, message } = data;
+
   try {
-    const body = await request.json();
-    
-    // Validation des données
-    if (!body.nom || !body.prenom || !body.email || !body.telephone || !body.message) {
-      return NextResponse.json(
-        { error: 'Tous les champs sont requis' },
-        { status: 400 }
-      );
-    }
-
-    // Validation de l'email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.email)) {
-      return NextResponse.json(
-        { error: 'Adresse email invalide' },
-        { status: 400 }
-      );
-    }
-
-    // Validation du téléphone (format français simplifié)
+    // Validation supplémentaire du téléphone (format français)
     const phoneRegex = /^(?:(?:\+|00)33[\s.-]{0,3}(?:\(0\)[\s.-]{0,3})?|0)[1-9](?:(?:[\s.-]?\d{2}){4}|\d{2}(?:[\s.-]?\d{3}){2})$/;
-    if (!phoneRegex.test(body.telephone.replace(/\s/g, ''))) {
+    if (!phoneRegex.test(telephone.replace(/\s/g, ''))) {
+      logApiAccess(request, session, false, "INVALID_PHONE_FORMAT");
       return NextResponse.json(
-        { error: 'Numéro de téléphone invalide' },
+        { 
+          error: 'Numéro de téléphone invalide',
+          code: "INVALID_PHONE_FORMAT",
+          timestamp: new Date().toISOString()
+        },
         { status: 400 }
       );
     }
@@ -38,11 +67,11 @@ export async function POST(request: Request) {
     // Création du contact dans la base de données
     const newContact = await prisma.contact.create({
       data: {
-        nom: body.nom.trim(),
-        prenom: body.prenom.trim(),
-        email: body.email.toLowerCase().trim(),
-        telephone: body.telephone.trim(),
-        message: body.message.trim(),
+        nom: nom.trim(),
+        prenom: prenom.trim(),
+        email: email.toLowerCase().trim(),
+        telephone: telephone.trim(),
+        message: message.trim(),
       },
     });
 
@@ -64,16 +93,17 @@ export async function POST(request: Request) {
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h2 style="color: #3b82f6; margin-top: 0;">Informations du contact</h2>
-          <p><strong>Nom :</strong> ${body.nom}</p>
-          <p><strong>Prénom :</strong> ${body.prenom}</p>
-          <p><strong>Email :</strong> <a href="mailto:${body.email}">${body.email}</a></p>
-          <p><strong>Téléphone :</strong> <a href="tel:${body.telephone}">${body.telephone}</a></p>
+          <p><strong>Nom :</strong> ${nom}</p>
+          <p><strong>Prénom :</strong> ${prenom}</p>
+          <p><strong>Email :</strong> <a href="mailto:${email}">${email}</a></p>
+          <p><strong>Téléphone :</strong> <a href="tel:${telephone}">${telephone}</a></p>
           <p><strong>Date de réception :</strong> ${new Date().toLocaleString('fr-FR')}</p>
+          <p><strong>Contact ID :</strong> #${newContact.id}</p>
         </div>
         
         <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
           <h3 style="color: #333; margin-top: 0;">Message :</h3>
-          <p style="line-height: 1.6; color: #555;">${body.message.replace(/\n/g, '<br>')}</p>
+          <p style="line-height: 1.6; color: #555;">${message.replace(/\n/g, '<br>')}</p>
         </div>
         
         <div style="margin-top: 30px; padding: 15px; background-color: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
@@ -95,21 +125,22 @@ export async function POST(request: Request) {
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #333; text-align: center;">Merci pour votre message !</h1>
         
-        <p>Bonjour ${body.prenom} ${body.nom},</p>
+        <p>Bonjour ${prenom} ${nom},</p>
         
         <p>Nous avons bien reçu votre message et nous vous remercions de nous avoir contactés.</p>
         
         <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
           <h3 style="color: #1e40af; margin-top: 0;">Votre message :</h3>
-          <p style="color: #1e40af; font-style: italic;">"${body.message}"</p>
+          <p style="color: #1e40af; font-style: italic;">"${message}"</p>
         </div>
         
         <p>Notre équipe va examiner votre demande et vous répondre dans les plus brefs délais, généralement sous 24 heures ouvrées.</p>
         
         <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <h4 style="color: #374151; margin-top: 0;">Vos coordonnées :</h4>
-          <p style="margin: 5px 0; color: #6b7280;">Email : ${body.email}</p>
-          <p style="margin: 5px 0; color: #6b7280;">Téléphone : ${body.telephone}</p>
+          <p style="margin: 5px 0; color: #6b7280;">Email : ${email}</p>
+          <p style="margin: 5px 0; color: #6b7280;">Téléphone : ${telephone}</p>
+          <p style="margin: 5px 0; color: #6b7280;">Référence : #${newContact.id}</p>
         </div>
         
         <p>Si votre demande est urgente, vous pouvez également nous contacter directement :</p>
@@ -133,28 +164,27 @@ export async function POST(request: Request) {
       // Envoyer l'email à l'admin
       await transporter.sendMail({
         from: `"EG-Formation Contact" <${process.env.MAIL_USER}>`,
-        to: process.env.MAIL_USER, // L'admin reçoit sur la même adresse
-        subject: `[EG-Formation] Nouveau message de ${body.prenom} ${body.nom}`,
+        to: process.env.MAIL_USER,
+        subject: `[EG-Formation] Nouveau message de ${prenom} ${nom} - Ref #${newContact.id}`,
         html: adminEmailContent,
-        // Ajouter l'email du client en reply-to pour faciliter la réponse
-        replyTo: body.email
+        replyTo: email
       });
 
       // Envoyer l'email de confirmation au client
       await transporter.sendMail({
         from: `"EG-Formation" <${process.env.MAIL_USER}>`,
-        to: body.email,
+        to: email,
         subject: "Confirmation de réception de votre message - EG-Formation",
         html: clientEmailContent
       });
 
-      console.log(`Emails envoyés avec succès pour le contact ${newContact.id}`);
+      console.log(`✅ Emails envoyés avec succès pour le contact ${newContact.id}`);
     } catch (emailError) {
       console.error('Erreur lors de l\'envoi des emails:', emailError);
       // Ne pas faire échouer la requête si seul l'email échoue
-      // Le contact est quand même sauvegardé en base
     }
 
+    logApiAccess(request, session, true);
     return NextResponse.json({
       success: true,
       message: 'Message envoyé avec succès',
@@ -162,14 +192,21 @@ export async function POST(request: Request) {
         id: newContact.id,
         nom: newContact.nom,
         prenom: newContact.prenom,
-        email: newContact.email
-      }
+        email: newContact.email,
+        reference: `#${newContact.id}`
+      },
+      timestamp: new Date().toISOString()
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la création du contact:', error);
+    logApiAccess(request, session, false, "DATABASE_ERROR");
     return NextResponse.json(
-      { error: 'Une erreur est survenue lors de l\'envoi du message' },
+      { 
+        error: 'Une erreur est survenue lors de l\'envoi du message',
+        code: "DATABASE_ERROR",
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   } finally {

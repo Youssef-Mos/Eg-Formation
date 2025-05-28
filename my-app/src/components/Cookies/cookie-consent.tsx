@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Cookie, Settings, X, Check, Info } from 'lucide-react';
+import { Cookie, Settings, X, Check, Info, Clock, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,7 @@ const COOKIE_CATEGORIES = {
   }
 };
 
-// Hook pour gérer les cookies
+// Hook pour gérer les cookies avec expiration
 type ConsentData = {
   necessary: boolean;
   analytics: boolean;
@@ -51,27 +51,193 @@ type ConsentData = {
   preferences: boolean;
 };
 
+type SavedConsentData = ConsentData & {
+  timestamp: string;
+  version: string;
+  sessionId: string;
+};
+
 export const useCookieConsent = () => {
   const [consent, setConsent] = useState<ConsentData | null>(null);
   const [showBanner, setShowBanner] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
 
-  useEffect(() => {
-    const savedConsent = localStorage.getItem('cookie-consent');
-    if (savedConsent) {
-      setConsent(JSON.parse(savedConsent));
-    } else {
-      setShowBanner(true);
+  // ✅ Constantes de configuration
+  const CONSENT_EXPIRY_HOURS = 24; // Expiration après 24h
+  const STORAGE_KEY = 'cookie-consent';
+  const CURRENT_VERSION = '2.0';
+
+  // Générer un ID de session unique
+  const generateSessionId = () => {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  // Vérifier si le consentement a expiré
+  const isConsentExpired = (savedData: SavedConsentData): boolean => {
+    if (!savedData.timestamp) return true;
+    
+    const savedTime = new Date(savedData.timestamp).getTime();
+    const currentTime = Date.now();
+    const expiryTime = CONSENT_EXPIRY_HOURS * 60 * 60 * 1000; // 24h en ms
+    
+    return (currentTime - savedTime) > expiryTime;
+  };
+
+  // Vérifier si c'est une nouvelle session (détection redémarrage serveur)
+  const isNewSession = (savedData: SavedConsentData): boolean => {
+    const currentSessionId = sessionStorage.getItem('current-session-id');
+    if (!currentSessionId) {
+      // Première fois dans cette session
+      sessionStorage.setItem('current-session-id', generateSessionId());
+      return savedData.sessionId !== sessionStorage.getItem('current-session-id');
     }
+    return false;
+  };
+
+  // Charger et vérifier le consentement
+  useEffect(() => {
+    const checkConsent = () => {
+      try {
+        const savedConsent = localStorage.getItem(STORAGE_KEY);
+        
+        if (!savedConsent) {
+          console.log("🍪 Aucun consentement trouvé - Affichage du banner");
+          setShowBanner(true);
+          return;
+        }
+
+        const parsedData: SavedConsentData = JSON.parse(savedConsent);
+
+        // ✅ Vérifications d'expiration
+        const expired = isConsentExpired(parsedData);
+        const newSession = isNewSession(parsedData);
+        const versionChanged = parsedData.version !== CURRENT_VERSION;
+
+        if (expired) {
+          console.log("🍪 Consentement expiré (24h dépassées) - Redemande");
+          setIsExpired(true);
+          setShowBanner(true);
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+
+        if (newSession) {
+          console.log("🍪 Nouvelle session détectée - Redemande");
+          setShowBanner(true);
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+
+        if (versionChanged) {
+          console.log("🍪 Version du consentement changée - Redemande");
+          setShowBanner(true);
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+
+        // Consentement valide
+        console.log("🍪 Consentement valide trouvé");
+        setConsent({
+          necessary: parsedData.necessary,
+          analytics: parsedData.analytics,
+          marketing: parsedData.marketing,
+          preferences: parsedData.preferences,
+        });
+        
+        // Initialiser les scripts selon le consentement
+        initializeScripts({
+          necessary: parsedData.necessary,
+          analytics: parsedData.analytics,
+          marketing: parsedData.marketing,
+          preferences: parsedData.preferences,
+        });
+
+      } catch (error) {
+        console.error("🍪 Erreur lors du chargement du consentement:", error);
+        setShowBanner(true);
+      }
+    };
+
+    checkConsent();
+
+    // ✅ Surveillance de l'expiration en temps réel
+    const expiryCheck = setInterval(() => {
+      const savedConsent = localStorage.getItem(STORAGE_KEY);
+      if (savedConsent) {
+        try {
+          const parsedData: SavedConsentData = JSON.parse(savedConsent);
+          if (isConsentExpired(parsedData)) {
+            console.log("🍪 Consentement expiré détecté - Nettoyage");
+            localStorage.removeItem(STORAGE_KEY);
+            setConsent(null);
+            setShowBanner(true);
+            setIsExpired(true);
+          }
+        } catch (error) {
+          console.error("🍪 Erreur vérification expiration:", error);
+        }
+      }
+    }, 60000); // Vérifier toutes les minutes
+
+    return () => clearInterval(expiryCheck);
+  }, []);
+
+  // ✅ Surveiller la fermeture de la page/onglet
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Option 1: Expirer le consentement à la fermeture (plus strict)
+      // localStorage.removeItem(STORAGE_KEY);
+      
+      // Option 2: Marquer pour expiration rapide au prochain chargement
+      const savedConsent = localStorage.getItem(STORAGE_KEY);
+      if (savedConsent) {
+        try {
+          const parsedData: SavedConsentData = JSON.parse(savedConsent);
+          const updatedData = {
+            ...parsedData,
+            shouldReask: true, // Flag pour redemander au prochain chargement
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+        } catch (error) {
+          console.error("🍪 Erreur marking for reask:", error);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Page devient invisible (onglet fermé/changé)
+        handleBeforeUnload();
+      }
+    };
+
+    // Écouter les événements de fermeture
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const saveConsent = (consentData: ConsentData) => {
-    localStorage.setItem('cookie-consent', JSON.stringify({
+    const currentSessionId = sessionStorage.getItem('current-session-id') || generateSessionId();
+    sessionStorage.setItem('current-session-id', currentSessionId);
+
+    const dataToSave: SavedConsentData = {
       ...consentData,
       timestamp: new Date().toISOString(),
-      version: '1.0'
-    }));
+      version: CURRENT_VERSION,
+      sessionId: currentSessionId,
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     setConsent(consentData);
     setShowBanner(false);
+    setIsExpired(false);
+    
+    console.log("🍪 Consentement sauvegardé:", dataToSave);
     
     // Déclencher les scripts selon le consentement
     initializeScripts(consentData);
@@ -82,15 +248,50 @@ export const useCookieConsent = () => {
   };
 
   const revokeConsent = () => {
-    localStorage.removeItem('cookie-consent');
+    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem('current-session-id');
     setConsent(null);
     setShowBanner(true);
+    setIsExpired(false);
     
     // Supprimer les cookies non nécessaires
     clearNonEssentialCookies();
+    
+    console.log("🍪 Consentement révoqué");
   };
 
-  return { consent, showBanner, saveConsent, hasConsent, revokeConsent, setShowBanner };
+  const getConsentInfo = () => {
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsed: SavedConsentData = JSON.parse(savedData);
+        const timeLeft = CONSENT_EXPIRY_HOURS * 60 * 60 * 1000 - (Date.now() - new Date(parsed.timestamp).getTime());
+        const hoursLeft = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60)));
+        
+        return {
+          timestamp: new Date(parsed.timestamp),
+          version: parsed.version,
+          sessionId: parsed.sessionId,
+          hoursLeft,
+          isExpiringSoon: hoursLeft <= 2,
+        };
+      }
+    } catch (error) {
+      console.error("🍪 Erreur lecture info consentement:", error);
+    }
+    return null;
+  };
+
+  return { 
+    consent, 
+    showBanner, 
+    saveConsent, 
+    hasConsent, 
+    revokeConsent, 
+    setShowBanner, 
+    isExpired,
+    getConsentInfo
+  };
 };
 
 // Fonction pour initialiser les scripts selon le consentement
@@ -128,8 +329,7 @@ const initializeScripts = (consent: ConsentData) => {
 
   // Autres scripts (Facebook Pixel, etc.)
   if (consent.marketing) {
-    // Initialiser les scripts marketing
-    console.log('Marketing cookies accepted');
+    console.log('🍪 Marketing cookies accepted');
   }
 };
 
@@ -159,7 +359,7 @@ const clearNonEssentialCookies = () => {
 
 // Composant principal du banner
 export default function CookieConsent() {
-  const { showBanner, saveConsent, setShowBanner } = useCookieConsent();
+  const { showBanner, saveConsent, setShowBanner, isExpired, getConsentInfo } = useCookieConsent();
   const [showDetails, setShowDetails] = useState(false);
   const [preferences, setPreferences] = useState({
     necessary: true,
@@ -167,6 +367,8 @@ export default function CookieConsent() {
     marketing: false,
     preferences: false
   });
+
+  const consentInfo = getConsentInfo();
 
   if (!showBanner) return null;
 
@@ -195,19 +397,33 @@ export default function CookieConsent() {
 
   return (
     <>
-      {/* Banner principal */}
+      {/* Banner principal avec indicateur d'expiration */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white border-t border-gray-200 shadow-lg">
         <div className="max-w-6xl mx-auto">
+          {/* ✅ Indicateur d'expiration */}
+          {isExpired && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-800">
+                  Votre consentement a expiré (24h dépassées) - Merci de confirmer vos préférences
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
               <Cookie className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">
-                  Nous utilisons des cookies
+                  {isExpired ? "Renouvellement du consentement requis" : "Nous utilisons des cookies"}
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Nous utilisons des cookies pour améliorer votre expérience sur notre site. 
-                  Certains sont essentiels, d'autres nous aident à analyser le trafic et à personnaliser le contenu.
+                  {isExpired 
+                    ? "Votre consentement a expiré après 24h. Veuillez confirmer vos préférences pour continuer."
+                    : "Nous utilisons des cookies pour améliorer votre expérience. Certains sont essentiels, d'autres nous aident à analyser le trafic."
+                  }
                   <button 
                     onClick={() => setShowDetails(true)}
                     className="text-blue-600 hover:underline ml-1"
@@ -215,6 +431,12 @@ export default function CookieConsent() {
                     En savoir plus
                   </button>
                 </p>
+                
+                {/* ✅ Info sur l'expiration */}
+                <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
+                  <Clock className="w-3 h-3" />
+                  <span>Le consentement expire automatiquement après 24h</span>
+                </div>
               </div>
             </div>
             
@@ -258,9 +480,23 @@ export default function CookieConsent() {
               Paramètres des cookies
             </DialogTitle>
             <DialogDescription>
-              Choisissez quels cookies vous souhaitez autoriser. Vous pouvez modifier ces paramètres à tout moment.
+              Choisissez quels cookies vous souhaitez autoriser. Ces paramètres expirent automatiquement après 24h pour respecter votre vie privée.
             </DialogDescription>
           </DialogHeader>
+
+          {/* ✅ Informations sur l'expiration */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="w-4 h-4 text-blue-600" />
+              <h4 className="font-medium text-blue-800">À propos de l'expiration</h4>
+            </div>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p>• Votre consentement expire automatiquement après 24 heures</p>
+              <p>• Le banner réapparaîtra si vous quittez puis revenez sur le site</p>
+              <p>• Nous redemandons votre consentement après un redémarrage du serveur</p>
+              <p>• Vous pouvez modifier vos préférences à tout moment dans les paramètres</p>
+            </div>
+          </div>
           
           <div className="space-y-6">
             {Object.entries(COOKIE_CATEGORIES).map(([key, category]) => (
@@ -308,10 +544,12 @@ export default function CookieConsent() {
 
 // Composant pour afficher les paramètres de cookies dans les mentions légales
 export function CookieSettings() {
-  const { consent, revokeConsent } = useCookieConsent();
+  const { consent, revokeConsent, getConsentInfo } = useCookieConsent();
   const [showSettings, setShowSettings] = useState(false);
 
   if (!consent) return null;
+
+  const consentInfo = getConsentInfo();
 
   return (
     <div className="mt-8 p-4 bg-gray-50 rounded-lg">
@@ -319,6 +557,33 @@ export function CookieSettings() {
         <Settings className="w-4 h-4" />
         Vos préférences actuelles
       </h4>
+
+      {/* ✅ Informations détaillées sur le consentement */}
+      {consentInfo && (
+        <div className="bg-white p-3 rounded border mb-4">
+          <div className="text-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span>Consentement donné le :</span>
+              <span className="font-mono text-xs">{consentInfo.timestamp.toLocaleString('fr-FR')}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Temps restant :</span>
+              <span className={`font-medium ${consentInfo.isExpiringSoon ? 'text-orange-600' : 'text-green-600'}`}>
+                {consentInfo.hoursLeft}h
+                {consentInfo.isExpiringSoon && (
+                  <span className="ml-1 text-orange-600">
+                    <AlertTriangle className="w-3 h-3 inline" />
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Version :</span>
+              <span className="font-mono text-xs">{consentInfo.version}</span>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="space-y-2 text-sm">
         {Object.entries(COOKIE_CATEGORIES).map(([key, category]) => (

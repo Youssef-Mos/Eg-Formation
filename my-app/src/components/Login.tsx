@@ -1,6 +1,6 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Lock, Eye, EyeOff, LogIn, UserPlus, KeyRound } from 'lucide-react';
+import { X, User, Lock, Eye, EyeOff, LogIn, UserPlus, KeyRound, AlertCircle, CheckCircle } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from '@radix-ui/react-label';
 import { Button } from './ui/button';
@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { toast, Toaster } from 'sonner';
 import { useRouter } from 'next/navigation';
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,32 +20,73 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const router = useRouter();
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setDebugInfo(null);
+
+    // Validation côté client
+    if (!username.trim() || !password.trim()) {
+      setError('Veuillez remplir tous les champs');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log("🔐 === DÉBUT TENTATIVE DE CONNEXION ===");
+    console.log("👤 Identifiant:", username);
+    console.log("🔑 Mot de passe (longueur):", password.length);
 
     try {
       const result = await signIn('credentials', {
-        username,
-        password,
+        username: username.trim(),
+        password: password,
         redirect: false,
       });
 
-      console.log('userser', result);
+      console.log("📊 Résultat NextAuth:", result);
+      setDebugInfo(result);
       
       if (result?.error) {
-        setError('Identifiants invalides');
-        toast.error('Identifiants invalides.');
-      } else {
+        console.error("❌ Erreur de connexion:", result.error);
+        
+        // Messages d'erreur personnalisés
+        let errorMessage = "Identifiants invalides";
+        switch (result.error) {
+          case 'CredentialsSignin':
+            errorMessage = "Nom d'utilisateur ou mot de passe incorrect";
+            break;
+          case 'CallbackRouteError':
+            errorMessage = "Erreur de configuration du serveur";
+            break;
+          case 'AccessDenied':
+            errorMessage = "Accès refusé";
+            break;
+          default:
+            errorMessage = `Erreur: ${result.error}`;
+        }
+        
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else if (result?.ok) {
+        console.log("✅ Connexion réussie!");
         toast.success('Connexion réussie !');
-        onClose();
-        // Reset form
-        setUsername('');
-        setPassword('');
+        
+        // Fermer le modal et réinitialiser
+        handleClose();
+        
+        // Redirection ou rechargement pour mettre à jour la session
+        window.location.reload();
+      } else {
+        console.warn("⚠️ Résultat inattendu:", result);
+        setError('Connexion échouée sans raison précise');
+        toast.error('Connexion échouée');
       }
     } catch (error) {
+      console.error("💥 Erreur critique:", error);
       setError('Une erreur est survenue');
       toast.error('Une erreur est survenue lors de la connexion.');
     } finally {
@@ -52,15 +94,30 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
- const handleForgotPassword = () => {
-  router.push('/forgot-password');
-};
+  // Fonction de test rapide avec credentials par défaut
+  const handleQuickTest = async () => {
+    setUsername('admin');
+    setPassword('password123');
+    
+    // Auto-submit après un court délai
+    setTimeout(() => {
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (form) {
+        form.requestSubmit();
+      }
+    }, 100);
+  };
+
+  const handleForgotPassword = () => {
+    router.push('/forgot-password');
+  };
 
   const handleClose = () => {
     setUsername('');
     setPassword('');
     setError(null);
     setShowPassword(false);
+    setDebugInfo(null);
     onClose();
   };
 
@@ -109,27 +166,56 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
+                    className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2"
                   >
-                    {error}
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">{error}</div>
+                      {debugInfo && process.env.NODE_ENV === 'development' && (
+                        <div className="text-xs mt-1 text-red-600">
+                          Debug: {JSON.stringify(debugInfo, null, 2)}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Bouton de test rapide (seulement en dev) */}
+                {process.env.NODE_ENV === 'development' && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg"
+                  >
+                    <div className="text-xs text-yellow-800 mb-2">Mode développement - Test rapide</div>
+                    <Button
+                      type="button"
+                      onClick={handleQuickTest}
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-8"
+                    >
+                      Tester avec admin/password123
+                    </Button>
                   </motion.div>
                 )}
 
                 {/* Champ Nom d'utilisateur */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700" htmlFor="username">
-                    Nom d'utilisateur
+                    Nom d'utilisateur ou Email
                   </Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
                       type="text"
                       id="username"
-                      placeholder="Entrez votre nom d'utilisateur"
+                      placeholder="Entrez votre nom d'utilisateur ou email"
                       className="w-full pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg transition-all duration-200"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
+                      autoComplete="username"
                     />
                   </div>
                 </div>
@@ -149,6 +235,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      autoComplete="current-password"
                     />
                     <button
                       type="button"
@@ -161,13 +248,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
 
                 {/* Liens d'aide */}
-                <div className="flex flex-col sm:flex-row  sm:justify-between gap-2 text-xs">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-xs">
                   <button
                     type="button"
                     onClick={handleForgotPassword}
                     className="text-blue-600 hover:text-blue-800 underline underline-offset-2 hover:no-underline transition-all duration-200 flex items-center gap-1 group cursor-pointer"
                   >
-                    <KeyRound className="w-3  h-3 group-hover:rotate-12 transition-transform duration-200" />
+                    <KeyRound className="w-3 h-3 group-hover:rotate-12 transition-transform duration-200" />
                     Mot de passe oublié ?
                   </button>
                   <a
@@ -182,7 +269,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 {/* Bouton de connexion */}
                 <Button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !username.trim() || !password.trim()}
                   className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium cursor-pointer rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
@@ -208,6 +295,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   <a href="/mention-legales" className="text-blue-600 hover:underline">politique de confidentialité</a>
                 </p>
               </div>
+
+              {/* Debug info en développement */}
+              {process.env.NODE_ENV === 'development' && debugInfo && (
+                <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs">
+                  <div className="font-medium mb-1">Debug Info:</div>
+                  <pre className="overflow-auto">{JSON.stringify(debugInfo, null, 2)}</pre>
+                </div>
+              )}
             </div>
           </motion.div>
         </motion.div>

@@ -53,6 +53,7 @@ model User {
   permitIssuedAt String   @default("À compléter") // Lieu d'obtention
   permitDate     DateTime @default(now())         // Date actuelle temporaire
   username       String   @unique // Tu peux ajouter une logique pour générer le pseudo si besoin
+  country         String? // 👈 AJOUTE CE CHAMP
 
   resetToken   String?  // Token de réinitialisation de mot de passe
   resetTokenExp  DateTime? // Date d'expiration du token de réinitialisation 

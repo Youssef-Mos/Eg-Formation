@@ -199,7 +199,7 @@ export async function saveInvoiceToDatabase(invoiceData: InvoiceData, pdfBuffer:
   const prisma = new PrismaClient();
 
   try {
-    const invoice = await prisma.Invoice.create({
+    const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber: invoiceData.invoiceNumber,
         amount: invoiceData.stage.price,
