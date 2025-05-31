@@ -1,30 +1,62 @@
-// app/api/stages/route.ts
+// app/api/Stage/RecupStage/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { withApiSecurity, logApiAccess } from "@/lib/apiSecurity";
 
 const prisma = new PrismaClient();
 
-export async function GET(request: NextRequest) {
-  const { session, error } = await withApiSecurity(request, { requireAuth: false });
-  
-  if (error) {
-    return error;
-  }
-
+export const GET = async (request: NextRequest) => {
   try {
     const stages = await prisma.stage.findMany({
-      orderBy: { DateDebut: 'asc' }
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        agrement: true, // NOUVEAU : Inclure les données d'agrément
+        reservations: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            reservations: true
+          }
+        }
+      }
     });
-    
-    logApiAccess(request, session, true);
-    return NextResponse.json(stages, { status: 200 });
+
+    // Calculer les places restantes pour chaque stage
+    const stagesAvecPlacesRestantes = stages.map(stage => ({
+      ...stage,
+      PlacesRestantes: Math.max(0, stage.PlaceDisponibles - stage._count.reservations),
+      // Inclure les informations d'agrément dans la réponse
+      AgrementInfo: stage.agrement ? {
+        departement: stage.agrement.departement,
+        numeroAgrement: stage.agrement.numeroAgrement,
+        nomDepartement: stage.agrement.nomDepartement
+      } : null
+    }));
+
+    return NextResponse.json(stagesAvecPlacesRestantes, { status: 200 });
+
   } catch (error) {
-    console.error("Erreur API:", error);
-    logApiAccess(request, session, false, "FETCH_FAILED");
+    console.error("Erreur lors de la récupération des stages:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la récupération des stages", code: "FETCH_FAILED" },
+      {
+        error: "Erreur serveur",
+        code: "FETCH_FAILED",
+        message: "Erreur lors de la récupération des stages."
+      },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
-}
+};

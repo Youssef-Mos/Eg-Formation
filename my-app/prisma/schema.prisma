@@ -10,6 +10,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Agrement {
+  id             Int      @id @default(autoincrement())
+  departement    String   // Ex: "59", "62", "Nord", etc.
+  numeroAgrement String   @unique // Ex: "R2305900010"
+  nomDepartement String?  // Nom complet du département (optionnel)
+  createdAt      DateTime @default(now())
+  
+  // Relation avec les stages
+  stages         Stage[]
+}
+
 model Stage {
   id             Int      @id @default(autoincrement())
   Titre          String
@@ -28,6 +39,11 @@ model Stage {
   HeureFin2   String @default("18:00")
   Prix          Float
   createdAt      DateTime @default(now())
+  
+  // Nouvelle relation vers Agrement
+  agrementId     Int?
+  agrement       Agrement? @relation(fields: [agrementId], references: [id])
+  
   reservations Reservation[]
 }
 
@@ -53,7 +69,22 @@ model User {
   permitIssuedAt String   @default("À compléter") // Lieu d'obtention
   permitDate     DateTime @default(now())         // Date actuelle temporaire
   username       String   @unique // Tu peux ajouter une logique pour générer le pseudo si besoin
-  country         String? // 👈 AJOUTE CE CHAMP
+  country        String?  // Pays
+
+  // 🆕 NOUVEAUX CHAMPS POUR L'ADRESSE DE FACTURATION
+  useSameAddressForBilling Boolean @default(true)        // Utiliser la même adresse pour la facturation
+  billingAddress1          String? // Adresse de facturation 1
+  billingAddress2          String? // Adresse de facturation 2  
+  billingAddress3          String? // Adresse de facturation 3
+  billingPostalCode        String? // Code postal de facturation
+  billingCity              String? // Ville de facturation
+  billingCountry           String? // Pays de facturation
+
+  // 🆕 NOUVEAUX CHAMPS POUR LE PERMIS
+  permitDocumentUploaded   Boolean @default(false)       // Document de permis téléchargé
+  permitDocumentVerified   Boolean @default(false)       // Document vérifié par admin
+  permitNotificationSent   DateTime? // Dernière notification envoyée
+  profileCompleted         Boolean @default(false)       // Profil complété
 
   resetToken   String?  // Token de réinitialisation de mot de passe
   resetTokenExp  DateTime? // Date d'expiration du token de réinitialisation 
@@ -69,13 +100,58 @@ model User {
   acceptTerms   Boolean @default(false) // Champ pour accepter les CGU
   acceptRules   Boolean  @default(false) // Acceptation du règlement intérieur
   confirmPointsCheck Boolean @default(false) // Vérification des points
+  
   // Relations vers les autres modèles NextAuth
   accounts       Account[]
   sessions       Session[]
+  reservations   Reservation[]
+  invoices       Invoice[]
+  permitDocuments PermitDocument[] // 🆕 Relation vers les documents de permis
+  notifications  Notification[]   // 🆕 Relation vers les notifications
+}
 
-  reservations Reservation[]
+// 🆕 NOUVEAU MODÈLE : Documents de permis
+model PermitDocument {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  fileName      String   // Nom du fichier original
+  filePath      String   // Chemin du fichier stocké
+  fileType      String   // Type MIME (application/pdf, image/jpeg, etc.)
+  fileSize      Int      // Taille du fichier en octets
+  
+  // Informations extraites du document
+  extractedData Json?    // Données extraites par OCR/analyse
+  
+  // Statut de vérification
+  status        String   @default("pending") // pending, verified, rejected
+  adminComments String?  // Commentaires de l'admin
+  verifiedBy    Int?     // ID de l'admin qui a vérifié
+  verifiedAt    DateTime? // Date de vérification
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
 
-  Invoice Invoice[]
+// 🆕 NOUVEAU MODÈLE : Notifications
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        String   // permit_reminder, document_verified, etc.
+  title       String   // Titre de la notification
+  message     String   @db.Text // Contenu de la notification
+  
+  read        Boolean  @default(false) // Lu ou non lu
+  emailSent   Boolean  @default(false) // Email envoyé ou non
+  
+  createdAt   DateTime @default(now())
+  readAt      DateTime? // Date de lecture
+  
+  @@index([userId, read])
+  @@index([type])
 }
 
 model Account {
@@ -115,7 +191,6 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
 
 model Reservation {
   id        Int      @id @default(autoincrement())

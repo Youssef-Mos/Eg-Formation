@@ -61,7 +61,8 @@ import {
   EyeOff,
   Shield,
   AlertTriangle,
-  Globe
+  Globe,
+  CreditCard
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -82,10 +83,9 @@ const COUNTRIES = [
   { code: "PT", name: "Portugal" },
   { code: "NL", name: "Pays-Bas" },
   { code: "GB", name: "Royaume-Uni" },
-  // ... ajouter d'autres pays
 ];
 
-// Simulateur d'API pour les adresses (remplacer par une vraie API)
+// Simulateur d'API pour les adresses
 const useAddressAutocomplete = (query: string) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +98,6 @@ const useAddressAutocomplete = (query: string) => {
 
     setIsLoading(true);
     
-    // Simulation d'une API d'adresses (remplacer par l'API Gouv ou Google Places)
     setTimeout(() => {
       const mockSuggestions = [
         `${searchQuery} Avenue de la République, 75011 Paris`,
@@ -164,9 +163,9 @@ export default function Register() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   
-  // État actif pour la navigation et la barre de progression
+  // État actif pour la navigation - MODIFIÉ pour inclure l'onglet billing
   const [activeTab, setActiveTab] = useState("personal");
-  const tabs = ["personal", "address", "permit", "account", "terms"];
+  const tabs = ["personal", "address", "billing", "permit", "account", "terms"];
   const tabIndex = tabs.indexOf(activeTab);
   const progress = ((tabIndex + 1) / tabs.length) * 100;
   
@@ -174,10 +173,14 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [addressQuery, setAddressQuery] = useState("");
+  const [billingAddressQuery, setBillingAddressQuery] = useState("");
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [showBillingAddressSuggestions, setShowBillingAddressSuggestions] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
+  const [billingCountryOpen, setBillingCountryOpen] = useState(false);
   
   const { suggestions: addressSuggestions, isLoading: isLoadingAddresses } = useAddressAutocomplete(addressQuery);
+  const { suggestions: billingAddressSuggestions, isLoading: isLoadingBillingAddresses } = useAddressAutocomplete(billingAddressQuery);
   
   const [formData, setFormData] = useState({
     gender: 'male',
@@ -191,7 +194,7 @@ export default function Register() {
     address3: '',
     postalCode: '',
     city: '',
-    country: 'FR', // Nouveau champ pays
+    country: 'FR',
     phone1: '',
     phone2: '',
     email: '',
@@ -201,6 +204,14 @@ export default function Register() {
     username: '',
     password: '',
     confirmPassword: '',
+    // NOUVEAUX CHAMPS DE FACTURATION
+    useSameAddressForBilling: true,
+    billingAddress1: '',
+    billingAddress2: '',
+    billingAddress3: '',
+    billingPostalCode: '',
+    billingCity: '',
+    billingCountry: 'FR',
     acceptTerms: false,
     acceptRules: false,
     confirmPointsCheck: false,
@@ -215,10 +226,14 @@ export default function Register() {
       [name]: type === "checkbox" ? checked : value,
     });
 
-    // Gestion spéciale pour l'adresse
+    // Gestion spéciale pour les adresses
     if (name === "address1") {
       setAddressQuery(value);
       setShowAddressSuggestions(value.length >= 3);
+    }
+    if (name === "billingAddress1") {
+      setBillingAddressQuery(value);
+      setShowBillingAddressSuggestions(value.length >= 3);
     }
   };
 
@@ -236,21 +251,30 @@ export default function Register() {
     });
   };
 
-  const handleAddressSelect = (address: string) => {
-    // Extraction automatique du code postal et de la ville depuis l'adresse
+  const handleAddressSelect = (address: string, isBilling = false) => {
     const parts = address.split(', ');
     const lastPart = parts[parts.length - 1];
     const [postalCode, ...cityParts] = lastPart.split(' ');
     
-    setFormData({
-      ...formData,
-      address1: parts[0],
-      postalCode: postalCode || formData.postalCode,
-      city: cityParts.join(' ') || formData.city,
-    });
-    
-    setShowAddressSuggestions(false);
-    setAddressQuery(parts[0]);
+    if (isBilling) {
+      setFormData({
+        ...formData,
+        billingAddress1: parts[0],
+        billingPostalCode: postalCode || formData.billingPostalCode,
+        billingCity: cityParts.join(' ') || formData.billingCity,
+      });
+      setShowBillingAddressSuggestions(false);
+      setBillingAddressQuery(parts[0]);
+    } else {
+      setFormData({
+        ...formData,
+        address1: parts[0],
+        postalCode: postalCode || formData.postalCode,
+        city: cityParts.join(' ') || formData.city,
+      });
+      setShowAddressSuggestions(false);
+      setAddressQuery(parts[0]);
+    }
   };
 
   // Validation renforcée du mot de passe
@@ -317,6 +341,24 @@ export default function Register() {
           return false;
         }
         return true;
+
+      // NOUVEAU CAS DE VALIDATION POUR L'ADRESSE DE FACTURATION
+      case "billing":
+        if (!formData.useSameAddressForBilling) {
+          if (!formData.billingAddress1.trim()) {
+            toast.error("L'adresse de facturation est requise");
+            return false;
+          }
+          if (!formData.billingPostalCode.trim()) {
+            toast.error("Le code postal de facturation est requis");
+            return false;
+          }
+          if (!formData.billingCity.trim()) {
+            toast.error("La ville de facturation est requise");
+            return false;
+          }
+        }
+        return true;
         
       case "permit":
         if (!formData.permitNumber.trim()) {
@@ -343,7 +385,6 @@ export default function Register() {
           return false;
         }
         
-        // Validation renforcée du mot de passe
         const passwordError = validatePassword(formData.password);
         if (passwordError) {
           toast.error(passwordError);
@@ -376,14 +417,6 @@ export default function Register() {
     }
   };
 
-  const handleAlert = () => {
-    router.push("/");
-  };
-
-  const handleRetourTotal = () => {
-    router.push("/");
-  };
-
   const handleNextClick = () => {
     if (validateCurrentTab()) {
       goToNextTab();
@@ -400,7 +433,6 @@ export default function Register() {
     setIsSubmitting(true);
 
     try {
-      // Conversion des dates en ISO string
       const dataToSend = {
         ...formData,
         birthDate: formData.birthDate.toISOString(),
@@ -425,7 +457,6 @@ export default function Register() {
   
       toast.success('Inscription réussie !');
   
-      // Connexion automatique après inscription
       const loginResult = await signIn('credentials', {
         username: formData.username,
         password: formData.password,
@@ -449,7 +480,7 @@ export default function Register() {
       <div className="flex-1 container max-w-5xl mx-auto py-10 px-4">
         <h1 className="text-3xl font-bold mb-6 text-center">Inscription à EG-Formation</h1>
         
-        {/* Barre de progression */}
+        {/* Barre de progression MISE À JOUR */}
         <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">
           <div 
             className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
@@ -457,7 +488,7 @@ export default function Register() {
           ></div>
         </div>
         
-        {/* Étapes sous forme de texte */}
+        {/* Étapes MISES À JOUR (6 au lieu de 5) */}
         <div className="flex justify-between text-sm mb-8 px-1">
           <div className={`flex flex-col items-center ${tabIndex >= 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
@@ -475,17 +506,23 @@ export default function Register() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 2 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
               {tabIndex > 2 ? <CheckCircle2 className="w-5 h-5" /> : "3"}
             </div>
-            <span>Permis</span>
+            <span>Facturation</span>
           </div>
           <div className={`flex flex-col items-center ${tabIndex >= 3 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 3 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
               {tabIndex > 3 ? <CheckCircle2 className="w-5 h-5" /> : "4"}
             </div>
-            <span>Compte</span>
+            <span>Permis</span>
           </div>
           <div className={`flex flex-col items-center ${tabIndex >= 4 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 4 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-              "5"
+              {tabIndex > 4 ? <CheckCircle2 className="w-5 h-5" /> : "5"}
+            </div>
+            <span>Compte</span>
+          </div>
+          <div className={`flex flex-col items-center ${tabIndex >= 5 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 5 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              "6"
             </div>
             <span>Conditions</span>
           </div>
@@ -634,7 +671,6 @@ export default function Register() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Adresse avec autocomplétion */}
                     <div className="space-y-2 md:col-span-2 relative">
                       <Label htmlFor="address1">Adresse (ligne 1)</Label>
                       <Input
@@ -648,7 +684,6 @@ export default function Register() {
                         onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
                       />
                       
-                      {/* Suggestions d'adresses */}
                       {showAddressSuggestions && addressSuggestions.length > 0 && (
                         <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                           {isLoadingAddresses && (
@@ -718,7 +753,6 @@ export default function Register() {
                       />
                     </div>
 
-                    {/* Sélecteur de pays */}
                     <div className="space-y-2 md:col-span-2">
                       <Label>Pays</Label>
                       <Popover open={countryOpen} onOpenChange={setCountryOpen}>
@@ -807,7 +841,189 @@ export default function Register() {
               </Card>
             </TabsContent>
 
-            {/* Onglet 3: Permis de conduire */}
+            {/* NOUVEL ONGLET 3: Adresse de facturation */}
+            <TabsContent value="billing">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CreditCard className="w-5 h-5 mr-2" />
+                    Adresse de facturation
+                  </CardTitle>
+                  <CardDescription>
+                    Définissez l'adresse qui apparaîtra sur vos factures.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <Checkbox 
+                        id="useSameAddressForBilling" 
+                        checked={formData.useSameAddressForBilling}
+                        onCheckedChange={(checked) => setFormData({...formData, useSameAddressForBilling: checked === true})}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor="useSameAddressForBilling"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Utiliser la même adresse que l'adresse de domicile pour la facturation
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Si vous cochez cette case, votre adresse de domicile sera utilisée pour la facturation.
+                        </p>
+                      </div>
+                    </div>
+
+                    {!formData.useSameAddressForBilling && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-lg bg-gray-50">
+                        <div className="space-y-2 md:col-span-2 relative">
+                          <Label htmlFor="billingAddress1">Adresse de facturation (ligne 1)</Label>
+                          <Input
+                            id="billingAddress1"
+                            name="billingAddress1"
+                            value={formData.billingAddress1}
+                            onChange={handleChange}
+                            placeholder="Commencez à taper votre adresse de facturation..."
+                            required={!formData.useSameAddressForBilling}
+                            onFocus={() => setShowBillingAddressSuggestions(billingAddressQuery.length >= 3)}
+                            onBlur={() => setTimeout(() => setShowBillingAddressSuggestions(false), 200)}
+                          />
+                          
+                          {showBillingAddressSuggestions && billingAddressSuggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                              {isLoadingBillingAddresses && (
+                                <div className="p-3 text-center text-gray-500">
+                                  <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1" />
+                                  Recherche d'adresses...
+                                </div>
+                              )}
+                              {billingAddressSuggestions.map((address, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  className="w-full text-left p-3 hover:bg-gray-50 flex items-center gap-2"
+                                  onClick={() => handleAddressSelect(address, true)}
+                                >
+                                  <MapPin className="w-4 h-4 text-gray-400" />
+                                  <span className="text-sm">{address}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="billingAddress2">Adresse de facturation (ligne 2) <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                          <Input
+                            id="billingAddress2"
+                            name="billingAddress2"
+                            value={formData.billingAddress2 || ""}
+                            onChange={handleChange}
+                            placeholder="Complément d'adresse de facturation"
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="billingAddress3">Complément d'adresse de facturation <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                          <Input
+                            id="billingAddress3"
+                            name="billingAddress3"
+                            value={formData.billingAddress3 || ""}
+                            onChange={handleChange}
+                            placeholder="Bâtiment, résidence, etc."
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="billingPostalCode">Code postal de facturation</Label>
+                          <Input
+                            id="billingPostalCode"
+                            name="billingPostalCode"
+                            value={formData.billingPostalCode}
+                            onChange={handleChange}
+                            placeholder="Code postal"
+                            required={!formData.useSameAddressForBilling}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="billingCity">Ville de facturation</Label>
+                          <Input
+                            id="billingCity"
+                            name="billingCity"
+                            value={formData.billingCity}
+                            onChange={handleChange}
+                            placeholder="Ville"
+                            required={!formData.useSameAddressForBilling}
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Pays de facturation</Label>
+                          <Popover open={billingCountryOpen} onOpenChange={setBillingCountryOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={billingCountryOpen}
+                                className="w-full justify-between"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Globe className="w-4 h-4" />
+                                  {formData.billingCountry ? 
+                                    COUNTRIES.find(country => country.code === formData.billingCountry)?.name :
+                                    "Sélectionnez un pays"
+                                  }
+                                </div>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput placeholder="Rechercher un pays..." />
+                                <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandList>
+                                    {COUNTRIES.map((country) => (
+                                      <CommandItem
+                                        key={country.code}
+                                        value={country.name}
+                                        onSelect={() => {
+                                          handleSelectChange("billingCountry", country.code);
+                                          setBillingCountryOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            formData.billingCountry === country.code ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {country.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandList>
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button type="button" variant="outline" onClick={goToPreviousTab}>
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+                  </Button>
+                  <Button type="button" onClick={handleNextClick}>
+                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Onglet 4: Permis de conduire (ancien onglet 3) */}
             <TabsContent value="permit">
               <Card>
                 <CardHeader>
@@ -892,7 +1108,7 @@ export default function Register() {
               </Card>
             </TabsContent>
 
-            {/* Onglet 4: Compte utilisateur */}
+            {/* Onglet 5: Compte utilisateur (ancien onglet 4) */}
             <TabsContent value="account">
               <Card>
                 <CardHeader>
@@ -931,7 +1147,6 @@ export default function Register() {
                       />
                     </div>
 
-                    {/* Mot de passe avec validation renforcée */}
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="password">Mot de passe</Label>
                       <div className="relative">
@@ -1007,7 +1222,7 @@ export default function Register() {
               </Card>
             </TabsContent>
 
-            {/* Onglet 5: Conditions générales */}
+            {/* Onglet 6: Conditions générales (ancien onglet 5) */}
             <TabsContent value="terms">
               <Card>
                 <CardHeader>

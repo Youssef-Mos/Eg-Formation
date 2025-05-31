@@ -4,7 +4,10 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Euro, FileText, CheckCircle, AlertCircle, CreditCard, AlertTriangle, Receipt } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar, Clock, MapPin, Euro, FileText, CheckCircle, AlertCircle, CreditCard, AlertTriangle, Receipt, Mail } from "lucide-react";
 import Nav from "@/components/nav";
 import Footer from "@/components/footer";
 
@@ -78,8 +81,12 @@ export default function StageDetail() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  
+  // États pour la demande de facture
+  const [invoiceRequestLoading, setInvoiceRequestLoading] = useState(false);
+  const [invoiceRequestMessage, setInvoiceRequestMessage] = useState("");
+  const [showInvoiceRequestDialog, setShowInvoiceRequestDialog] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -206,24 +213,37 @@ export default function StageDetail() {
     }
   };
 
-  const handleDownloadInvoice = async () => {
-    if (!reservation || !session?.user?.id) return;
+  // NOUVELLE FONCTION : Demander une facture à l'admin
+  const handleRequestInvoice = async () => {
+    if (!reservation) return;
     
-    if (reservation.paid === false) {
-      toast.error("Veuillez régler votre réservation pour télécharger la facture");
-      return;
-    }
-    
-    setInvoiceLoading(true);
+    setInvoiceRequestLoading(true);
     try {
-      const downloadUrl = `/api/invoice/download?reservationId=${reservation.id}`;
-      window.open(downloadUrl, '_blank');
-      toast.success("Téléchargement de la facture démarré");
+      const res = await fetch("/api/invoice/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reservationId: reservation.id,
+          message: invoiceRequestMessage.trim() || undefined
+        }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Erreur lors de la demande");
+        return;
+      }
+      
+      const data = await res.json();
+      toast.success(data.message);
+      setShowInvoiceRequestDialog(false);
+      setInvoiceRequestMessage("");
+      
     } catch (error) {
-      console.error("Erreur de téléchargement de la facture:", error);
-      toast.error("Erreur lors du téléchargement de la facture");
+      console.error("Erreur demande facture:", error);
+      toast.error("Erreur lors de l'envoi de la demande");
     } finally {
-      setInvoiceLoading(false);
+      setInvoiceRequestLoading(false);
     }
   };
 
@@ -303,7 +323,7 @@ export default function StageDetail() {
                   <ul className="list-disc list-inside text-amber-700 space-y-1 mb-3">
                     <li>Garantir votre place au stage</li>
                     <li>Recevoir votre attestation par email</li>
-                    <li>Pouvoir télécharger votre attestation et facture</li>
+                    <li>Pouvoir télécharger votre attestation et demander votre facture</li>
                   </ul>
                   
                   <div className="mt-4 border-t border-amber-200 pt-4">
@@ -343,7 +363,7 @@ export default function StageDetail() {
                     </Button>
                   </div>
 
-                  {/* Facture */}
+                  {/* MODIFIÉ : Demande de facture au lieu de téléchargement direct */}
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <h3 className="font-semibold text-green-800 mb-2 flex items-center">
                       <Receipt className="w-5 h-5 mr-2" />
@@ -355,16 +375,60 @@ export default function StageDetail() {
                       )}
                     </h3>
                     <p className="text-green-700 mb-3 text-sm">
-                      Facture acquittée pour le paiement de votre stage.
+                      {invoice ? 
+                        "Facture émise. Contactez-nous si vous ne l'avez pas reçue." :
+                        "Demandez votre facture à notre équipe administrative."}
                     </p>
-                    <Button 
-                      onClick={handleDownloadInvoice} 
-                      disabled={invoiceLoading}
-                      className="bg-green-600 hover:bg-green-700 w-full"
-                      size="sm"
-                    >
-                      {invoiceLoading ? "Téléchargement..." : "Télécharger la facture"}
-                    </Button>
+                    
+                    <Dialog open={showInvoiceRequestDialog} onOpenChange={setShowInvoiceRequestDialog}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          className="bg-green-600 hover:bg-green-700 w-full"
+                          size="sm"
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          {invoice ? "Redemander ma facture" : "Demander ma facture"}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Demander ma facture</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <p className="text-sm text-gray-600">
+                            Votre demande de facture sera envoyée à notre équipe administrative. 
+                            Vous recevrez votre facture par email sous 24h ouvrées.
+                          </p>
+                          
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Message (optionnel)</label>
+                            <Textarea
+                              value={invoiceRequestMessage}
+                              onChange={(e) => setInvoiceRequestMessage(e.target.value)}
+                              placeholder="Précisions sur votre demande..."
+                              className="min-h-[80px]"
+                            />
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowInvoiceRequestDialog(false)}
+                              className="flex-1"
+                            >
+                              Annuler
+                            </Button>
+                            <Button
+                              onClick={handleRequestInvoice}
+                              disabled={invoiceRequestLoading}
+                              className="flex-1"
+                            >
+                              {invoiceRequestLoading ? "Envoi..." : "Envoyer la demande"}
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               )}
@@ -509,23 +573,13 @@ export default function StageDetail() {
               )}
               
               {reservation && (reservation.paid !== false) && (
-                <>
-                  <Button 
-                    onClick={handleDownloadPDF} 
-                    disabled={pdfLoading}
-                    className="w-full sm:w-auto"
-                  >
-                    {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
-                  </Button>
-                  
-                  <Button 
-                    onClick={handleDownloadInvoice} 
-                    disabled={invoiceLoading}
-                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
-                  >
-                    {invoiceLoading ? "Téléchargement..." : "Télécharger la facture"}
-                  </Button>
-                </>
+                <Button 
+                  onClick={handleDownloadPDF} 
+                  disabled={pdfLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
+                </Button>
               )}
             </div>
           </div>

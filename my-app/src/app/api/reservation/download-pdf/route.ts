@@ -50,14 +50,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Récupérer les informations du stage et de l'utilisateur avec vérification de la réservation
+    // CORRECTION 1: Récupérer les informations avec l'agrément inclus
     const reservation = await prisma.reservation.findFirst({
       where: {
         userId: userId,
         stageId: stageId
       },
       include: {
-        stage: true,
+        stage: {
+          include: {
+            agrement: true // ✅ CRUCIAL : Inclure l'agrément
+          }
+        },
         user: true
       }
     });
@@ -83,9 +87,11 @@ export async function GET(request: Request) {
     const stage = reservation.stage;
     const user = reservation.user;
 
+    // CORRECTION 2: Ajouter des logs de débogage
     console.log(`📄 Génération PDF avec jsPDF pour stage ${stageId}, utilisateur ${userId}, type: ${typeStage}`);
+    console.log("🔍 Agrément du stage:", stage.agrement);
     
-    // Transformer les données pour correspondre aux interfaces
+    // CORRECTION 3: Transformer les données en incluant l'agrément
     const stageData = {
       id: stage.id,
       Titre: stage.Titre,
@@ -99,7 +105,13 @@ export async function GET(request: Request) {
       HeureDebut2: stage.HeureDebut2,
       HeureFin2: stage.HeureFin2,
       Prix: stage.Prix,
-      NumeroStage: stage.NumeroStage
+      NumeroStage: stage.NumeroStage,
+      agrement: stage.agrement
+        ? {
+            ...stage.agrement,
+            nomDepartement: stage.agrement.nomDepartement ?? undefined
+          }
+        : null // ✅ AJOUT CRUCIAL : Inclure l'agrément avec nomDepartement corrigé
     };
 
     const userData = {
@@ -112,6 +124,14 @@ export async function GET(request: Request) {
     const reservationOptions = {
       stageType: mapTypeStageToNumber(typeStage)
     };
+
+    // CORRECTION 4: Log supplémentaire avant génération
+    console.log("🔍 Données stage envoyées au PDF:", {
+      id: stageData.id,
+      titre: stageData.Titre,
+      numeroStage: stageData.NumeroStage,
+      agrement: stageData.agrement
+    });
     
     // Générer le PDF en utilisant la nouvelle fonction jsPDF
     const pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);

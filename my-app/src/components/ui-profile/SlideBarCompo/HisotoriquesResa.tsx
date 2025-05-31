@@ -26,8 +26,8 @@ import {
   AlertCircle, 
   CheckCircle, 
   ChevronLeft,
-  ChevronDown,
-  ChevronUp
+  Receipt,
+  FileText
 } from "lucide-react";
 
 interface Stage {
@@ -205,6 +205,12 @@ export default function HistoriqueResa() {
     }
   };
 
+  // NOUVELLE FONCTION : Gérer les factures pour un participant
+  const handleManageInvoice = (userId: number, reservationId: number, userName: string) => {
+    // Rediriger vers la page de gestion des factures avec les paramètres
+    router.push(`/admin/factures?reservationId=${reservationId}&userId=${userId}&userName=${encodeURIComponent(userName)}`);
+  };
+
   // Close expanded view and reset selection
   const handleCloseExpandedView = () => {
     setExpandedStageView(false);
@@ -229,7 +235,18 @@ export default function HistoriqueResa() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6 text-center">Historique des Réservations</h1>
+      {/* En-tête avec bouton de gestion des factures */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Historique des Réservations</h1>
+        {/* NOUVEAU : Bouton pour accéder à la gestion globale des factures */}
+        <Button
+          onClick={() => router.push('/admin/factures')}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+        >
+          <Receipt className="w-4 h-4" />
+          Gestion des factures
+        </Button>
+      </div>
       
       {/* Section étendue pour le stage sélectionné */}
       {expandedStageView && selectedStageDetails && (
@@ -390,6 +407,23 @@ export default function HistoriqueResa() {
                                 {paymentProcessing === profile.reservation?.id ? 
                                   "Validation..." : 
                                   "Valider paiement"}
+                              </Button>
+                            )}
+                            
+                            {/* NOUVEAU : Bouton pour gérer la facture */}
+                            {profile.reservation?.paid !== false && profile.reservation && (
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                className="flex items-center gap-1"
+                                onClick={() => handleManageInvoice(
+                                  profile.id, 
+                                  profile.reservation!.id, 
+                                  `${profile.prenom} ${profile.nom}`
+                                )}
+                              >
+                                <Receipt className="w-3 h-3" />
+                                Facture
                               </Button>
                             )}
                             

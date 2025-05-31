@@ -8,15 +8,15 @@ const prisma = new PrismaClient();
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+
     // Vérification minimale côté serveur
     const requiredFields = [
-      'email', 'password', 'username', 'lastName', 'firstName', 
-      'birthDate', 'birthPlace', 'address1', 'postalCode', 
+      'email', 'password', 'username', 'lastName', 'firstName',
+      'birthDate', 'birthPlace', 'address1', 'postalCode',
       'city', 'phone1', 'permitNumber', 'permitIssuedAt',
       'acceptTerms', 'acceptRules', 'confirmPointsCheck'
     ];
-    
+
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -25,27 +25,66 @@ export async function POST(request: Request) {
         );
       }
     }
-    
+
+    // ✅ NOUVELLE VALIDATION : Adresse de facturation
+    if (!body.useSameAddressForBilling) {
+      const billingRequiredFields = ['billingAddress1', 'billingPostalCode', 'billingCity'];
+      
+      for (const field of billingRequiredFields) {
+        if (!body[field]) {
+          return NextResponse.json(
+            { error: `Le champ d'adresse de facturation ${field} est requis quand une adresse différente est utilisée.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Hachage du mot de passe
     const hashedPassword = await bcrypt.hash(body.password, 12);
-    
+
     // Supprimer les champs qui ne sont pas dans le modèle Prisma
     const { confirmPassword, ...userData } = body;
-    
-    // Création de l'utilisateur
+
+    // ✅ NOUVELLE LOGIQUE : Gestion des champs de facturation
+    const billingData = body.useSameAddressForBilling 
+      ? {
+          useSameAddressForBilling: true,
+          billingAddress1: null,
+          billingAddress2: null,
+          billingAddress3: null,
+          billingPostalCode: null,
+          billingCity: null,
+          billingCountry: null,
+        }
+      : {
+          useSameAddressForBilling: false,
+          billingAddress1: body.billingAddress1,
+          billingAddress2: body.billingAddress2 || null,
+          billingAddress3: body.billingAddress3 || null,
+          billingPostalCode: body.billingPostalCode,
+          billingCity: body.billingCity,
+          billingCountry: body.billingCountry || 'FR',
+        };
+
+    // ✅ CRÉATION avec les nouvelles données de facturation
     const user = await prisma.user.create({
       data: {
         ...userData,
+        ...billingData, // Inclusion des données de facturation
         password: hashedPassword,
         birthDate: new Date(body.birthDate),
         permitDate: new Date(body.permitDate),
       },
     });
-    
-    return NextResponse.json(user, { status: 201 });
+
+    // Ne pas retourner le mot de passe dans la réponse
+    const { password, ...userResponse } = user;
+
+    return NextResponse.json(userResponse, { status: 201 });
   } catch (error: any) {
     console.error('Erreur création utilisateur:', error);
-    
+
     // Vérification d'une erreur d'unicité
     if (error.code === 'P2002') {
       const duplicatedField = error.meta?.target;
@@ -54,10 +93,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Erreur lors de la création du compte' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

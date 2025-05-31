@@ -57,15 +57,90 @@ type SavedConsentData = ConsentData & {
   sessionId: string;
 };
 
+// ✅ Fonction utilitaire pour vérifier si on est côté client
+const isClientSide = () => typeof window !== 'undefined';
+
+// ✅ Fonction sécurisée pour accéder au localStorage
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (!isClientSide()) return null;
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error('Erreur localStorage.getItem:', error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): boolean => {
+    if (!isClientSide()) return false;
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.error('Erreur localStorage.setItem:', error);
+      return false;
+    }
+  },
+  removeItem: (key: string): boolean => {
+    if (!isClientSide()) return false;
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.error('Erreur localStorage.removeItem:', error);
+      return false;
+    }
+  }
+};
+
+// ✅ Fonction sécurisée pour accéder au sessionStorage
+const safeSessionStorage = {
+  getItem: (key: string): string | null => {
+    if (!isClientSide()) return null;
+    try {
+      return sessionStorage.getItem(key);
+    } catch (error) {
+      console.error('Erreur sessionStorage.getItem:', error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): boolean => {
+    if (!isClientSide()) return false;
+    try {
+      sessionStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.error('Erreur sessionStorage.setItem:', error);
+      return false;
+    }
+  },
+  removeItem: (key: string): boolean => {
+    if (!isClientSide()) return false;
+    try {
+      sessionStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.error('Erreur sessionStorage.removeItem:', error);
+      return false;
+    }
+  }
+};
+
 export const useCookieConsent = () => {
   const [consent, setConsent] = useState<ConsentData | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
+  const [isClientMounted, setIsClientMounted] = useState(false); // ✅ État pour l'hydratation
 
   // ✅ Constantes de configuration
   const CONSENT_EXPIRY_HOURS = 24; // Expiration après 24h
   const STORAGE_KEY = 'cookie-consent';
   const CURRENT_VERSION = '2.0';
+
+  // ✅ S'assurer qu'on est côté client après hydratation
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
 
   // Générer un ID de session unique
   const generateSessionId = () => {
@@ -85,20 +160,24 @@ export const useCookieConsent = () => {
 
   // Vérifier si c'est une nouvelle session (détection redémarrage serveur)
   const isNewSession = (savedData: SavedConsentData): boolean => {
-    const currentSessionId = sessionStorage.getItem('current-session-id');
+    if (!isClientSide()) return false;
+    
+    const currentSessionId = safeSessionStorage.getItem('current-session-id');
     if (!currentSessionId) {
       // Première fois dans cette session
-      sessionStorage.setItem('current-session-id', generateSessionId());
-      return savedData.sessionId !== sessionStorage.getItem('current-session-id');
+      safeSessionStorage.setItem('current-session-id', generateSessionId());
+      return savedData.sessionId !== safeSessionStorage.getItem('current-session-id');
     }
     return false;
   };
 
-  // Charger et vérifier le consentement
+  // ✅ Charger et vérifier le consentement (seulement côté client)
   useEffect(() => {
+    if (!isClientMounted) return; // Attendre l'hydratation
+
     const checkConsent = () => {
       try {
-        const savedConsent = localStorage.getItem(STORAGE_KEY);
+        const savedConsent = safeLocalStorage.getItem(STORAGE_KEY);
         
         if (!savedConsent) {
           console.log("🍪 Aucun consentement trouvé - Affichage du banner");
@@ -117,21 +196,21 @@ export const useCookieConsent = () => {
           console.log("🍪 Consentement expiré (24h dépassées) - Redemande");
           setIsExpired(true);
           setShowBanner(true);
-          localStorage.removeItem(STORAGE_KEY);
+          safeLocalStorage.removeItem(STORAGE_KEY);
           return;
         }
 
         if (newSession) {
           console.log("🍪 Nouvelle session détectée - Redemande");
           setShowBanner(true);
-          localStorage.removeItem(STORAGE_KEY);
+          safeLocalStorage.removeItem(STORAGE_KEY);
           return;
         }
 
         if (versionChanged) {
           console.log("🍪 Version du consentement changée - Redemande");
           setShowBanner(true);
-          localStorage.removeItem(STORAGE_KEY);
+          safeLocalStorage.removeItem(STORAGE_KEY);
           return;
         }
 
@@ -162,13 +241,13 @@ export const useCookieConsent = () => {
 
     // ✅ Surveillance de l'expiration en temps réel
     const expiryCheck = setInterval(() => {
-      const savedConsent = localStorage.getItem(STORAGE_KEY);
+      const savedConsent = safeLocalStorage.getItem(STORAGE_KEY);
       if (savedConsent) {
         try {
           const parsedData: SavedConsentData = JSON.parse(savedConsent);
           if (isConsentExpired(parsedData)) {
             console.log("🍪 Consentement expiré détecté - Nettoyage");
-            localStorage.removeItem(STORAGE_KEY);
+            safeLocalStorage.removeItem(STORAGE_KEY);
             setConsent(null);
             setShowBanner(true);
             setIsExpired(true);
@@ -180,16 +259,14 @@ export const useCookieConsent = () => {
     }, 60000); // Vérifier toutes les minutes
 
     return () => clearInterval(expiryCheck);
-  }, []);
+  }, [isClientMounted]); // ✅ Dépendance sur isClientMounted
 
-  // ✅ Surveiller la fermeture de la page/onglet
+  // ✅ Surveiller la fermeture de la page/onglet (seulement côté client)
   useEffect(() => {
+    if (!isClientMounted) return;
+
     const handleBeforeUnload = () => {
-      // Option 1: Expirer le consentement à la fermeture (plus strict)
-      // localStorage.removeItem(STORAGE_KEY);
-      
-      // Option 2: Marquer pour expiration rapide au prochain chargement
-      const savedConsent = localStorage.getItem(STORAGE_KEY);
+      const savedConsent = safeLocalStorage.getItem(STORAGE_KEY);
       if (savedConsent) {
         try {
           const parsedData: SavedConsentData = JSON.parse(savedConsent);
@@ -197,7 +274,7 @@ export const useCookieConsent = () => {
             ...parsedData,
             shouldReask: true, // Flag pour redemander au prochain chargement
           };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+          safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
         } catch (error) {
           console.error("🍪 Erreur marking for reask:", error);
         }
@@ -205,6 +282,7 @@ export const useCookieConsent = () => {
     };
 
     const handleVisibilityChange = () => {
+      if (!isClientSide()) return;
       if (document.visibilityState === 'hidden') {
         // Page devient invisible (onglet fermé/changé)
         handleBeforeUnload();
@@ -219,11 +297,13 @@ export const useCookieConsent = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [isClientMounted]);
 
   const saveConsent = (consentData: ConsentData) => {
-    const currentSessionId = sessionStorage.getItem('current-session-id') || generateSessionId();
-    sessionStorage.setItem('current-session-id', currentSessionId);
+    if (!isClientSide()) return;
+
+    const currentSessionId = safeSessionStorage.getItem('current-session-id') || generateSessionId();
+    safeSessionStorage.setItem('current-session-id', currentSessionId);
 
     const dataToSave: SavedConsentData = {
       ...consentData,
@@ -232,7 +312,7 @@ export const useCookieConsent = () => {
       sessionId: currentSessionId,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     setConsent(consentData);
     setShowBanner(false);
     setIsExpired(false);
@@ -248,8 +328,10 @@ export const useCookieConsent = () => {
   };
 
   const revokeConsent = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem('current-session-id');
+    if (!isClientSide()) return;
+
+    safeLocalStorage.removeItem(STORAGE_KEY);
+    safeSessionStorage.removeItem('current-session-id');
     setConsent(null);
     setShowBanner(true);
     setIsExpired(false);
@@ -261,8 +343,10 @@ export const useCookieConsent = () => {
   };
 
   const getConsentInfo = () => {
+    if (!isClientSide()) return null; // ✅ Vérification côté client
+    
     try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
+      const savedData = safeLocalStorage.getItem(STORAGE_KEY);
       if (savedData) {
         const parsed: SavedConsentData = JSON.parse(savedData);
         const timeLeft = CONSENT_EXPIRY_HOURS * 60 * 60 * 1000 - (Date.now() - new Date(parsed.timestamp).getTime());
@@ -290,12 +374,15 @@ export const useCookieConsent = () => {
     revokeConsent, 
     setShowBanner, 
     isExpired,
-    getConsentInfo
+    getConsentInfo,
+    isClientMounted // ✅ Exposer l'état d'hydratation
   };
 };
 
 // Fonction pour initialiser les scripts selon le consentement
 const initializeScripts = (consent: ConsentData) => {
+  if (!isClientSide()) return; // ✅ Vérification côté client
+
   // Google Analytics
   if (consent.analytics && process.env.NEXT_PUBLIC_GA_ID) {
     // Assure dataLayer is defined
@@ -335,6 +422,8 @@ const initializeScripts = (consent: ConsentData) => {
 
 // Fonction pour supprimer les cookies non essentiels
 const clearNonEssentialCookies = () => {
+  if (!isClientSide()) return; // ✅ Vérification côté client
+
   const allCookies = document.cookie.split(';');
   
   allCookies.forEach(cookie => {
@@ -359,7 +448,7 @@ const clearNonEssentialCookies = () => {
 
 // Composant principal du banner
 export default function CookieConsent() {
-  const { showBanner, saveConsent, setShowBanner, isExpired, getConsentInfo } = useCookieConsent();
+  const { showBanner, saveConsent, setShowBanner, isExpired, getConsentInfo, isClientMounted } = useCookieConsent();
   const [showDetails, setShowDetails] = useState(false);
   const [preferences, setPreferences] = useState({
     necessary: true,
@@ -367,6 +456,11 @@ export default function CookieConsent() {
     marketing: false,
     preferences: false
   });
+
+  // ✅ Ne pas afficher le composant tant qu'on n'est pas côté client
+  if (!isClientMounted) {
+    return null;
+  }
 
   const consentInfo = getConsentInfo();
 
@@ -544,10 +638,11 @@ export default function CookieConsent() {
 
 // Composant pour afficher les paramètres de cookies dans les mentions légales
 export function CookieSettings() {
-  const { consent, revokeConsent, getConsentInfo } = useCookieConsent();
+  const { consent, revokeConsent, getConsentInfo, isClientMounted } = useCookieConsent();
   const [showSettings, setShowSettings] = useState(false);
 
-  if (!consent) return null;
+  // ✅ Ne pas afficher tant qu'on n'est pas côté client
+  if (!isClientMounted || !consent) return null;
 
   const consentInfo = getConsentInfo();
 

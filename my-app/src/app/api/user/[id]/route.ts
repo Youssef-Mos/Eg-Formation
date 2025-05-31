@@ -5,7 +5,7 @@ import { withApiSecurity, validateRequestData, validators, logApiAccess } from "
 
 const prisma = new PrismaClient();
 
-// Validateur pour les données utilisateur
+// ✅ MISE À JOUR : Validateur avec nouveaux champs de facturation
 const isValidUserData = (data: any): data is {
   email?: string;
   firstName?: string;
@@ -19,12 +19,21 @@ const isValidUserData = (data: any): data is {
   address3?: string;
   postalCode?: string;
   city?: string;
+  country?: string;
   phone1?: string;
   phone2?: string;
   permitNumber?: string;
   permitIssuedAt?: string;
   permitDate?: string;
   role?: string;
+  // ✅ NOUVEAUX CHAMPS DE FACTURATION
+  useSameAddressForBilling?: boolean;
+  billingAddress1?: string;
+  billingAddress2?: string;
+  billingAddress3?: string;
+  billingPostalCode?: string;
+  billingCity?: string;
+  billingCountry?: string;
 } => {
   if (typeof data !== "object" || data === null) return false;
   
@@ -34,6 +43,10 @@ const isValidUserData = (data: any): data is {
   if (data.phone1 && (typeof data.phone1 !== "string" || !/^\d{10}$/.test(data.phone1.replace(/\s/g, '')))) return false;
   if (data.phone2 && (typeof data.phone2 !== "string" || !/^\d{10}$/.test(data.phone2.replace(/\s/g, '')))) return false;
   if (data.username && (typeof data.username !== "string" || data.username.trim().length < 3)) return false;
+  
+  // ✅ NOUVELLE VALIDATION : Champs de facturation
+  if (data.useSameAddressForBilling !== undefined && typeof data.useSameAddressForBilling !== "boolean") return false;
+  if (data.billingPostalCode && (typeof data.billingPostalCode !== "string" || !/^\d{5}$/.test(data.billingPostalCode))) return false;
   
   return true;
 };
@@ -82,7 +95,7 @@ async function withUserAuthAndParams(
   return handler(request, { session: session!, params, isOwnProfile, isAdmin });
 }
 
-// Récupérer un utilisateur
+// ✅ MISE À JOUR : Récupérer un utilisateur avec données de facturation
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -101,11 +114,13 @@ export async function GET(
           gender: true,
           birthDate: true,
           birthPlace: true,
+          // Adresse principale
           address1: true,
           address2: true,
           address3: true,
           postalCode: true,
           city: true,
+          country: true,
           phone1: true,
           phone2: true,
           permitNumber: true,
@@ -117,6 +132,14 @@ export async function GET(
           acceptTerms: true,
           acceptRules: true,
           confirmPointsCheck: true,
+          // ✅ NOUVEAUX CHAMPS DE FACTURATION
+          useSameAddressForBilling: true,
+          billingAddress1: true,
+          billingAddress2: true,
+          billingAddress3: true,
+          billingPostalCode: true,
+          billingCity: true,
+          billingCountry: true,
           // Ne jamais retourner le mot de passe
         },
       });
@@ -145,7 +168,7 @@ export async function GET(
   });
 }
 
-// Mettre à jour un utilisateur
+// ✅ MISE À JOUR : Mettre à jour un utilisateur avec données de facturation
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -182,6 +205,24 @@ export async function PUT(
           { error: "Adresse email invalide", code: "INVALID_EMAIL" },
           { status: 400 }
         );
+      }
+
+      // ✅ NOUVELLE VALIDATION : Adresse de facturation
+      if (userData.useSameAddressForBilling === false) {
+        const billingRequiredFields = ['billingAddress1', 'billingPostalCode', 'billingCity'];
+        
+        for (const field of billingRequiredFields) {
+          if (!userData[field as keyof typeof userData]) {
+            logApiAccess(req, session, false, "MISSING_BILLING_FIELD");
+            return NextResponse.json(
+              { 
+                error: `Le champ ${field} est requis quand une adresse de facturation différente est utilisée`, 
+                code: "MISSING_BILLING_FIELD" 
+              },
+              { status: 400 }
+            );
+          }
+        }
       }
 
       // Vérifier l'unicité de l'email
@@ -235,6 +276,17 @@ export async function PUT(
         dataToUpdate.permitDate = new Date(dataToUpdate.permitDate);
       }
 
+      // ✅ NOUVELLE LOGIQUE : Gestion des données de facturation
+      if (dataToUpdate.useSameAddressForBilling === true) {
+        // Si on utilise la même adresse, on vide les champs de facturation
+        dataToUpdate.billingAddress1 = null;
+        dataToUpdate.billingAddress2 = null;
+        dataToUpdate.billingAddress3 = null;
+        dataToUpdate.billingPostalCode = null;
+        dataToUpdate.billingCity = null;
+        dataToUpdate.billingCountry = null;
+      }
+
       // Mettre à jour l'utilisateur
       const updatedUser = await prisma.user.update({
         where: { id: userId },
@@ -247,11 +299,13 @@ export async function PUT(
           gender: true,
           birthDate: true,
           birthPlace: true,
+          // Adresse principale
           address1: true,
           address2: true,
           address3: true,
           postalCode: true,
           city: true,
+          country: true,
           phone1: true,
           phone2: true,
           permitNumber: true,
@@ -263,6 +317,14 @@ export async function PUT(
           acceptTerms: true,
           acceptRules: true,
           confirmPointsCheck: true,
+          // ✅ NOUVEAUX CHAMPS DE FACTURATION
+          useSameAddressForBilling: true,
+          billingAddress1: true,
+          billingAddress2: true,
+          billingAddress3: true,
+          billingPostalCode: true,
+          billingCity: true,
+          billingCountry: true,
         },
       });
 

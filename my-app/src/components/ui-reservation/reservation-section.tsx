@@ -8,6 +8,8 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import ListeStages from "../ui-stage/LiseStage";
 import StageFilter from "./StageFilter";
+import AgrementManagement from "@/components/admin/AgrementManagement";
+import { Plus, Shield } from "lucide-react";
 
 // Interface mise à jour avec le nouveau filtre places disponibles
 type FilterValues = {
@@ -35,6 +37,9 @@ export default function ReservationSection() {
   const [villesDisponibles, setVillesDisponibles] = useState<string[]>([]);
   const [maxPlacesDisponibles, setMaxPlacesDisponibles] = useState<number>(50);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // NOUVEAU : État pour gérer l'affichage du modal de gestion des agréments
+  const [showAgrementManagement, setShowAgrementManagement] = useState(false);
 
   // État des filtres avec la nouvelle propriété
   const [filters, setFilters] = useState<FilterValues>({
@@ -104,22 +109,34 @@ export default function ReservationSection() {
 
   return (
     <section className="flex flex-col gap-5 justify-center items-center">
-      {/* Bouton admin pour ajouter un stage */}
+      {/* Boutons admin pour ajouter un stage et gérer les agréments */}
       {session?.user?.role === "admin" && (
         <motion.div 
-          className="mt-4"
+          className="mt-4 flex gap-3"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
+          {/* Bouton Ajouter un stage */}
           <Link href="/admin/add-stage">
             <Button 
-              className="cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105" 
+              className="cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2" 
               variant="outline"
             >
+              <Plus className="w-4 h-4" />
               Ajouter un stage
             </Button>
           </Link>
+
+          {/* NOUVEAU : Bouton Gérer les agréments */}
+          <Button 
+            onClick={() => setShowAgrementManagement(true)}
+            className="cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2" 
+            variant="outline"
+          >
+            <Shield className="w-4 h-4" />
+            Gérer agréments
+          </Button>
         </motion.div>
       )}
 
@@ -159,6 +176,34 @@ export default function ReservationSection() {
           )}
         </div>
       </motion.div>
+
+      {/* NOUVEAU : Modal de gestion des agréments */}
+      {showAgrementManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-5xl max-h-[90vh] overflow-y-auto"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Header du modal */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800">Gestion des agréments</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAgrementManagement(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </Button>
+            </div>
+            
+            {/* Contenu du modal */}
+            <AgrementManagement onClose={() => setShowAgrementManagement(false)} />
+          </motion.div>
+        </div>
+      )}
     </section>
   );
 }

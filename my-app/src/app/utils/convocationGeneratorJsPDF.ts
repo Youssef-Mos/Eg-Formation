@@ -8,6 +8,13 @@ interface User {
   id: number;
 }
 
+interface Agrement {
+  id: number;
+  departement: string;
+  numeroAgrement: string;
+  nomDepartement?: string;
+}
+
 interface Stage {
   id: number;
   Titre: string;
@@ -22,6 +29,7 @@ interface Stage {
   HeureFin2: string;
   Prix: number;
   NumeroStage: string;
+  agrement?: Agrement | null; // Ajout de l'agrément avec possibilité d'être null
 }
 
 interface ReservationOptions {
@@ -135,8 +143,15 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       doc.text('Lieu et horaires du stage :', margin, currentY);
       currentY += 10;
 
+      // Utilisation dynamique de l'agrément s'il existe
       doc.setFont('helvetica', 'normal');
-      doc.text('Stage agréé par le Préfet du Nord, agrément n° R2305900010 :', margin, currentY);
+      if (stage.agrement && stage.agrement.numeroAgrement) {
+        const agrementText = `Stage agréé par le Préfet ${stage.agrement.nomDepartement ? `du ${stage.agrement.nomDepartement}` : `(${stage.agrement.departement})`}, agrément n° ${stage.agrement.numeroAgrement} :`;
+        doc.text(agrementText, margin, currentY);
+      } else {
+        // Texte par défaut si pas d'agrément spécifique
+        doc.text('Stage agréé par le Préfet, agrément n° [À définir] :', margin, currentY);
+      }
       currentY += 10;
 
       // Détails des dates et horaires
@@ -162,6 +177,16 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       doc.setFont('helvetica', 'bold');
       doc.text(`Numéro de stage : ${stage.NumeroStage}`, margin, currentY);
       currentY += 15;
+
+      // Affichage supplémentaire de l'agrément si disponible
+      if (stage.agrement) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Agrément : ${stage.agrement.numeroAgrement}`, margin, currentY);
+        currentY += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Département : ${stage.agrement.departement}${stage.agrement.nomDepartement ? ` (${stage.agrement.nomDepartement})` : ''}`, margin, currentY);
+        currentY += 15;
+      }
 
       // Obligations
       doc.setFont('helvetica', 'bold');
@@ -358,6 +383,10 @@ export async function sendConfirmationEmail(user: User, stage: Stage, options: R
     4: "Peine complémentaire ou sursis avec mise à l'épreuve"
   };
 
+  const agrementInfo = stage.agrement 
+    ? `\n🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
+    : '';
+
   const emailContent = `
 Bonjour ${user.firstName} ${user.lastName},
 
@@ -367,7 +396,7 @@ Nous vous confirmons votre inscription au stage de sécurité routière suivant 
 📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
 📅 Dates : du ${new Date(stage.DateDebut).toLocaleDateString('fr-FR')} au ${new Date(stage.DateFin).toLocaleDateString('fr-FR')}
 ⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
-🔢 Numéro de stage : ${stage.NumeroStage}
+🔢 Numéro de stage : ${stage.NumeroStage}${agrementInfo}
 💰 Prix : ${stage.Prix}€
 📋 Type : ${stageTypeDescriptions[options.stageType]}
 
