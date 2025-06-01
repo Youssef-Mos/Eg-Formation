@@ -11,10 +11,22 @@ export async function POST(request: Request) {
 
     // Vérification minimale côté serveur
     const requiredFields = [
-      'email', 'password', 'username', 'lastName', 'firstName',
-      'birthDate', 'birthPlace', 'address1', 'postalCode',
-      'city', 'phone1', 'permitNumber', 'permitIssuedAt',
-      'acceptTerms', 'acceptRules', 'confirmPointsCheck'
+      'email',
+      'password',
+      'username',
+      'lastName',
+      'firstName',
+      'birthDate',
+      'birthPlace',
+      'address1',
+      'postalCode',
+      'city',
+      'phone1',
+      'permitNumber',
+      'permitIssuedAt',
+      'acceptTerms',
+      'acceptRules',
+      'confirmPointsCheck'
     ];
 
     for (const field of requiredFields) {
@@ -47,41 +59,60 @@ export async function POST(request: Request) {
     const { confirmPassword, ...userData } = body;
 
     // ✅ NOUVELLE LOGIQUE : Gestion des champs de facturation
-    const billingData = body.useSameAddressForBilling 
-      ? {
-          useSameAddressForBilling: true,
-          billingAddress1: null,
-          billingAddress2: null,
-          billingAddress3: null,
-          billingPostalCode: null,
-          billingCity: null,
-          billingCountry: null,
-        }
-      : {
-          useSameAddressForBilling: false,
-          billingAddress1: body.billingAddress1,
-          billingAddress2: body.billingAddress2 || null,
-          billingAddress3: body.billingAddress3 || null,
-          billingPostalCode: body.billingPostalCode,
-          billingCity: body.billingCity,
-          billingCountry: body.billingCountry || 'FR',
-        };
+    const billingData = body.useSameAddressForBilling ? {
+      useSameAddressForBilling: true,
+      billingAddress1: null,
+      billingAddress2: null,
+      billingAddress3: null,
+      billingPostalCode: null,
+      billingCity: null,
+      billingCountry: null,
+    } : {
+      useSameAddressForBilling: false,
+      billingAddress1: body.billingAddress1,
+      billingAddress2: body.billingAddress2 || null,
+      billingAddress3: body.billingAddress3 || null,
+      billingPostalCode: body.billingPostalCode,
+      billingCity: body.billingCity,
+      billingCountry: body.billingCountry || 'FR',
+    };
 
-    // ✅ CRÉATION avec les nouvelles données de facturation
+    // ✅ NOUVEAUX CHAMPS : Statut du permis
+    const permitData = {
+      permitDocumentUploaded: false,
+      permitDocumentVerified: false,
+      permitNotificationSent: null,
+      profileCompleted: false, // Le profil ne sera complet qu'avec le document de permis
+    };
+
+    // ✅ CRÉATION avec les nouvelles données de facturation et de permis
     const user = await prisma.user.create({
       data: {
         ...userData,
-        ...billingData, // Inclusion des données de facturation
+        ...billingData,
+        ...permitData,
         password: hashedPassword,
         birthDate: new Date(body.birthDate),
         permitDate: new Date(body.permitDate),
       },
     });
 
+    // ✅ NOUVEAU : Créer une notification de bienvenue avec rappel du permis
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: 'welcome_permit_reminder',
+        title: 'Bienvenue chez EG-Formation !',
+        message: `Bonjour ${user.firstName} ${user.lastName},\n\nBienvenue chez EG-Formation ! Votre compte a été créé avec succès.\n\nPour finaliser votre inscription et pouvoir réserver des stages, il ne vous reste plus qu'à télécharger une copie de votre permis de conduire dans la section "Mon Profil".\n\nCordialement,\nL'équipe EG-Formation`,
+        emailSent: false
+      }
+    });
+
     // Ne pas retourner le mot de passe dans la réponse
     const { password, ...userResponse } = user;
 
     return NextResponse.json(userResponse, { status: 201 });
+
   } catch (error: any) {
     console.error('Erreur création utilisateur:', error);
 

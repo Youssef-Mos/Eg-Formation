@@ -5,7 +5,7 @@ import { withApiSecurity, validateRequestData, validators, logApiAccess } from "
 
 const prisma = new PrismaClient();
 
-// ✅ MISE À JOUR : Validateur avec nouveaux champs de facturation
+// ✅ MISE À JOUR : Validateur avec nouveaux champs de facturation et permis
 const isValidUserData = (data: any): data is {
   email?: string;
   firstName?: string;
@@ -34,6 +34,10 @@ const isValidUserData = (data: any): data is {
   billingPostalCode?: string;
   billingCity?: string;
   billingCountry?: string;
+  // ✅ NOUVEAUX CHAMPS DE PERMIS
+  permitDocumentUploaded?: boolean;
+  permitDocumentVerified?: boolean;
+  profileCompleted?: boolean;
 } => {
   if (typeof data !== "object" || data === null) return false;
   
@@ -47,6 +51,11 @@ const isValidUserData = (data: any): data is {
   // ✅ NOUVELLE VALIDATION : Champs de facturation
   if (data.useSameAddressForBilling !== undefined && typeof data.useSameAddressForBilling !== "boolean") return false;
   if (data.billingPostalCode && (typeof data.billingPostalCode !== "string" || !/^\d{5}$/.test(data.billingPostalCode))) return false;
+  
+  // ✅ NOUVELLE VALIDATION : Champs de permis
+  if (data.permitDocumentUploaded !== undefined && typeof data.permitDocumentUploaded !== "boolean") return false;
+  if (data.permitDocumentVerified !== undefined && typeof data.permitDocumentVerified !== "boolean") return false;
+  if (data.profileCompleted !== undefined && typeof data.profileCompleted !== "boolean") return false;
   
   return true;
 };
@@ -95,7 +104,7 @@ async function withUserAuthAndParams(
   return handler(request, { session: session!, params, isOwnProfile, isAdmin });
 }
 
-// ✅ MISE À JOUR : Récupérer un utilisateur avec données de facturation
+// ✅ MISE À JOUR : Récupérer un utilisateur avec toutes les nouvelles données
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -132,6 +141,11 @@ export async function GET(
           acceptTerms: true,
           acceptRules: true,
           confirmPointsCheck: true,
+          // ✅ NOUVEAUX CHAMPS DE PERMIS
+          permitDocumentUploaded: true,
+          permitDocumentVerified: true,
+          permitNotificationSent: true,
+          profileCompleted: true,
           // ✅ NOUVEAUX CHAMPS DE FACTURATION
           useSameAddressForBilling: true,
           billingAddress1: true,
@@ -168,7 +182,7 @@ export async function GET(
   });
 }
 
-// ✅ MISE À JOUR : Mettre à jour un utilisateur avec données de facturation
+// ✅ MISE À JOUR : Mettre à jour un utilisateur avec toutes les nouvelles données
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -190,6 +204,13 @@ export async function PUT(
       if (userData.role && !isAdmin) {
         delete userData.role;
         console.warn(`Tentative de modification de rôle par utilisateur non-admin: ${session.user.id}`);
+      }
+
+      // Sécurité : seuls les admins peuvent modifier les statuts de permis
+      if (!isAdmin) {
+        delete userData.permitDocumentUploaded;
+        delete userData.permitDocumentVerified;
+        delete userData.profileCompleted;
       }
 
       // Ne jamais permettre la modification du mot de passe via cette route
@@ -317,6 +338,11 @@ export async function PUT(
           acceptTerms: true,
           acceptRules: true,
           confirmPointsCheck: true,
+          // ✅ NOUVEAUX CHAMPS DE PERMIS
+          permitDocumentUploaded: true,
+          permitDocumentVerified: true,
+          permitNotificationSent: true,
+          profileCompleted: true,
           // ✅ NOUVEAUX CHAMPS DE FACTURATION
           useSameAddressForBilling: true,
           billingAddress1: true,
@@ -410,7 +436,7 @@ export async function DELETE(
         );
       }
 
-      // Supprimer l'utilisateur
+      // Supprimer l'utilisateur (les documents et notifications seront supprimés en cascade grâce à onDelete: Cascade)
       const deletedUser = await prisma.user.delete({
         where: { id: userId },
         select: {

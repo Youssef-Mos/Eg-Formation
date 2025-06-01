@@ -61,6 +61,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
+import PermitUpload from "@/components/ui-profile/Composant/PermitUpload";
 
 // ✅ NOUVEAU : Liste des pays
 const COUNTRIES = [
@@ -725,12 +726,13 @@ export default function ProfilePro() {
             </Card>
           </TabsContent>
 
+          {/* ✅ ONGLET PERMIS AVEC PERMIT UPLOAD INTÉGRÉ */}
           <TabsContent value="permit">
             <Card>
               <CardHeader>
                 <CardTitle>Permis de conduire</CardTitle>
                 <CardDescription>
-                  Informations concernant votre permis de conduire.
+                  Informations concernant votre permis de conduire et documents.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -789,6 +791,20 @@ export default function ProfilePro() {
                       onChange={handleChange}
                     />
                   </div>
+                </div>
+
+                {/* ✅ INTÉGRATION DU COMPOSANT PERMIT UPLOAD */}
+                <div className="mt-8">
+                  <PermitUpload 
+                    showExisting={true}
+                    isInProfile={true}
+                    onUploadSuccess={() => {
+                      toast.success("Document de permis téléchargé avec succès !");
+                    }}
+                    onUploadError={(error) => {
+                      toast.error(error);
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>

@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar";
-import { IconArrowLeft, IconBrandTabler, IconSettings, IconUserBolt } from "@tabler/icons-react";
+import { IconArrowLeft, IconBrandTabler, IconSettings, IconUserBolt, IconUsers, IconFileText } from "@tabler/icons-react";
 import MesReservations from "@/components/ui-profile/SlideBarCompo/MesReservation";
 import Settings from "@/components/ui-profile/SlideBarCompo/parametre";
 import ProfilePro from "@/components/ui-profile/SlideBarCompo/Profile-profile";
 import HistoriqueResa from "../ui-profile/SlideBarCompo/HisotoriquesResa";
+import ClientProfiles from "../ui-profile/Composant/ClientProfile";
+import PermitVerificationManager from "../ui-profile/Composant/PermitVerif";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -44,13 +46,17 @@ export function SidebarDemo() {
 
   const [open, setOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState<
-    "historique" | "reservations" | "profile" | "settings" | null
+    "historique" | "reservations" | "profile" | "settings" | "clients" | "documents" | null
   >(null);
 
   // Définir l'onglet par défaut une fois la session chargée
   useEffect(() => {
     if (!selectedTab && session?.user?.role) {
-      setSelectedTab(session.user.role === "admin" ? "historique" : "reservations");
+      if (session.user.role === "admin") {
+        setSelectedTab("historique");
+      } else {
+        setSelectedTab("reservations");
+      }
     }
   }, [session, selectedTab]);
 
@@ -90,6 +96,30 @@ export function SidebarDemo() {
             }
           },
         },
+    // 🆕 NOUVEAU : Profil Clients (Admin uniquement)
+    ...(session?.user.role === "admin" ? [{
+      label: "Profil Clients",
+      href: "#",
+      icon: <IconUsers className="h-5 w-5" />,
+      onClick: () => {
+        setSelectedTab("clients");
+        if (typeof window !== "undefined" && window.innerWidth < 768) {
+          setOpen(false);
+        }
+      },
+    }] : []),
+    // 🆕 NOUVEAU : Gestion des documents de permis (Admin uniquement)
+    ...(session?.user.role === "admin" ? [{
+      label: "Documents Permis",
+      href: "#",
+      icon: <IconFileText className="h-5 w-5" />,
+      onClick: () => {
+        setSelectedTab("documents");
+        if (typeof window !== "undefined" && window.innerWidth < 768) {
+          setOpen(false);
+        }
+      },
+    }] : []),
     {
       label: "Profile",
       href: "#",
@@ -139,6 +169,8 @@ export function SidebarDemo() {
       <main className="flex-1 p-6 overflow-auto">
         {selectedTab === "reservations" && session?.user.role !== "admin" && <MesReservations />}
         {selectedTab === "historique" && session?.user.role === "admin" && <HistoriqueResa />}
+        {selectedTab === "clients" && session?.user.role === "admin" && <ClientProfiles />}
+        {selectedTab === "documents" && session?.user.role === "admin" && <PermitVerificationManager />}
         {selectedTab === "profile" && <ProfilePro />}
         {selectedTab === "settings" && <Settings />}
       </main>
