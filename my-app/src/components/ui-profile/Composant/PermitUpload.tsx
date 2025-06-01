@@ -40,8 +40,6 @@ import {
 interface PermitDocument {
   id: number;
   fileName: string;
-  fileType: string;
-  fileSize: number;
   status: 'pending' | 'verified' | 'rejected';
   adminComments?: string;
   createdAt: string;
@@ -78,10 +76,18 @@ export default function PermitUpload({
   const loadExistingDocuments = async () => {
     setLoadingDocuments(true);
     try {
+      // ✅ CORRECTION : Bonne URL pour récupérer les documents
       const res = await fetch('/api/user/permit-document');
       if (res.ok) {
-        const documents = await res.json();
-        setExistingDocuments(documents);
+        const result = await res.json();
+        console.log('Documents récupérés:', result);
+        
+        // ✅ CORRECTION : Gérer la structure de réponse
+        if (result.success && result.documents) {
+          setExistingDocuments(result.documents);
+        } else if (Array.isArray(result)) {
+          setExistingDocuments(result);
+        }
       }
     } catch (error) {
       console.error('Erreur lors du chargement des documents:', error);
@@ -115,12 +121,15 @@ export default function PermitUpload({
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
+      console.log('Fichier déposé:', files[0]);
       handleFileSelect(files[0]);
     }
   };
 
   // Gestion de la sélection de fichier
   const handleFileSelect = (file: File) => {
+    console.log('Fichier sélectionné:', file);
+    
     // Vérifier le type de fichier
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
@@ -128,19 +137,21 @@ export default function PermitUpload({
       return;
     }
 
-    // Vérifier la taille (5MB max)
-    const maxSize = 5 * 1024 * 1024;
+    // Vérifier la taille (10MB max pour correspondre à l'API)
+    const maxSize = 10 * 1024 * 1024; // ✅ CORRECTION : 10MB comme dans l'API
     if (file.size > maxSize) {
-      toast.error("Fichier trop volumineux. Taille maximale : 5MB");
+      toast.error("Fichier trop volumineux. Taille maximale : 10MB");
       return;
     }
 
     setSelectedFile(file);
+    toast.success(`Fichier "${file.name}" sélectionné`);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
+      console.log('Fichier sélectionné via input:', files[0]);
       handleFileSelect(files[0]);
     }
   };
@@ -151,18 +162,24 @@ export default function PermitUpload({
       return;
     }
 
+    console.log('Début de l\'upload pour:', selectedFile);
     setUploading(true);
     setUploadProgress(0);
 
     try {
       const formData = new FormData();
-      formData.append('permitDocument', selectedFile);
+      // ✅ CORRECTION : Nom du champ correspondant à l'API
+      formData.append('file', selectedFile);
+
+      console.log('FormData créé:', formData);
+      console.log('Fichier dans FormData:', formData.get('file'));
 
       // Simuler la progression
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 100);
 
+      // ✅ CORRECTION : Bonne URL pour l'upload
       const res = await fetch('/api/user/permit-document', {
         method: 'POST',
         body: formData
@@ -171,12 +188,22 @@ export default function PermitUpload({
       clearInterval(progressInterval);
       setUploadProgress(100);
 
+      console.log('Réponse HTTP:', res.status, res.statusText);
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Erreur lors de l\'upload');
+        const errorText = await res.text();
+        console.error('Erreur API:', errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || 'Erreur lors de l\'upload');
+        } catch (parseError) {
+          throw new Error(`Erreur HTTP ${res.status}: ${errorText}`);
+        }
       }
 
       const result = await res.json();
+      console.log('Résultat upload:', result);
       
       toast.success("Document téléchargé avec succès !");
       setSelectedFile(null);
@@ -208,8 +235,46 @@ export default function PermitUpload({
     setSelectedFile(null);
   };
 
-  const getFileIcon = (fileType: string) => {
-    if (fileType === 'application/pdf') {
+  // ✅ CORRECTION : Fonction pour voir le document
+  const viewDocument = async (documentId: number) => {
+    try {
+      const res = await fetch(`/api/user/permit-documents/${documentId}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } else {
+        toast.error("Impossible d'ouvrir le document");
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture:', error);
+      toast.error("Erreur lors de l'ouverture du document");
+    }
+  };
+
+  // ✅ CORRECTION : Fonction pour supprimer le document
+  const deleteDocument = async (documentId: number) => {
+    try {
+      const res = await fetch(`/api/user/permit-documents/${documentId}`, {
+        method: 'DELETE'
+      });
+      
+      if (res.ok) {
+        toast.success("Document supprimé avec succès");
+        loadExistingDocuments(); // Recharger la liste
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.toLowerCase().split('.').pop();
+    if (extension === 'pdf') {
       return <FileText className="w-8 h-8 text-red-500" />;
     }
     return <Image className="w-8 h-8 text-blue-500" />;
@@ -259,11 +324,11 @@ export default function PermitUpload({
                 <Card key={doc.id} className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
-                      {getFileIcon(doc.fileType)}
+                      {getFileIcon(doc.fileName)}
                       <div>
                         <p className="font-medium">{doc.fileName}</p>
                         <p className="text-sm text-gray-500">
-                          {formatFileSize(doc.fileSize)} • Téléchargé le {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                          Téléchargé le {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
                         </p>
                         {doc.verifiedAt && (
                           <p className="text-sm text-gray-500">
@@ -280,6 +345,37 @@ export default function PermitUpload({
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(doc.status)}
+                      {/* ✅ AJOUT : Boutons d'action */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => viewDocument(doc.id)}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      {doc.status !== 'verified' && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer le document</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteDocument(doc.id)}>
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -304,7 +400,7 @@ export default function PermitUpload({
             </CardTitle>
             <CardDescription>
               Ajoutez une copie de votre permis de conduire pour compléter votre profil. 
-              Formats acceptés : PDF, JPEG, PNG (max 5MB)
+              Formats acceptés : PDF, JPEG, PNG (max 10MB)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -338,7 +434,7 @@ export default function PermitUpload({
                         Glissez-déposez votre fichier ici, ou <span className="text-blue-600">cliquez pour parcourir</span>
                       </p>
                       <p className="text-sm text-gray-500">
-                        PDF, JPEG, PNG • Maximum 5MB
+                        PDF, JPEG, PNG • Maximum 10MB
                       </p>
                     </div>
                   )}
@@ -348,7 +444,7 @@ export default function PermitUpload({
               <div className="border rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    {getFileIcon(selectedFile.type)}
+                    {getFileIcon(selectedFile.name)}
                     <div>
                       <p className="font-medium">{selectedFile.name}</p>
                       <p className="text-sm text-gray-500">

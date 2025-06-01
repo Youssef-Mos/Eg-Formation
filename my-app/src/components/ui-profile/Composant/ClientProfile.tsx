@@ -5,7 +5,9 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -22,6 +24,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -35,6 +44,16 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Search, 
   Eye, 
@@ -50,7 +69,11 @@ import {
   Calendar,
   CreditCard,
   Download,
-  Send
+  Send,
+  Plus,
+  CalendarIcon,
+  Loader2,
+  Copy
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -104,7 +127,7 @@ interface Client {
   }>;
 }
 
-// ✅ NOUVEAU : Interface pour les statistiques
+// Interface pour les statistiques
 interface ApiStats {
   totalClients: number;
   completeProfiles: number;
@@ -114,7 +137,7 @@ interface ApiStats {
   unverifiedDocuments: number;
 }
 
-// ✅ NOUVEAU : Interface pour la réponse API
+// Interface pour la réponse API
 interface ApiResponse {
   clients: Client[];
   pagination: {
@@ -126,6 +149,39 @@ interface ApiResponse {
     limit: number;
   };
   stats: ApiStats;
+}
+
+// Interface pour le nouveau client avec dates séparées
+interface NewClientForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  gender: string;
+  birthDay: string;
+  birthMonth: string;
+  birthYear: string;
+  birthPlace: string;
+  address1: string;
+  address2: string;
+  address3: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone1: string;
+  phone2: string;
+  permitNumber: string;
+  permitIssuedAt: string;
+  permitDay: string;
+  permitMonth: string;
+  permitYear: string;
+  useSameAddressForBilling: boolean;
+  billingAddress1: string;
+  billingAddress2: string;
+  billingAddress3: string;
+  billingPostalCode: string;
+  billingCity: string;
+  billingCountry: string;
 }
 
 const COUNTRIES = [
@@ -141,6 +197,115 @@ const COUNTRIES = [
   { code: "GB", name: "Royaume-Uni" },
 ];
 
+const MONTHS = [
+  { value: "01", label: "Janvier" },
+  { value: "02", label: "Février" },
+  { value: "03", label: "Mars" },
+  { value: "04", label: "Avril" },
+  { value: "05", label: "Mai" },
+  { value: "06", label: "Juin" },
+  { value: "07", label: "Juillet" },
+  { value: "08", label: "Août" },
+  { value: "09", label: "Septembre" },
+  { value: "10", label: "Octobre" },
+  { value: "11", label: "Novembre" },
+  { value: "12", label: "Décembre" },
+];
+
+// Composant pour sélectionner le jour avec recherche
+const DaySelector = ({ value, onChange, placeholder = "Jour" }: {
+  value: string;
+  onChange: (day: string) => void;
+  placeholder?: string;
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Générer la liste des jours
+  const days = [];
+  for (let day = 1; day <= 31; day++) {
+    days.push(day.toString().padStart(2, '0'));
+  }
+
+  // Filtrer les jours basés sur la recherche
+  const filteredDays = searchTerm 
+    ? days.filter(day => day.includes(searchTerm) || day.startsWith(searchTerm))
+    : days;
+
+  return (
+    <Select value={value} onValueChange={onChange} open={isOpen} onOpenChange={setIsOpen}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <div className="p-2">
+          <Input
+            placeholder="Tapez un chiffre (ex: 1, 15...)"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-2"
+          />
+        </div>
+        <div className="max-h-48 overflow-y-auto">
+          {filteredDays.map((day) => (
+            <SelectItem key={day} value={day}>
+              {day}
+            </SelectItem>
+          ))}
+        </div>
+      </SelectContent>
+    </Select>
+  );
+};
+
+// Composant pour sélectionner l'année avec recherche
+const YearSelector = ({ value, onChange, placeholder = "Année", minYear = 1930, maxYear = new Date().getFullYear() }: {
+  value: string;
+  onChange: (year: string) => void;
+  placeholder?: string;
+  minYear?: number;
+  maxYear?: number;
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Générer la liste des années
+  const years = [];
+  for (let year = maxYear; year >= minYear; year--) {
+    years.push(year.toString());
+  }
+
+  // Filtrer les années basées sur la recherche
+  const filteredYears = searchTerm 
+    ? years.filter(year => year.includes(searchTerm))
+    : years;
+
+  return (
+    <Select value={value} onValueChange={onChange} open={isOpen} onOpenChange={setIsOpen}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <div className="p-2">
+          <Input
+            placeholder="Tapez pour rechercher (ex: 19, 196...)"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-2"
+          />
+        </div>
+        <div className="max-h-48 overflow-y-auto">
+          {filteredYears.map((year) => (
+            <SelectItem key={year} value={year}>
+              {year}
+            </SelectItem>
+          ))}
+        </div>
+      </SelectContent>
+    </Select>
+  );
+};
+
 export default function ClientProfiles() {
   const { data: session } = useSession();
   const [clients, setClients] = useState<Client[]>([]);
@@ -150,7 +315,6 @@ export default function ClientProfiles() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sendingNotification, setSendingNotification] = useState(false);
-  // ✅ NOUVEAU : État pour les statistiques
   const [stats, setStats] = useState<ApiStats>({
     totalClients: 0,
     completeProfiles: 0,
@@ -158,6 +322,44 @@ export default function ClientProfiles() {
     uploadedDocuments: 0,
     verifiedDocuments: 0,
     unverifiedDocuments: 0
+  });
+
+  // États pour l'ajout de client
+  const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [tempPasswordDialogOpen, setTempPasswordDialogOpen] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientForm, setNewClientForm] = useState<NewClientForm>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    username: "",
+    gender: "male",
+    birthDay: "",
+    birthMonth: "",
+    birthYear: "",
+    birthPlace: "",
+    address1: "",
+    address2: "",
+    address3: "",
+    postalCode: "",
+    city: "",
+    country: "FR",
+    phone1: "",
+    phone2: "",
+    permitNumber: "",
+    permitIssuedAt: "",
+    permitDay: "",
+    permitMonth: "",
+    permitYear: "",
+    useSameAddressForBilling: true,
+    billingAddress1: "",
+    billingAddress2: "",
+    billingAddress3: "",
+    billingPostalCode: "",
+    billingCity: "",
+    billingCountry: "FR"
   });
 
   // Vérifier que l'utilisateur est admin
@@ -176,40 +378,38 @@ export default function ClientProfiles() {
     );
   }
 
-  // ✅ CORRIGÉ : Charger les clients avec gestion de la nouvelle structure API
+  // Charger les clients
   useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const res = await fetch("/api/admin/clients");
-        if (!res.ok) throw new Error("Erreur lors du chargement");
-        
-        const data: ApiResponse = await res.json();
-        
-        // ✅ CORRECTION : Accéder à la propriété clients du retour API
-        setClients(data.clients || []);
-        setFilteredClients(data.clients || []);
-        setStats(data.stats || {
-          totalClients: 0,
-          completeProfiles: 0,
-          incompleteProfiles: 0,
-          uploadedDocuments: 0,
-          verifiedDocuments: 0,
-          unverifiedDocuments: 0
-        });
-        
-      } catch (error) {
-        console.error("Erreur:", error);
-        toast.error("Impossible de charger les clients");
-        // ✅ SÉCURITÉ : S'assurer que clients est un tableau même en cas d'erreur
-        setClients([]);
-        setFilteredClients([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchClients();
   }, []);
+
+  const fetchClients = async () => {
+    try {
+      const res = await fetch("/api/admin/clients");
+      if (!res.ok) throw new Error("Erreur lors du chargement");
+      
+      const data: ApiResponse = await res.json();
+      
+      setClients(data.clients || []);
+      setFilteredClients(data.clients || []);
+      setStats(data.stats || {
+        totalClients: 0,
+        completeProfiles: 0,
+        incompleteProfiles: 0,
+        uploadedDocuments: 0,
+        verifiedDocuments: 0,
+        unverifiedDocuments: 0
+      });
+      
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Impossible de charger les clients");
+      setClients([]);
+      setFilteredClients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filtrage des clients
   useEffect(() => {
@@ -226,6 +426,155 @@ export default function ClientProfiles() {
     );
     setFilteredClients(filtered);
   }, [searchTerm, clients]);
+
+  // Gestion du formulaire de nouveau client
+  const handleNewClientChange = (field: keyof NewClientForm, value: any) => {
+    setNewClientForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Fonction pour valider et créer une date
+  const createDateFromFields = (day: string, month: string, year: string): Date | null => {
+    if (!day || !month || !year) return null;
+    
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    
+    // Vérifier que la date est valide
+    if (date.getDate() !== parseInt(day) || 
+        date.getMonth() !== parseInt(month) - 1 || 
+        date.getFullYear() !== parseInt(year)) {
+      return null;
+    }
+    
+    return date;
+  };
+
+  // Créer un nouveau client
+  const createNewClient = async () => {
+    // Validation des champs requis
+    const requiredFields = [
+      'firstName', 'lastName', 'email', 'username', 'birthPlace',
+      'address1', 'postalCode', 'city', 'phone1', 'permitNumber', 'permitIssuedAt',
+      'birthDay', 'birthMonth', 'birthYear', 'permitDay', 'permitMonth', 'permitYear'
+    ];
+
+    for (const field of requiredFields) {
+      if (!newClientForm[field as keyof NewClientForm]) {
+        toast.error(`Le champ ${field} est requis`);
+        return;
+      }
+    }
+
+    // Validation email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClientForm.email)) {
+      toast.error("Adresse email invalide");
+      return;
+    }
+
+    // Validation des dates
+    const birthDate = createDateFromFields(newClientForm.birthDay, newClientForm.birthMonth, newClientForm.birthYear);
+    if (!birthDate) {
+      toast.error("Date de naissance invalide");
+      return;
+    }
+
+    const permitDate = createDateFromFields(newClientForm.permitDay, newClientForm.permitMonth, newClientForm.permitYear);
+    if (!permitDate) {
+      toast.error("Date du permis invalide");
+      return;
+    }
+
+    // Validation adresse de facturation si nécessaire
+    if (!newClientForm.useSameAddressForBilling) {
+      if (!newClientForm.billingAddress1 || !newClientForm.billingPostalCode || !newClientForm.billingCity) {
+        toast.error("Adresse de facturation incomplète");
+        return;
+      }
+    }
+
+    setCreatingClient(true);
+
+    try {
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newClientForm,
+          birthDate: birthDate.toISOString(),
+          permitDate: permitDate.toISOString(),
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Erreur lors de la création');
+      }
+
+      const result = await res.json();
+      
+      toast.success("Client créé avec succès !");
+      
+      // Afficher le mot de passe temporaire
+      setTempPassword(result.tempPassword);
+      setNewClientEmail(result.client.email);
+      setTempPasswordDialogOpen(true);
+      
+      // Fermer le dialog de création
+      setAddClientDialogOpen(false);
+      
+      // Réinitialiser le formulaire
+      setNewClientForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        username: "",
+        gender: "male",
+        birthDay: "",
+        birthMonth: "",
+        birthYear: "",
+        birthPlace: "",
+        address1: "",
+        address2: "",
+        address3: "",
+        postalCode: "",
+        city: "",
+        country: "FR",
+        phone1: "",
+        phone2: "",
+        permitNumber: "",
+        permitIssuedAt: "",
+        permitDay: "",
+        permitMonth: "",
+        permitYear: "",
+        useSameAddressForBilling: true,
+        billingAddress1: "",
+        billingAddress2: "",
+        billingAddress3: "",
+        billingPostalCode: "",
+        billingCity: "",
+        billingCountry: "FR"
+      });
+      
+      // Recharger la liste des clients
+      fetchClients();
+      
+    } catch (error: any) {
+      console.error('Erreur:', error);
+      toast.error(error.message || "Impossible de créer le client");
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
+  // Copier le mot de passe
+  const copyTempPassword = () => {
+    navigator.clipboard.writeText(tempPassword);
+    toast.success("Mot de passe copié dans le presse-papiers");
+  };
 
   // Envoyer une notification de rappel pour le permis
   const sendPermitReminder = async (clientId: number) => {
@@ -310,13 +659,351 @@ export default function ClientProfiles() {
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-6 h-6" />
-            Gestion des profils clients
-          </CardTitle>
-          <CardDescription>
-            Gérez et consultez les profils de tous vos clients
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-6 h-6" />
+                Gestion des profils clients
+              </CardTitle>
+              <CardDescription>
+                Gérez et consultez les profils de tous vos clients
+              </CardDescription>
+            </div>
+            {/* Bouton d'ajout de client */}
+            <Dialog open={addClientDialogOpen} onOpenChange={setAddClientDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter un client
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Créer un nouveau client</DialogTitle>
+                  <DialogDescription>
+                    Remplissez les informations pour créer un compte client. Un mot de passe temporaire sera généré.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Tabs defaultValue="personal" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="personal">Informations</TabsTrigger>
+                    <TabsTrigger value="address">Adresse</TabsTrigger>
+                    <TabsTrigger value="billing">Facturation</TabsTrigger>
+                    <TabsTrigger value="permit">Permis</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="personal" className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">Prénom *</Label>
+                        <Input
+                          id="firstName"
+                          value={newClientForm.firstName}
+                          onChange={(e) => handleNewClientChange('firstName', e.target.value)}
+                          placeholder="Prénom"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Nom *</Label>
+                        <Input
+                          id="lastName"
+                          value={newClientForm.lastName}
+                          onChange={(e) => handleNewClientChange('lastName', e.target.value)}
+                          placeholder="Nom"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email *</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={newClientForm.email}
+                          onChange={(e) => handleNewClientChange('email', e.target.value)}
+                          placeholder="email@exemple.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="username">Nom d'utilisateur *</Label>
+                        <Input
+                          id="username"
+                          value={newClientForm.username}
+                          onChange={(e) => handleNewClientChange('username', e.target.value)}
+                          placeholder="nom_utilisateur"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Genre</Label>
+                        <Select 
+                          value={newClientForm.gender} 
+                          onValueChange={(value) => handleNewClientChange('gender', value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Homme</SelectItem>
+                            <SelectItem value="female">Femme</SelectItem>
+                            <SelectItem value="other">Autre</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Date de naissance *</Label>
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                          <div className="min-w-0">
+                            <DaySelector
+                              value={newClientForm.birthDay}
+                              onChange={(value) => handleNewClientChange('birthDay', value)}
+                              placeholder="Jour"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <Select 
+                              value={newClientForm.birthMonth} 
+                              onValueChange={(value) => handleNewClientChange('birthMonth', value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Mois" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {MONTHS.map((month) => (
+                                  <SelectItem key={month.value} value={month.value}>
+                                    {month.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="min-w-0">
+                            <YearSelector
+                              value={newClientForm.birthYear}
+                              onChange={(value) => handleNewClientChange('birthYear', value)}
+                              placeholder="Année"
+                              minYear={1930}
+                              maxYear={2010}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="birthPlace">Lieu de naissance *</Label>
+                        <Input
+                          id="birthPlace"
+                          value={newClientForm.birthPlace}
+                          onChange={(e) => handleNewClientChange('birthPlace', e.target.value)}
+                          placeholder="Lieu de naissance"
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="address" className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="address1">Adresse *</Label>
+                        <Input
+                          id="address1"
+                          value={newClientForm.address1}
+                          onChange={(e) => handleNewClientChange('address1', e.target.value)}
+                          placeholder="Adresse principale"
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="address2">Complément d'adresse</Label>
+                        <Input
+                          id="address2"
+                          value={newClientForm.address2}
+                          onChange={(e) => handleNewClientChange('address2', e.target.value)}
+                          placeholder="Complément d'adresse"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="postalCode">Code postal *</Label>
+                        <Input
+                          id="postalCode"
+                          value={newClientForm.postalCode}
+                          onChange={(e) => handleNewClientChange('postalCode', e.target.value)}
+                          placeholder="Code postal"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="city">Ville *</Label>
+                        <Input
+                          id="city"
+                          value={newClientForm.city}
+                          onChange={(e) => handleNewClientChange('city', e.target.value)}
+                          placeholder="Ville"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Pays</Label>
+                        <Select 
+                          value={newClientForm.country} 
+                          onValueChange={(value) => handleNewClientChange('country', value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COUNTRIES.map((country) => (
+                              <SelectItem key={country.code} value={country.code}>
+                                {country.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone1">Téléphone *</Label>
+                        <Input
+                          id="phone1"
+                          value={newClientForm.phone1}
+                          onChange={(e) => handleNewClientChange('phone1', e.target.value)}
+                          placeholder="Téléphone principal"
+                        />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="billing" className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="useSameAddressForBilling"
+                        checked={newClientForm.useSameAddressForBilling}
+                        onCheckedChange={(checked) => handleNewClientChange('useSameAddressForBilling', checked)}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label htmlFor="useSameAddressForBilling" className="text-sm font-medium">
+                          Utiliser la même adresse pour la facturation
+                        </label>
+                      </div>
+                    </div>
+
+                    {!newClientForm.useSameAddressForBilling && (
+                      <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="billingAddress1">Adresse de facturation *</Label>
+                          <Input
+                            id="billingAddress1"
+                            value={newClientForm.billingAddress1}
+                            onChange={(e) => handleNewClientChange('billingAddress1', e.target.value)}
+                            placeholder="Adresse de facturation"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="billingPostalCode">Code postal *</Label>
+                          <Input
+                            id="billingPostalCode"
+                            value={newClientForm.billingPostalCode}
+                            onChange={(e) => handleNewClientChange('billingPostalCode', e.target.value)}
+                            placeholder="Code postal"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="billingCity">Ville *</Label>
+                          <Input
+                            id="billingCity"
+                            value={newClientForm.billingCity}
+                            onChange={(e) => handleNewClientChange('billingCity', e.target.value)}
+                            placeholder="Ville"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="permit" className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="permitNumber">Numéro de permis *</Label>
+                        <Input
+                          id="permitNumber"
+                          value={newClientForm.permitNumber}
+                          onChange={(e) => handleNewClientChange('permitNumber', e.target.value)}
+                          placeholder="Numéro de permis"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="permitIssuedAt">Délivré par *</Label>
+                        <Input
+                          id="permitIssuedAt"
+                          value={newClientForm.permitIssuedAt}
+                          onChange={(e) => handleNewClientChange('permitIssuedAt', e.target.value)}
+                          placeholder="Autorité de délivrance"
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label>Date d'obtention du permis *</Label>
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                          <div className="min-w-0">
+                            <DaySelector
+                              value={newClientForm.permitDay}
+                              onChange={(value) => handleNewClientChange('permitDay', value)}
+                              placeholder="Jour"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <Select 
+                              value={newClientForm.permitMonth} 
+                              onValueChange={(value) => handleNewClientChange('permitMonth', value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Mois" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {MONTHS.map((month) => (
+                                  <SelectItem key={month.value} value={month.value}>
+                                    {month.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="min-w-0">
+                            <YearSelector
+                              value={newClientForm.permitYear}
+                              onChange={(value) => handleNewClientChange('permitYear', value)}
+                              placeholder="Année"
+                              minYear={1970}
+                              maxYear={new Date().getFullYear()}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setAddClientDialogOpen(false)}
+                    disabled={creatingClient}
+                  >
+                    Annuler
+                  </Button>
+                  <Button 
+                    onClick={createNewClient}
+                    disabled={creatingClient}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {creatingClient ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Création...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Créer le client
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Barre de recherche */}
@@ -332,7 +1019,7 @@ export default function ClientProfiles() {
             </div>
           </div>
 
-          {/* ✅ CORRIGÉ : Statistiques rapides utilisant les stats de l'API */}
+          {/* Statistiques rapides */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
@@ -667,6 +1354,56 @@ export default function ClientProfiles() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog pour afficher le mot de passe temporaire */}
+      <AlertDialog open={tempPasswordDialogOpen} onOpenChange={setTempPasswordDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              Client créé avec succès !
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  Le compte pour <strong>{newClientEmail}</strong> a été créé avec succès.
+                </p>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-800 mb-2">Mot de passe temporaire :</h4>
+                  <div className="flex items-center gap-2 bg-white p-2 rounded border">
+                    <code className="flex-1 font-mono text-lg">{tempPassword}</code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyTempPassword}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-yellow-700 mt-2">
+                    ⚠️ <strong>Important :</strong> Communiquez ce mot de passe au client de manière sécurisée. 
+                    Il devra le changer lors de sa première connexion.
+                  </p>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  <p><strong>Email :</strong> {newClientEmail}</p>
+                  <p><strong>Mot de passe :</strong> {tempPassword}</p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction 
+              onClick={() => setTempPasswordDialogOpen(false)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Compris
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
