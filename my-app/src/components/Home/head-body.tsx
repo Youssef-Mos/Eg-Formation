@@ -16,9 +16,9 @@ export function LampDemo() {
           duration: 0.8,
           ease: "easeInOut",
         }}
-        className="mt-8 bg-gradient-to-br from-red-400 to-blue-500 py-4 bg-clip-text text-center text-4xl font-medium tracking-tight text-transparent md:text-7xl"
+        className="mt-8 bg-gradient-to-br from-red-400 to-blue-400 py-4 bg-clip-text text-center text-4xl font-medium tracking-tight text-transparent md:text-7xl"
       >
-        Eg-Formation <br /> Récupère tes points rapidement
+        <span className="text-blue-400">Eg-Fo</span><span className="text-gray-300">rmat</span><span className="text-red-400">ions</span> <br /> Récupère tes points rapidement
       </motion.h1>
     </LampContainer>
   );

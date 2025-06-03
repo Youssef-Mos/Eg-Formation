@@ -307,10 +307,10 @@ return (
 </div>
 <h3 className="text-lg font-bold mt-4">Protection des données personnelles</h3>
 <p>Conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés, vous disposez d'un droit d'accès, de rectification, de limitation, de portabilité et de suppression de vos données personnelles.</p>
-<p>Pour exercer ces droits ou pour toute question sur le traitement de vos données, vous pouvez contacter notre délégué à la protection des données (DPO) :</p>
+<p>Pour exercer ces droits ou pour toute question sur le traitement de vos données, vous pouvez contacter notre délégué à la protection des données :</p>
 <div className="pl-4 my-3">
-<p>Par email : <a href="mailto:dpo@eg-formations.com" className="text-blue-600 hover:underline">dpo@eg-formations.com</a></p>
-<p>Par courrier : EG-FORMATIONS, Service DPO, 61, rue de Lyon 75012 Paris</p>
+<p>Par email : <a href="mailto:contact@eg-formations.com" className="text-blue-600 hover:underline">contact@eg-formations.com</a></p>
+<p>Par courrier : EG-FORMATIONS, 61, rue de Lyon 75012 Paris</p>
 </div>
 <p>Pour plus d'informations sur la façon dont nous traitons vos données, consultez notre Politique de Confidentialité accessible depuis notre site web.</p>
 <h3 className="text-lg font-bold mt-4">Propriété intellectuelle</h3>
@@ -349,7 +349,6 @@ return (
 <p>Siège social : 61, rue de Lyon 75012 Paris</p>
 <p>Email : <a href="mailto:contact@eg-formations.com" className="text-blue-600 hover:underline">contact@eg-formations.com</a></p>
 <p>Téléphone : 07 83 37 25 65</p>
-<p><strong>Délégué à la Protection des Données (DPO) :</strong> <a href="mailto:dpo@eg-formations.com" className="text-blue-600 hover:underline">dpo@eg-formations.com</a></p>
 </div>
 
 <h3 className="text-lg font-bold mt-4">2. Données collectées et finalités</h3>
@@ -475,11 +474,10 @@ return (
 
 <div className="bg-blue-50 p-4 rounded-lg mt-3">
 <h4 className="font-semibold mb-2">📧 Par email (recommandé)</h4>
-<p>Envoyez votre demande à : <a href="mailto:dpo@eg-formations.com" className="text-blue-600 hover:underline break-all">dpo@eg-formations.com</a></p>
+<p>Envoyez votre demande à : <a href="mailto:contact@eg-formations.com" className="text-blue-600 hover:underline break-all">contact@eg-formations.com</a></p>
 
 <h4 className="font-semibold mb-2 mt-3">📮 Par courrier</h4>
 <p>EG-FORMATIONS<br/>
-Service DPO<br/>
 61, rue de Lyon<br/>
 75012 Paris</p>
 
@@ -538,7 +536,6 @@ Service DPO<br/>
 <p>Pour toute question relative à cette politique de confidentialité :</p>
 <ul className="list-disc pl-6 mt-2 space-y-1">
 <li><strong>Email :</strong> <a href="mailto:contact@eg-formations.com" className="text-blue-600 hover:underline break-all">contact@eg-formations.com</a></li>
-<li><strong>DPO :</strong> <a href="mailto:dpo@eg-formations.com" className="text-blue-600 hover:underline break-all">dpo@eg-formations.com</a></li>
 <li><strong>Téléphone :</strong> 07 83 37 25 65</li>
 </ul>
 

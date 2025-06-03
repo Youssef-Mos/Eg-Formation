@@ -28,9 +28,9 @@ export default function Footer() {
           {/* Colonne 3 : Contact */}
           <div className="max-md:text-center">
             <h2 className="text-xl font-semibold mb-3">Contact</h2>
-            <p className="text-sm text-gray-400">📍 123 Rue de Lille, 59000</p>
-            <p className="text-sm text-gray-400">📧 contact@tonsite.com</p>
-            <p className="text-sm text-gray-400">📞 +33 6 00 00 00 00</p>
+            <p className="text-sm text-gray-400">📍 212 rue Marcel Sembat, 59450 Sin-le-Noble</p>
+            <p className="text-sm text-gray-400">📧 contact@eg-formations.com</p>
+            <p className="text-sm text-gray-400">📞 +33 7 83 37 25 65</p>
           </div>
 
           {/* Colonne 4 : Réseaux sociaux */}

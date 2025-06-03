@@ -140,7 +140,7 @@ export default function Contact() {
                   <div>
                     <h3 className="font-semibold">Téléphone</h3>
                     <p className="text-gray-600">07 83 37 25 65</p>
-                    <p className="text-sm text-gray-500">Lundi au samedi, 9h-18h</p>
+                    <p className="text-sm text-gray-500">Lundi au samedi, 10h-12h et 14h-16h</p>
                   </div>
                 </div>
 
@@ -177,8 +177,8 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold">Horaires</h3>
-                    <p className="text-gray-600">Lundi - Samedi</p>
-                    <p className="text-gray-600">9h00 - 18h00</p>
+                    <p className="text-gray-600">Lundi - Samedi (uniquement sous rdv)</p>
+                    <p className="text-gray-600">10h00 - 12h00 et 14h00 - 16h00</p>
                     <p className="text-sm text-gray-500">Fermé le dimanche</p>
                   </div>
                 </div>

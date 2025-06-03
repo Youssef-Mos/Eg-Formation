@@ -77,7 +77,7 @@ export default function Nav() {
           <div className="hidden sm:flex sm:flex-col lg:flex-row gap-2 flex-shrink-0">
             <Button variant="default" className="cursor-pointer hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-blue-500/25 font-medium text-sm w-full lg:w-auto">Se connecter</Button>
             <Link href="/register">
-              <Button variant="outline" className="cursor-pointer hover:scale-105 transition-all duration-200 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white shadow-lg hover:shadow-blue-500/25 font-medium text-sm w-full lg:w-auto">S'enregistrer</Button>
+              <Button variant="outline" className="cursor-pointer hover:scale-105 transition-all duration-200 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white shadow-lg hover:shadow-blue-500/25 font-medium text-sm w-full lg:w-auto">S'inscrire</Button>
             </Link>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function Nav() {
                       Se connecter
                     </Button>
                     <Link href="/register" className="w-48">
-                      <Button variant="outline" className="cursor-pointer hover:scale-105 transition-all duration-200 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white shadow-lg hover:shadow-blue-500/25 font-medium w-full">S'enregistrer</Button>
+                      <Button variant="outline" className="cursor-pointer hover:scale-105 transition-all duration-200 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white shadow-lg hover:shadow-blue-500/25 font-medium w-full">S'inscrire</Button>
                     </Link>
                   </>
                 ) : (
@@ -165,7 +165,7 @@ export default function Nav() {
                   Se connecter
                 </Button>
                 <Link href="/register">
-                  <Button variant="outline" className="cursor-pointer hover:scale-105 transition-all duration-200 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white shadow-lg hover:shadow-blue-500/25 font-medium text-sm w-full lg:w-auto">S'enregistrer</Button>
+                  <Button variant="outline" className="cursor-pointer hover:scale-105 transition-all duration-200 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white shadow-lg hover:shadow-blue-500/25 font-medium text-sm w-full lg:w-auto">S'inscrire</Button>
                 </Link>
               </>
             ) : (
