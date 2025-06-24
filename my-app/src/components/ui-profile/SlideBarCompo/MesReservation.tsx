@@ -13,7 +13,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useRouter } from "next/navigation";
-import { CreditCard, AlertCircle, CheckCircle } from "lucide-react";
+import { CreditCard, AlertCircle, CheckCircle, X, Trash2 } from "lucide-react";
 
 interface Reservation {
   id: number;
@@ -64,6 +64,7 @@ export default function MesReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
+  const [cancelLoading, setCancelLoading] = useState<number | null>(null);
 
   const ITEMS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
@@ -144,6 +145,41 @@ export default function MesReservations() {
     }
   };
 
+  // 🆕 NOUVELLE FONCTION : Annuler une réservation
+  const handleCancelReservation = async (reservationId: number, stageTitle: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir annuler votre réservation pour "${stageTitle}" ?`)) {
+      return;
+    }
+
+    setCancelLoading(reservationId);
+    try {
+      const res = await fetch("/api/reservation/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reservationId,
+          isAdmin: false
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Erreur lors de l'annulation");
+      }
+
+      toast.success("Réservation annulée avec succès");
+      
+      // Recharger les réservations
+      await fetchReservations();
+      
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error(error instanceof Error ? error.message : "Erreur lors de l'annulation");
+    } finally {
+      setCancelLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-80">
@@ -213,14 +249,34 @@ export default function MesReservations() {
               </Button>
               
               {r.paid === false && (
-                <Button 
-                  variant="default" 
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => handlePayNow(r.id, r.stage.id, r.stage.Titre, r.stage.Prix, r.TypeStage)}
-                  disabled={paymentLoading === r.id}
-                >
-                  {paymentLoading === r.id ? "Traitement..." : "Payer maintenant"}
-                </Button>
+                <>
+                  <Button 
+                    variant="default" 
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => handlePayNow(r.id, r.stage.id, r.stage.Titre, r.stage.Prix, r.TypeStage)}
+                    disabled={paymentLoading === r.id || cancelLoading === r.id}
+                  >
+                    {paymentLoading === r.id ? "Traitement..." : "Payer maintenant"}
+                  </Button>
+                  
+                  {/* 🆕 NOUVEAU : Bouton d'annulation */}
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => handleCancelReservation(r.id, r.stage.Titre)}
+                    disabled={paymentLoading === r.id || cancelLoading === r.id}
+                    className="flex items-center gap-1"
+                  >
+                    {cancelLoading === r.id ? (
+                      "Annulation..."
+                    ) : (
+                      <>
+                        <Trash2 className="w-3 h-3" />
+                        Annuler
+                      </>
+                    )}
+                  </Button>
+                </>
               )}
             </div>
             

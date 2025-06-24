@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Stripe from "stripe";
-import { processInvoiceAfterPayment } from "@/app/utils/invoiceGeneratorJsPDF";
+// import { processInvoiceAfterPayment } from "@/app/utils/invoiceGeneratorJsPDF"; // DÉSACTIVÉ
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -97,30 +97,30 @@ export async function POST(request: Request) {
 
     console.log("Réservation mise à jour avec paiement par carte:", updatedReservation);
 
-    // Générer la facture
-    let invoiceResult = null;
-    try {
-      console.log("🧾 Génération de la facture...");
-      
-      const paymentIntentId = typeof stripeSession.payment_intent === 'string' 
-        ? stripeSession.payment_intent 
-        : stripeSession.payment_intent?.id || sessionId;
-      
-      const amount = stripeSession.amount_total || (reservation.stage!.Prix * 100);
-      const currency = stripeSession.currency || 'eur';
-      
-      invoiceResult = await processInvoiceAfterPayment(
-        Number(reservationId),
-        paymentIntentId,
-        amount,
-        currency.toUpperCase()
-      );
-      
-      console.log("✅ Facture générée avec succès:", invoiceResult.invoiceNumber);
-    } catch (invoiceError) {
-      console.error("❌ Erreur lors de la génération de la facture:", invoiceError);
-      // Ne pas faire échouer le processus à cause d'une erreur de facture
-    }
+    // ❌ GÉNÉRATION DE FACTURE DÉSACTIVÉE
+    // let invoiceResult = null;
+    // try {
+    //   console.log("🧾 Génération de la facture...");
+    //   
+    //   const paymentIntentId = typeof stripeSession.payment_intent === 'string' 
+    //     ? stripeSession.payment_intent 
+    //     : stripeSession.payment_intent?.id || sessionId;
+    //   
+    //   const amount = stripeSession.amount_total || (reservation.stage!.Prix * 100);
+    //   const currency = stripeSession.currency || 'eur';
+    //   
+    //   invoiceResult = await processInvoiceAfterPayment(
+    //     Number(reservationId),
+    //     paymentIntentId,
+    //     amount,
+    //     currency.toUpperCase()
+    //   );
+    //   
+    //   console.log("✅ Facture générée avec succès:", invoiceResult.invoiceNumber);
+    // } catch (invoiceError) {
+    //   console.error("❌ Erreur lors de la génération de la facture:", invoiceError);
+    //   // Ne pas faire échouer le processus à cause d'une erreur de facture
+    // }
 
     // Envoyer l'email de confirmation
     try {
@@ -178,9 +178,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Paiement confirmé et réservation mise à jour",
-      reservationId: updatedReservation.id,
-      invoiceNumber: invoiceResult?.invoiceNumber || null,
-      invoiceId: invoiceResult?.invoiceId || null
+      reservationId: updatedReservation.id
+      // invoiceNumber et invoiceId supprimés car génération de facture désactivée
     });
 
   } catch (error) {

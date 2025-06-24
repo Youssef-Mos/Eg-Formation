@@ -29,6 +29,7 @@ Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { LinkPreview } from "@/components/ui/link-preview";
 
 export default function MentionsLegales() {
 const [activeTab, setActiveTab] = useState("cgv");
@@ -275,31 +276,25 @@ return (
 </CardHeader>
 <CardContent className="max-h-[70vh] overflow-y-auto prose prose-sm">
 <h3 className="text-lg font-bold mt-2">Éditeur du site</h3>
-<p>Le site www.egformations.com est édité par :</p>
+<div>
+  Le site www.egformations.com est édité par : MOSBAH Youssef{" "}
+  <LinkPreview url="https://www.linkedin.com/in/youssef-mosbah-855652292/" className="text-blue-600 hover:underline">
+    Profil LinkedIn
+  </LinkPreview>
+</div>
 <div className="pl-4 my-3">
 <p><strong>EG-FORMATIONS</strong></p>
-<p>Société à responsabilité limitée (SARL)</p>
-<p>Capital social : 10 000 €</p>
-<p>Numéro SIRET : 123 456 789 00012</p>
-<p>Code APE : 8559A - Formation continue d'adultes</p>
-<p>Numéro de TVA intracommunautaire : FR12 123456789</p>
+<p>Numéro SIRET : 328 034 798 00020</p>
+<p>Code APE : 8553Z - Enseignement de la conduite</p>
+<p>Numéro de TVA intracommunautaire : FR24 328034798</p>
 <p>Siège social : 61, rue de Lyon 75012 Paris</p>
 <p>Téléphone : 07 83 37 25 65</p>
 <p>Email : <a href="mailto:contact@eg-formations.com" className="text-blue-600 hover:underline">contact@eg-formations.com</a></p>
 </div>
 <h3 className="text-lg font-bold mt-4">Représentant légal</h3>
-<p>Le site www.egformations.com est représenté par :</p>
-<div className="pl-4 my-3">
-<p>Monsieur/Madame [Nom du gérant]</p>
-<p>Agissant en qualité de Gérant</p>
-</div>
+<p>Le site www.egformations.com est représenté par : Eric Gernez</p>
 <h3 className="text-lg font-bold mt-4">Hébergement du site</h3>
-<p>Le site www.egformations.com est hébergé par :</p>
-<div className="pl-4 my-3">
-<p>[Nom de l'hébergeur]</p>
-<p>Adresse : [Adresse de l'hébergeur]</p>
-<p>Téléphone : [Téléphone de l'hébergeur]</p>
-</div>
+<p>Le site www.egformations.com est hébergé par : Vercel</p>
 <h3 className="text-lg font-bold mt-4">Déclarations officielles</h3>
 <div className="pl-4 my-3">
 <p><strong>Activité de formation professionnelle :</strong> EG-FORMATIONS est un organisme de formation enregistré sous le numéro [numéro de déclaration d'activité] auprès du préfet de région d'Île-de-France.</p>

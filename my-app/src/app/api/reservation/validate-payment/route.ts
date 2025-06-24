@@ -4,53 +4,31 @@ import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import nodemailer from "nodemailer";
-import PDFDocument from "pdfkit";
+// 🆕 CHANGEMENT PRINCIPAL : Utiliser le nouveau générateur jsPDF
+import { generateReservationPDF } from "@/app/utils/convocationGeneratorJsPDF";
 
 const prisma = new PrismaClient();
 
-// Fonction pour générer le PDF d'attestation
-async function generateReservationPDF(stage: any, userEmail: string): Promise<Buffer> {
-  const fontPath = process.env.NEXT_PUBLIC_PDF_FONT_PATH || "public/fonts/OpenSansHebrew-Light.ttf";
-
-  const doc = new PDFDocument({
-    autoFirstPage: false,
-    font: fontPath
-  });
-
-  const chunks: any[] = [];
-
-  return new Promise((resolve, reject) => {
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", (err) => reject(err));
-
-    try {
-      doc.registerFont("OpenSans", fontPath);
-      doc.addPage();
-      doc.font("OpenSans");
-
-      doc.fontSize(20).text("Confirmation de réservation", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(16).text("Paiement confirmé", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(14).text(`Stage : ${stage.Titre}`);
-      doc.text(`Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}`);
-      doc.text(`Dates : du ${new Date(stage.DateDebut).toLocaleDateString()} au ${new Date(stage.DateFin).toLocaleDateString()}`);
-      doc.text(`Heures : ${stage.HeureDebut} - ${stage.HeureFin}`);
-      doc.text(`Prix : ${stage.Prix} €`);
-      doc.text(`Email participant : ${userEmail}`);
-      doc.moveDown();
-      doc.text("Votre paiement a été validé. Cette attestation confirme votre inscription définitive.");
-      doc.end();
-    } catch (err) {
-      console.error("Exception pendant l'écriture du PDF :", err);
-      reject(err);
-    }
-  });
+// 🆕 Fonction helper pour mapper le type de stage vers le numéro
+function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
+  const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
+    "recuperation_points": 1,        // Stage volontaire
+    "permis_probatoire": 2,          // Permis probatoire  
+    "alternative_poursuites": 3,     // Alternative aux poursuites (tribunal)
+    "peine_complementaire": 4        // Peine complémentaire
+  };
+  
+  return typeMapping[typeStage] || 1; // Par défaut : stage volontaire
 }
 
-// Fonction pour envoyer l'email avec l'attestation
-async function sendPaymentConfirmationEmail(email: string, userName: string, stageName: string, pdfBuffer: Buffer) {
+// 🆕 Fonction pour envoyer l'email avec l'attestation (mise à jour)
+async function sendPaymentConfirmationEmail(
+  email: string, 
+  userName: string, 
+  stage: any, 
+  user: any, 
+  typeStage: string = "recuperation_points"
+) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -59,30 +37,103 @@ async function sendPaymentConfirmationEmail(email: string, userName: string, sta
     },
   });
 
+  // 🆕 Préparer les données pour le nouveau générateur PDF
+  const stageData = {
+    id: stage.id,
+    Titre: stage.Titre,
+    Adresse: stage.Adresse,
+    CodePostal: stage.CodePostal,
+    Ville: stage.Ville,
+    DateDebut: stage.DateDebut,
+    DateFin: stage.DateFin,
+    HeureDebut: stage.HeureDebut,
+    HeureFin: stage.HeureFin,
+    HeureDebut2: stage.HeureDebut2,
+    HeureFin2: stage.HeureFin2,
+    Prix: stage.Prix,
+    NumeroStage: stage.NumeroStage,
+    agrement: stage.agrement || null
+  };
+
+  const userData = {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email
+  };
+
+  const reservationOptions = {
+    stageType: mapTypeStageToNumber(typeStage)
+  };
+
+  // 🆕 Générer le PDF avec le nouveau système
+  const pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);
+
+  // 🆕 Déterminer le type de stage pour l'email
+  const stageTypeDescriptions = {
+    1: "Stage volontaire - Récupération de 4 points",
+    2: "Stage obligatoire (période probatoire)",
+    3: "Stage en alternative à la poursuite judiciaire",
+    4: "Peine complémentaire ou sursis avec mise à l'épreuve"
+  };
+
+  const agrementInfo = stage.agrement 
+    ? `\n🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
+    : '';
+
+  const emailContent = `
+Bonjour ${user.firstName} ${user.lastName},
+
+🎉 PAIEMENT CONFIRMÉ ! 🎉
+
+Nous avons le plaisir de vous informer que votre paiement pour le stage de sécurité routière a été validé avec succès.
+
+📋 DÉTAILS DE VOTRE STAGE :
+📍 Lieu : ${stage.Titre}
+📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
+📅 Dates : du ${new Date(stage.DateDebut).toLocaleDateString('fr-FR')} au ${new Date(stage.DateFin).toLocaleDateString('fr-FR')}
+⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
+🔢 Numéro de stage : ${stage.NumeroStage}${agrementInfo}
+💰 Prix : ${stage.Prix}€
+📋 Type : ${stageTypeDescriptions[reservationOptions.stageType]}
+
+✅ Votre place est désormais CONFIRMÉE et RÉSERVÉE.
+
+📄 Votre convocation officielle est jointe à cet e-mail en format PDF.
+
+IMPORTANT - À APPORTER LE JOUR DU STAGE :
+- Votre permis de conduire et votre pièce d'identité
+- Cette convocation (en version papier ou sur votre smartphone)
+${reservationOptions.stageType === 2 ? '- La lettre 48N de la Préfecture' : ''}
+${reservationOptions.stageType === 3 ? '- Le document transmis par le tribunal' : ''}
+${reservationOptions.stageType === 4 ? '- Le document de justice (sursis avec mise à l\'épreuve)' : ''}
+
+⚠️ RAPPEL IMPORTANT :
+- Votre présence et le respect des horaires sont obligatoires
+- L'absence même partielle ne permet pas la récupération de points
+
+Pour toute question, contactez-nous au 0783372565.
+
+Cordialement,
+L'équipe EG-FORMATIONS
+  `;
+
   await transporter.sendMail({
-    from: `"Eg-Formation" <${process.env.MAIL_USER}>`,
+    from: `"EG-FORMATIONS" <${process.env.MAIL_USER}>`,
     to: email,
-    subject: "Confirmation de paiement pour votre stage",
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #333; text-align: center;">Paiement Confirmé</h1>
-        <p>Bonjour ${userName},</p>
-        <p>Nous avons le plaisir de vous informer que votre paiement pour le stage <strong>${stageName}</strong> a été validé.</p>
-        <p>Votre place est désormais confirmée. Vous trouverez en pièce jointe votre attestation de réservation.</p>
-        <p>N'oubliez pas d'apporter cette attestation le jour du stage, ainsi que votre pièce d'identité et votre permis de conduire.</p>
-        <p>Si vous avez des questions, n'hésitez pas à nous contacter.</p>
-        <p style="margin-top: 30px;">Cordialement,</p>
-        <p><strong>L'équipe Eg-Formation</strong></p>
-      </div>
-    `,
+    subject: `✅ Paiement confirmé - Convocation stage ${stage.Ville}`,
+    text: emailContent,
+    html: emailContent.replace(/\n/g, '<br>'),
     attachments: [
       {
-        filename: "confirmation_paiement.pdf",
+        filename: `convocation_stage_${stage.NumeroStage}_${user.lastName.toLowerCase()}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
       },
     ],
   });
+
+  console.log("✅ Email de confirmation de paiement envoyé à:", email);
 }
 
 export async function POST(request: Request) {
@@ -105,11 +156,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Récupérer les détails complets de la réservation, du stage et de l'utilisateur
+    // 🆕 Récupérer les détails complets avec l'agrément inclus
     const reservation = await prisma.reservation.findUnique({
       where: { id: Number(reservationId) },
       include: {
-        stage: true,
+        stage: {
+          include: {
+            agrement: true // ✅ CRUCIAL : Inclure l'agrément
+          }
+        },
         user: true
       }
     });
@@ -135,25 +190,21 @@ export async function POST(request: Request) {
       data: { paid: true }
     });
 
-    // Préparer et envoyer l'email avec attestation
+    // 🆕 Préparer et envoyer l'email avec la nouvelle fonction
     try {
-      console.log("Génération du PDF pour la confirmation de paiement...");
-      const pdfBuffer = await generateReservationPDF(
-        reservation.stage, 
-        reservation.user.email
-      );
-
-      console.log("Envoi de l'email de confirmation de paiement...");
+      console.log("📧 Génération et envoi de l'email de confirmation de paiement...");
+      
       await sendPaymentConfirmationEmail(
         reservation.user.email,
         `${reservation.user.firstName || ''} ${reservation.user.lastName || ''}`.trim() || reservation.user.email,
-        reservation.stage.Titre,
-        pdfBuffer
+        reservation.stage,
+        reservation.user,
+        reservation.TypeStage || "recuperation_points"
       );
       
-      console.log("Email de confirmation envoyé avec succès à", reservation.user.email);
+      console.log("✅ Email de confirmation envoyé avec succès à", reservation.user.email);
     } catch (emailError) {
-      console.error("Erreur lors de l'envoi de l'email:", emailError);
+      console.error("❌ Erreur lors de l'envoi de l'email:", emailError);
       // Ne pas bloquer la validation du paiement en cas d'erreur d'email
     }
 
@@ -163,10 +214,12 @@ export async function POST(request: Request) {
       reservation: updatedReservation
     });
   } catch (error) {
-    console.error("Erreur lors de la validation du paiement:", error);
+    console.error("❌ Erreur lors de la validation du paiement:", error);
     return NextResponse.json(
       { error: "Erreur serveur lors de la validation du paiement" },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

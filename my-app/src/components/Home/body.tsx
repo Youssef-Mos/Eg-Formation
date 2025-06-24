@@ -18,12 +18,12 @@ export default function BodyHome () {
               <div className="absolute -top-3 -right-3 bg-blue-600 text-white p-2 rounded-full shadow-md">
                 <FileCheck className="w-5 h-5" />
               </div>
-              <span className="font-bold text-xl lg:text-xl text-blue-800 mb-2">Conditions d'éligibilité</span>
+              <span className="font-bold text-xl lg:text-xl text-blue-800 mb-2">Conditions pour récupérer ses points</span>
                 <p className="text-gray-600 mb-2">Critères à remplir pour votre stage :</p>
                 <div className="flex flex-col gap-3 mt-1">
-                <span className="flex items-center"><CheckCircle className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />Permis valide avec au moins 1 point</span>
+                <span className="flex items-center"><CheckCircle className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />Vérifier que vous êtes éligible à la récupération de 4 points</span>
                <span className="flex items-center"><CheckCircle className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />Un an minimum depuis votre dernier stage</span>
-               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />Documents requis : permis, lettre 48N</span>
+               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />Documents requis : permis, lettre 48N, CNI</span>
             </div></div>
             </AnimatedCard>
             <AnimatedCard delay={200}>
@@ -34,9 +34,9 @@ export default function BodyHome () {
               <span className="font-bold text-lg lg:text-xl text-zinc-800 mb-2">Formation certifiée</span>
               <p className="text-gray-600 mb-2">Notre engagement qualité :</p>
             <div className="flex flex-col gap-3 mt-1">
-               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Formateurs experts certifiés par l'État</span>
-                <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Stages homologués par la Préfecture</span>
-               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Centres confortables et accessibles</span>
+               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Formateurs experts : psychologue et BAFA</span>
+                <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Stages de sensibilisation à la sécurité routière</span>
+               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Centre agréé par la préfecture </span>
             </div></div>
             </AnimatedCard>
             <AnimatedCard delay={300}>
@@ -55,7 +55,7 @@ export default function BodyHome () {
         <AnimatedSection>
     <AnimatedCard delay={250}>
         <div className="max-sm:w-xs w-lg m-auto md:w-2xl lg:w-4xl mt-10 text-gray-700 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://permisdeconduire.ants.gouv.fr" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel ANTS du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
+            Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://permisdeconduire.ants.gouv.fr" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
         </div>
     </AnimatedCard>    
     

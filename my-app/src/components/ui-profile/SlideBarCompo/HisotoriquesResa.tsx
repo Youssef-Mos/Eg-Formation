@@ -27,7 +27,9 @@ import {
   CheckCircle, 
   ChevronLeft,
   Receipt,
-  FileText
+  FileText,
+  Trash2,
+  X
 } from "lucide-react";
 
 interface Stage {
@@ -92,6 +94,7 @@ export default function HistoriqueResa() {
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState<number | null>(null);
+  const [cancelProcessing, setCancelProcessing] = useState<number | null>(null); // 🆕 NOUVEAU
   const [expandedStageView, setExpandedStageView] = useState(false);
   const expandedSectionRef = useRef<HTMLDivElement>(null);
 
@@ -202,6 +205,44 @@ export default function HistoriqueResa() {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la validation du paiement');
     } finally {
       setPaymentProcessing(null);
+    }
+  };
+
+  // 🆕 NOUVELLE FONCTION : Annuler une réservation (côté admin)
+  const handleCancelReservation = async (userId: number, reservationId: number, userName: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir annuler la réservation de ${userName} ?`)) {
+      return;
+    }
+
+    setCancelProcessing(reservationId);
+    try {
+      const res = await fetch('/api/reservation/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reservationId,
+          isAdmin: true
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Erreur lors de l\'annulation');
+      }
+
+      toast.success(`Réservation de ${userName} annulée avec succès`);
+      
+      // Recharger les détails du stage
+      if (selectedStageDetails) {
+        await loadStageDetails(selectedStageDetails.id);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'annulation');
+    } finally {
+      setCancelProcessing(null);
     }
   };
 
@@ -394,23 +435,47 @@ export default function HistoriqueResa() {
                         <td className="p-3">
                           <div className="flex flex-col sm:flex-row gap-2">
                             {profile.reservation?.paid === false && (
-                              <Button 
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                onClick={() => profile.reservation && handleValidatePayment(
-                                  profile.id, 
-                                  selectedStageDetails.id, 
-                                  profile.reservation.id
-                                )}
-                                disabled={paymentProcessing === profile.reservation?.id}
-                              >
-                                {paymentProcessing === profile.reservation?.id ? 
-                                  "Validation..." : 
-                                  "Valider paiement"}
-                              </Button>
+                              <>
+                                <Button 
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => profile.reservation && handleValidatePayment(
+                                    profile.id, 
+                                    selectedStageDetails.id, 
+                                    profile.reservation.id
+                                  )}
+                                  disabled={paymentProcessing === profile.reservation?.id || cancelProcessing === profile.reservation?.id}
+                                >
+                                  {paymentProcessing === profile.reservation?.id ? 
+                                    "Validation..." : 
+                                    "Valider paiement"}
+                                </Button>
+                                
+                                {/* 🆕 NOUVEAU : Bouton d'annulation pour les réservations non payées */}
+                                <Button 
+                                  size="sm"
+                                  variant="destructive"
+                                  className="flex items-center gap-1"
+                                  onClick={() => profile.reservation && handleCancelReservation(
+                                    profile.id, 
+                                    profile.reservation.id, 
+                                    `${profile.prenom} ${profile.nom}`
+                                  )}
+                                  disabled={paymentProcessing === profile.reservation?.id || cancelProcessing === profile.reservation?.id}
+                                >
+                                  {cancelProcessing === profile.reservation?.id ? (
+                                    "Annulation..."
+                                  ) : (
+                                    <>
+                                      <Trash2 className="w-3 h-3" />
+                                      Annuler
+                                    </>
+                                  )}
+                                </Button>
+                              </>
                             )}
                             
-                            {/* NOUVEAU : Bouton pour gérer la facture */}
+                            {/* Bouton pour gérer la facture */}
                             {profile.reservation?.paid !== false && profile.reservation && (
                               <Button 
                                 size="sm"
