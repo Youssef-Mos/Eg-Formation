@@ -5,8 +5,8 @@ const prisma = new PrismaClient();
 
 async function createAdmin() {
   try {
-    const adminEmail = "admin12@example.com"; // Mets ici l'email que tu veux
-    const adminPassword = "Admin1234/"; // Mets ici le mot de passe sécurisé
+    const adminEmail = "contact@eg-formations.com"; // Mets ici l'email que tu veux
+    const adminPassword = "AdM!n_29#JvR$6xLp"; // Mets ici le mot de passe sécurisé
 
     // Vérifie si l'admin existe déjà
     const existingAdmin = await prisma.user.findUnique({
@@ -28,7 +28,7 @@ async function createAdmin() {
         email: adminEmail,
         password: hashedPassword,
         role: "admin",
-        username:"adminDebug",
+        username:"EricG",
       },
     });
 
