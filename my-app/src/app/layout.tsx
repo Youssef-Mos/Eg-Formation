@@ -7,7 +7,11 @@ import { Providers } from "./Provider";
 import CookieConsent from "@/components/Cookies/cookie-consent";
 import SecureSessionProvider from "@/components/providers/SecureSessionProvider";
 
-const inter = Inter();
+
+const inter = Inter({
+  subsets: ['latin'], // 🔥 ajoute cette ligne
+  preload: true
+})
 
 export const metadata: Metadata = {
   title: "Eg-Formation",
