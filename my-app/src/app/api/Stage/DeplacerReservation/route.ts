@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withAdminAuth, validateRequestData, logApiAccess } from "@/lib/apiSecurity";
 import nodemailer from "nodemailer";
-import PDFDocument from "pdfkit";
+//import PDFDocument from "pdfkit";
 
 const prisma = new PrismaClient();
 
@@ -19,7 +19,7 @@ const isValidMoveData = (data: any): data is { userId: number; fromStageId: numb
 };
 
 // Fonction pour générer l'attestation PDF (similaire à celle utilisée pour validate-payment)
-async function generateReservationPDF(stage: any, user: any, typeStage: string): Promise<Buffer> {
+/*async function generateReservationPDF(stage: any, user: any, typeStage: string): Promise<Buffer> {
   const fontPath = process.env.NEXT_PUBLIC_PDF_FONT_PATH || "public/fonts/OpenSansHebrew-Light.ttf";
   
   const doc = new PDFDocument({
@@ -71,7 +71,7 @@ function formatTypeStage(type: string): string {
   
   return types[type] || type;
 }
-
+*/
 // Fonction pour envoyer l'email avec l'attestation
 async function sendEmailNotification(email: string, userName: string, oldStage: any, newStage: any, pdfBuffer: Buffer) {
   const transporter = nodemailer.createTransport({
@@ -184,7 +184,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
     ]);
     
     // 5. Générer et envoyer l'attestation
-    try {
+    /*try {
       const pdfBuffer = await generateReservationPDF(toStage, reservation.user, reservation.TypeStage);
       const userName = reservation.user.firstName || reservation.user.lastName 
         ? `${reservation.user.firstName} ${reservation.user.lastName}`.trim()
@@ -194,7 +194,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       console.log(`Email de notification envoyé à ${reservation.user.email}`);
     } catch (emailError) {
       console.error("Erreur lors de l'envoi de l'email:", emailError);
-    }
+    }*/
     
     logApiAccess(request, session, true);
     return NextResponse.json({ 
