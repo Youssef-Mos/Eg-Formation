@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Stage" ADD COLUMN     "NumeroStage" INTEGER NOT NULL DEFAULT 0;
