@@ -1,7 +1,7 @@
 // app/reset-password/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import Footer from "@/components/footer";
 import { Lock, Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
-export default function ResetPassword() {
+// ✅ NOUVEAU : Composant qui utilise useSearchParams
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -291,5 +292,22 @@ export default function ResetPassword() {
       
       <Footer />
     </div>
+  );
+}
+
+// ✅ NOUVEAU : Composant principal avec Suspense boundary
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex max-sm:items-center justify-center gap-10 flex-col">
+        <Nav />
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="w-16 h-16 border-4 border-zinc-300 border-t-zinc-600 rounded-full animate-spin"></div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
