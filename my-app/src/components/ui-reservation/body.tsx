@@ -36,7 +36,7 @@ export const Body = () => {
             <AccordionItem value="item-3">
               <AccordionTrigger className='mx-4 md:mx-auto cursor-pointer'>📜 Récupérez vos points</AccordionTrigger>
                 <AccordionContent className='mx-4 md:mx-auto'>
-                  Une fois le stage terminé, vous récupérez jusqu&aposà 4 points sur votre permis !
+                  Une fois le stage terminé, vous récupérez jusqu'à 4 points sur votre permis !
                 </AccordionContent>
             </AccordionItem>
           </Accordion>
