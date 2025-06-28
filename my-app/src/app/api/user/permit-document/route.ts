@@ -1,9 +1,8 @@
-// app/api/user/permit-upload/route.ts
+// app/api/user/permit-document/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { withApiSecurity, validators, logApiAccess } from "@/lib/apiSecurity";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { withApiSecurity, logApiAccess } from "@/lib/apiSecurity";
+import { put } from '@vercel/blob';
 
 const prisma = new PrismaClient();
 
@@ -83,23 +82,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Création du dossier de stockage...');
-    // Créer le dossier de stockage s'il n'existe pas
-    const uploadDir = path.join(process.cwd(), 'uploads', 'permit-documents');
-    await mkdir(uploadDir, { recursive: true });
-
-    // Générer un nom de fichier unique
+    // ✅ NOUVEAU : Upload vers Vercel Blob au lieu du système de fichiers
     const userId = session!.user.id;
     const timestamp = Date.now();
-    const extension = path.extname(file.name);
-    const fileName = `permit-${userId}-${timestamp}${extension}`;
-    const filePath = path.join(uploadDir, fileName);
+    const extension = file.name.split('.').pop();
+    const blobFileName = `permit-documents/permit-${userId}-${timestamp}.${extension}`;
 
-    console.log('Sauvegarde du fichier vers:', filePath);
-    // Sauvegarder le fichier
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    console.log('Upload vers Vercel Blob:', blobFileName);
+
+    // Upload du fichier vers Vercel Blob
+    const blob = await put(blobFileName, file, {
+      access: 'public', // ou 'private' selon vos besoins
+      
+    });
+
+    console.log('Fichier uploadé vers Blob:', blob.url);
 
     console.log('Enregistrement en base de données...');
     // Enregistrer en base de données
@@ -107,9 +104,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: Number(userId),
         fileName: file.name,
-        filePath: fileName, // Stocker seulement le nom, pas le chemin complet
+        filePath: blob.url, // ✅ Stocker l'URL Blob au lieu du chemin local
         fileSize: file.size,
-        fileType: file.type, // ✅ AJOUT : Champ fileType manquant
+        fileType: file.type,
         status: 'pending'
       }
     });
@@ -146,7 +143,8 @@ export async function POST(request: NextRequest) {
         id: permitDocument.id,
         fileName: permitDocument.fileName,
         status: permitDocument.status,
-        createdAt: permitDocument.createdAt
+        createdAt: permitDocument.createdAt,
+        url: blob.url // ✅ Retourner l'URL pour accès futur
       }
     });
     
@@ -185,6 +183,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         fileName: true,
+        filePath: true, // ✅ Maintenant c'est l'URL Blob
         status: true,
         adminComments: true,
         createdAt: true,
