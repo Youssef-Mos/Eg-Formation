@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import Nav from "@/components/nav";
 import { toast } from "sonner";
@@ -158,7 +158,8 @@ const PasswordValidator = ({ password }: { password: string }) => {
   );
 };
 
-export default function Register() {
+// ✅ NOUVEAU : Composant qui utilise useSearchParams
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
@@ -325,7 +326,7 @@ export default function Register() {
         
       case "address":
         if (!formData.address1.trim()) {
-          toast.error("L'adresse est requise");
+          toast.error("L&apos;adresse est requise");
           return false;
         }
         if (!formData.postalCode.trim()) {
@@ -346,7 +347,7 @@ export default function Register() {
       case "billing":
         if (!formData.useSameAddressForBilling) {
           if (!formData.billingAddress1.trim()) {
-            toast.error("L'adresse de facturation est requise");
+            toast.error("L&apos;adresse de facturation est requise");
             return false;
           }
           if (!formData.billingPostalCode.trim()) {
@@ -373,7 +374,7 @@ export default function Register() {
         
       case "account":
         if (!formData.email.trim()) {
-          toast.error("L'email est requis");
+          toast.error("L&apos;email est requis");
           return false;
         }
         if (!formData.email.includes('@')) {
@@ -381,7 +382,7 @@ export default function Register() {
           return false;
         }
         if (!formData.username.trim()) {
-          toast.error("Le nom d'utilisateur est requis");
+          toast.error("Le nom d&apos;utilisateur est requis");
           return false;
         }
         
@@ -399,7 +400,7 @@ export default function Register() {
 
       case "terms":
         if (!formData.acceptTerms) {
-          toast.error("Vous devez accepter les conditions générales d'utilisation");
+          toast.error("Vous devez accepter les conditions générales d&apos;utilisation");
           return false;
         }
         if (!formData.acceptRules) {
@@ -450,7 +451,7 @@ export default function Register() {
       const result = await response.json();
   
       if (!response.ok) {
-        toast.error(result.error || 'Échec de l\'inscription');
+        toast.error(result.error || 'Échec de l&apos;inscription');
         setIsSubmitting(false);
         return;
       }
@@ -470,7 +471,7 @@ export default function Register() {
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error("Échec de l'inscription");
+      toast.error("Échec de l&apos;inscription");
       setIsSubmitting(false);
     }
   };
@@ -625,13 +626,13 @@ export default function Register() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nom d'usage <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                      <Label htmlFor="name">Nom d&apos;usage <span className="text-gray-500 text-sm">(optionnel)</span></Label>
                       <Input
                         id="name"
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        placeholder="Entrez votre nom d'usage si différent"
+                        placeholder="Entrez votre nom d&apos;usage si différent"
                       />
                     </div>
 
@@ -689,7 +690,7 @@ export default function Register() {
                           {isLoadingAddresses && (
                             <div className="p-3 text-center text-gray-500">
                               <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1" />
-                              Recherche d'adresses...
+                              Recherche d&apos;adresses...
                             </div>
                           )}
                           {addressSuggestions.map((address, index) => (
@@ -714,12 +715,12 @@ export default function Register() {
                         name="address2"
                         value={formData.address2 || ""}
                         onChange={handleChange}
-                        placeholder="Complément d'adresse"
+                        placeholder="Complément d&apos;adresse"
                       />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="address3">Complément d'adresse <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                      <Label htmlFor="address3">Complément d&apos;adresse <span className="text-gray-500 text-sm">(optionnel)</span></Label>
                       <Input
                         id="address3"
                         name="address3"
@@ -850,7 +851,7 @@ export default function Register() {
                     Adresse de facturation
                   </CardTitle>
                   <CardDescription>
-                    Définissez l'adresse qui apparaîtra sur vos factures.
+                    Définissez l&apos;adresse qui apparaîtra sur vos factures.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -866,7 +867,7 @@ export default function Register() {
                           htmlFor="useSameAddressForBilling"
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          Utiliser la même adresse que l'adresse de domicile pour la facturation
+                          Utiliser la même adresse que l&apos;adresse de domicile pour la facturation
                         </label>
                         <p className="text-xs text-muted-foreground">
                           Si vous cochez cette case, votre adresse de domicile sera utilisée pour la facturation.
@@ -894,7 +895,7 @@ export default function Register() {
                               {isLoadingBillingAddresses && (
                                 <div className="p-3 text-center text-gray-500">
                                   <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1" />
-                                  Recherche d'adresses...
+                                  Recherche d&apos;adresses...
                                 </div>
                               )}
                               {billingAddressSuggestions.map((address, index) => (
@@ -919,12 +920,12 @@ export default function Register() {
                             name="billingAddress2"
                             value={formData.billingAddress2 || ""}
                             onChange={handleChange}
-                            placeholder="Complément d'adresse de facturation"
+                            placeholder="Complément d&apos;adresse de facturation"
                           />
                         </div>
 
                         <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor="billingAddress3">Complément d'adresse de facturation <span className="text-gray-500 text-sm">(optionnel)</span></Label>
+                          <Label htmlFor="billingAddress3">Complément d&apos;adresse de facturation <span className="text-gray-500 text-sm">(optionnel)</span></Label>
                           <Input
                             id="billingAddress3"
                             name="billingAddress3"
@@ -1062,7 +1063,7 @@ export default function Register() {
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="permitDate">Date d'obtention</Label>
+                      <Label htmlFor="permitDate">Date d&apos;obtention</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -1136,13 +1137,13 @@ export default function Register() {
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="username">Nom d'utilisateur</Label>
+                      <Label htmlFor="username">Nom d&apos;utilisateur</Label>
                       <Input
                         id="username"
                         name="username"
                         value={formData.username}
                         onChange={handleChange}
-                        placeholder="Choisissez un nom d'utilisateur"
+                        placeholder="Choisissez un nom d&apos;utilisateur"
                         required
                       />
                     </div>
@@ -1244,12 +1245,12 @@ export default function Register() {
                           htmlFor="acceptTerms"
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          Le stagiaire déclare adhérer aux conditions générales d'inscription d'EG-FORMATIONS
+                          Le stagiaire déclare adhérer aux conditions générales d&apos;inscription d&apos;EG-FORMATIONS
                         </label>
                         <div className="text-sm text-muted-foreground">
                         Consultez les{" "}
                         <LinkPreview url="http://localhost:3000/register/CGU" className="font-medium text-blue-600 hover:underline">
-                          Conditions Générales d'Utilisation (CGU)
+                          Conditions Générales d&apos;Utilisation (CGU)
                         </LinkPreview>
                       </div>
                       </div>
@@ -1288,7 +1289,7 @@ export default function Register() {
                           htmlFor="confirmPointsCheck"
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          Le stagiaire déclare avoir pris connaissance de son solde de points (relevé d'information RII) et ne pas faire l'objet d'une invalidation de son permis de conduire
+                          Le stagiaire déclare avoir pris connaissance de son solde de points (relevé d&apos;information RII) et ne pas faire l&apos;objet d&apos;une invalidation de son permis de conduire
                         </label>
                         <div className="text-sm text-muted-foreground">
                         Consultez le{" "}
@@ -1316,7 +1317,7 @@ export default function Register() {
                     ) : (
                       <>
                         <Save className="mr-2 h-4 w-4" />
-                        Finaliser l'inscription
+                        Finaliser l&apos;inscription
                       </>
                     )}
                   </Button>
@@ -1329,5 +1330,26 @@ export default function Register() {
       
       <Footer />
     </div>
+  );
+}
+
+// ✅ NOUVEAU : Composant principal avec Suspense boundary
+export default function Register() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-1 container max-w-5xl mx-auto py-10 px-4">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Chargement du formulaire d&apos;inscription...</p>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
   );
 }
