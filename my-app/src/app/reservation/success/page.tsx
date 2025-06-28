@@ -1,10 +1,11 @@
 "use client";
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { CalendarIcon, ClockIcon, MapPinIcon, MailIcon, FileTextIcon, ArrowDownIcon, CreditCardIcon, CheckCircleIcon } from 'lucide-react';
 
-export default function SuccessPage() {
+// ✅ NOUVEAU : Composant qui utilise useSearchParams
+function SuccessPageContent() {
   const params = useSearchParams();
   const sessionId = params.get("session_id");
   const reservationId = params.get("reservationId"); // Récupérer l'ID de réservation si présent
@@ -82,7 +83,7 @@ export default function SuccessPage() {
           <h1 className="text-2xl font-bold text-red-600 mb-4">Une erreur est survenue</h1>
           <p className="text-zinc-600 mb-6">{error}</p>
           <Link href="/" className="bg-zinc-800 text-white py-2 px-4 rounded hover:bg-zinc-700 transition">
-            Retour à l'accueil
+            Retour à l&apos;accueil
           </Link>
         </div>
       </div>
@@ -96,7 +97,7 @@ export default function SuccessPage() {
           <h1 className="text-2xl font-bold text-zinc-800 mb-4">Informations non disponibles</h1>
           <p className="text-zinc-600 mb-6">Les détails de votre réservation ne sont pas disponibles.</p>
           <Link href="/" className="bg-zinc-800 text-white py-2 px-4 rounded hover:bg-zinc-700 transition">
-            Retour à l'accueil
+            Retour à l&apos;accueil
           </Link>
         </div>
       </div>
@@ -227,7 +228,7 @@ export default function SuccessPage() {
             <ul className="text-blue-700 space-y-1 pl-5 list-disc">
               <li>Conservez précieusement votre attestation de réservation</li>
               <li>Présentez-vous 15 minutes avant le début du stage</li>
-              <li>N'oubliez pas votre pièce d'identité et votre permis de conduire</li>
+              <li>N&apos;oubliez pas votre pièce d&apos;identité et votre permis de conduire</li>
               {typeStage.code === "permis_probatoire" && (
                 <li>Apportez obligatoirement votre lettre 48N</li>
               )}
@@ -241,7 +242,7 @@ export default function SuccessPage() {
               className="flex items-center justify-center bg-zinc-800 text-white py-3 px-6 rounded-lg hover:bg-zinc-700 transition font-medium"
             >
               <ArrowDownIcon className="w-5 h-5 mr-2" />
-              Télécharger l'attestation PDF
+              Télécharger l&apos;attestation PDF
             </button>
             
             <Link 
@@ -266,5 +267,19 @@ export default function SuccessPage() {
         Commande #{sessionId?.substring(0, 8) || reservationId}
       </div>
     </div>
+  );
+}
+
+// ✅ NOUVEAU : Composant principal avec Suspense boundary
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-zinc-50">
+        <div className="w-16 h-16 border-4 border-zinc-300 border-t-zinc-600 rounded-full animate-spin"></div>
+        <p className="mt-4 text-zinc-600">Chargement de votre confirmation...</p>
+      </div>
+    }>
+      <SuccessPageContent />
+    </Suspense>
   );
 }

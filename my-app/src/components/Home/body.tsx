@@ -7,6 +7,7 @@ import { ImagesSliderDemo3 } from "./ui/GrpImg3";
 import { LinkPreview } from "../ui/link-preview";
 import { Button } from "../ui/button";
 import { FileCheck, Shield, Search, ChevronRight, CheckCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function BodyHome () {
     return (
@@ -62,7 +63,7 @@ export default function BodyHome () {
     {/* Boutons responsive - vertical sur mobile, horizontal sur desktop */}
     <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-2 md:gap-5 mt-5">
         <AnimatedCard delay={350}>
-            <a href="/"><Button variant="default" className="bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-white font-medium shadow-md hover:shadow-lg transition-all rounded-lg cursor-pointer text-md w-full sm:w-auto">Réservez maintenant</Button></a>
+            <Link href="/"><Button variant="default" className="bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-white font-medium shadow-md hover:shadow-lg transition-all rounded-lg cursor-pointer text-md w-full sm:w-auto">Réservez maintenant</Button></Link>
         </AnimatedCard>
 
         <AnimatedCard delay={350}>
