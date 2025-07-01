@@ -1,5 +1,5 @@
-// utils/convocationGeneratorJsPDF.ts
-import nodemailer from "nodemailer";
+// app/utils/pdfGeneratorClientOnly.ts
+// Version CLIENT-ONLY pour tester le PDF sans nodemailer
 
 interface User {
   firstName: string;
@@ -36,30 +36,36 @@ interface ReservationOptions {
   stageType: 1 | 2 | 3 | 4;
 }
 
-// Fonction pour charger une image et la convertir en base64
+// Fonction pour charger une image et la convertir en base64 (version client)
 async function loadImageAsBase64(imagePath: string): Promise<string> {
   try {
-    // En environnement serveur, on utilise fetch pour charger l'image
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${imagePath}`);
+    console.log(`🖼️ Chargement de l'image: ${imagePath}`);
+    
+    const response = await fetch(imagePath);
     
     if (!response.ok) {
-      throw new Error(`Erreur lors du chargement de l'image: ${response.status}`);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
     
     const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString('base64');
+    const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Déterminer le type MIME en fonction de l'extension
+    // Convertir en base64
+    let binary = '';
+    uint8Array.forEach(byte => binary += String.fromCharCode(byte));
+    const base64 = btoa(binary);
+    
+    // Déterminer le type MIME
     const extension = imagePath.split('.').pop()?.toLowerCase();
     const mimeType = extension === 'png' ? 'image/png' : 
                      extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' :
-                     'image/png'; // par défaut
+                     'image/png';
     
+    console.log(`✅ Image chargée: ${base64.length} caractères base64`);
     return `data:${mimeType};base64,${base64}`;
   } catch (error) {
     console.warn('⚠️ Erreur lors du chargement du logo:', error);
-    return ''; // Retourner une chaîne vide si l'image ne peut pas être chargée
+    return '';
   }
 }
 
@@ -86,13 +92,15 @@ function formatDateFR(date: Date): string {
   return `${dayName} ${day} ${month} ${year}`;
 }
 
-// Génère le PDF de convocation avec jsPDF et logo
-export async function generateReservationPDF(stage: Stage, user: User, options: ReservationOptions): Promise<Buffer> {
-  // Import dynamique de jsPDF
+// Génère le PDF de convocation avec jsPDF et logo (VERSION CLIENT)
+export async function generateTestPDF(stage: Stage, user: User, options: ReservationOptions): Promise<Uint8Array> {
+  // Import dynamique de jsPDF (compatible client)
   const { jsPDF } = await import('jspdf');
   
   return new Promise(async (resolve, reject) => {
     try {
+      console.log('🧪 Démarrage génération PDF de test...');
+      
       const doc = new jsPDF();
       const clientNumber = generateClientNumber();
       
@@ -113,28 +121,33 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
         return false;
       };
 
-      // ✨ AJOUT DU LOGO EN HAUT
+      // ✨ AJOUT DU LOGO EN HAUT - TOUTE LA LARGEUR
       try {
         console.log('🖼️ Chargement du logo...');
-        const logoBase64 = await loadImageAsBase64('/image/logo/LogoNav.png'); // ✅ Ton chemin correct
+        const logoBase64 = await loadImageAsBase64('/image/logo/Logo%20EG.jpg'); // ✅ Nouvelle image avec espace encodé
         
         if (logoBase64) {
-          // Dimensions du logo (à ajuster selon ton logo)
-          const logoWidth = 40;  // Largeur en mm
-          const logoHeight = 20; // Hauteur en mm
-          const logoX = (pageWidth - logoWidth) / 2; // Centré
-          const logoY = currentY;
+          // Fond gris derrière le logo (toute la largeur)
+          const headerHeight = 35; // Hauteur du header
+          doc.setFillColor(240, 240, 240); // Gris clair
+          doc.rect(0, currentY, pageWidth, headerHeight, 'F'); // Rectangle gris pleine largeur
+          
+          // Dimensions du logo - TOUTE LA LARGEUR
+          const logoWidth = pageWidth - 20; // Presque toute la largeur (marge de 10 de chaque côté)
+          const logoHeight = 25; // Plus haut qu'avant
+          const logoX = 10; // Petite marge à gauche
+          const logoY = currentY + 5; // Un peu d'espace depuis le haut du rectangle
           
           doc.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
-          currentY += logoHeight + 10; // Espace après le logo
-          console.log('✅ Logo ajouté avec succès');
+          currentY += headerHeight + 5; // Espace après le header
+          console.log('✅ Logo ajouté avec succès (toute largeur + fond gris)');
         } else {
           console.log('⚠️ Logo non chargé, continuation sans logo');
-          currentY += 5; // Petit espace même sans logo
+          currentY += 5;
         }
       } catch (logoError) {
         console.warn('⚠️ Erreur logo, continuation sans logo:', logoError);
-        currentY += 5; // Petit espace même sans logo
+        currentY += 5;
       }
 
       // Date actuelle en haut à droite
@@ -251,18 +264,6 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       doc.text('- De votre permis de conduire et de votre pièce d\'identité.', margin, currentY);
       currentY += 15;
 
-      // Complément de dossier
-      checkPageBreak(35);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Complément de dossier :', margin, currentY);
-      currentY += 10;
-      
-      doc.setFont('helvetica', 'normal');
-      const complementText = 'Pièces indispensables car exigées par la Préfecture pour la validation de votre stage. Pièces à présenter à l\'organisateur le jour du stage.';
-      const splitComplementText = doc.splitTextToSize(complementText, pageWidth - 2 * margin);
-      doc.text(splitComplementText, margin, currentY);
-      currentY += splitComplementText.length * 5 + 10;
-
       // Section dynamique selon le type de stage - AVEC ENCADRÉ
       checkPageBreak(35);
       const boxX = margin;
@@ -270,9 +271,7 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       const boxWidth = pageWidth - 2 * margin;
       let boxHeight = 25;
 
-      let stageTypeLines = 2;
       if (options.stageType === 2 || options.stageType === 3 || options.stageType === 4) {
-        stageTypeLines = 3;
         boxHeight = 30;
       }
 
@@ -315,90 +314,20 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
 
       currentY = boxY + boxHeight + 15;
 
-      // Cas différents (description)
-      checkPageBreak(40);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const casDescriptions = [
-        'Cas 1 : Stage volontaire - Récupération de 4 points (art. L. 223-6 alinéa 2 et R. 223-8 du code de la route).',
-        'Cas 2 : Stage obligatoire pour les conducteurs en période probatoire dans le cadre d\'une perte d\'au moins 3 points.(art. L. 223-6 et R. 223-4 du code de la route).',
-        'Cas 3 : Stage en alternative à la poursuite judiciaire proposé par le Procureur de la République ou en exécution d\'une composition pénale (2° de l\'art. 41-1 et 5° de l\'article 41-2 du code de procédure pénale).',
-        'Cas 4 : Peine complémentaire ou obligation imposée dans le cadre du sursis avec mise à l\'épreuve (art.131-35-1 et R.132-45 du code pénal).'
-      ];
-
-      casDescriptions.forEach((cas, index) => {
-        const splitCas = doc.splitTextToSize(cas, pageWidth - 2 * margin);
-        const neededSpace = splitCas.length * 3.5 + 2;
-        
-        checkPageBreak(neededSpace);
-        doc.text(splitCas, margin, currentY);
-        currentY += neededSpace;
-      });
-
-      currentY += 10;
-
-      // Informations importantes
-      checkPageBreak(30);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Informations importantes :', margin, currentY);
-      currentY += 10;
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const importantTexts = [
-        'Il est de votre responsabilité de vérifier (Préfecture, lettre 48 ou Telepoints) que votre solde de points sur le fichier national du permis de conduire vous permet de récupérer 4 points et que votre participation à un stage volontaire (cas1) date de plus de 1 an. En cas de litige, EG FORMATIONS ne peut être tenu responsable.',
-        'Lorsque le stage réunit moins de six personnes, la Préfecture impose à l\'organisateur, l\'annulation du stage. Le centre agréé EG FORMATIONS est tenu de vous informer de cette annulation par tous les moyens mis à sa disposition. En contactant la société "EG FORMATIONS" au 0783372565, une autre date ou un transfert vers un autre lieu pourra donc vous être proposé sur votre demande.',
-        'Vous pouvez changer la date de votre réservation ou annuler votre inscription au plus tard sept jours avant la date du stage. Passé ce délai, des frais complémentaires vous seront facturés pour un montant de 50€ TTC. En cas d\'annulation ou de transfert deux jours avant la formation, le coût du stage reste dû. Il ne sera alors procédé à aucun remboursement.'
-      ];
-
-      const boldText = 'L\'absence même partielle au stage ou le non respect des horaires ne permet pas la récupération de points.';
-      
-      // Premier texte
-      const splitText1 = doc.splitTextToSize(importantTexts[0], pageWidth - 2 * margin);
-      const neededSpace1 = splitText1.length * 3.5 + 8;
-      checkPageBreak(neededSpace1);
-      doc.text(splitText1, margin, currentY);
-      currentY += neededSpace1;
-
-      // Deuxième texte
-      const splitText2 = doc.splitTextToSize(importantTexts[1], pageWidth - 2 * margin);
-      const neededSpace2 = splitText2.length * 3.5 + 8;
-      checkPageBreak(neededSpace2);
-      doc.text(splitText2, margin, currentY);
-      currentY += neededSpace2;
-
-      // Phrase en gras
-      const splitBold = doc.splitTextToSize(boldText, pageWidth - 2 * margin);
-      const neededSpaceBold = splitBold.length * 3.5 + 8;
-      checkPageBreak(neededSpaceBold);
-      doc.setFont('helvetica', 'bold');
-      doc.text(splitBold, margin, currentY);
-      currentY += neededSpaceBold;
-      doc.setFont('helvetica', 'normal');
-
-      // Troisième texte
-      const splitText3 = doc.splitTextToSize(importantTexts[2], pageWidth - 2 * margin);
-      const neededSpace3 = splitText3.length * 3.5 + 15;
-      checkPageBreak(neededSpace3);
-      doc.text(splitText3, margin, currentY);
-      currentY += neededSpace3;
-
       // Informations légales en bas de page
       checkPageBreak(20);
       
-      const legalY = Math.max(currentY, pageHeight - 25);
+      const legalY = Math.max(currentY + 30, pageHeight - 25);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text('N° SIRET 32803479800020 - Code APE 8553Z - RCS - TVA intra communautaire FR24328034798', pageWidth / 2, legalY, { align: 'center' });
 
-      // Convertir en Buffer
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      // Convertir en Uint8Array pour compatibilité client
+      const pdfArrayBuffer = doc.output('arraybuffer');
+      const pdfUint8Array = new Uint8Array(pdfArrayBuffer);
       
-      console.log("✅ PDF de convocation avec logo généré avec succès (jsPDF)");
-      resolve(pdfBuffer);
+      console.log(`✅ PDF de test généré avec succès: ${pdfUint8Array.length} bytes`);
+      resolve(pdfUint8Array);
       
     } catch (err) {
       console.error("❌ Exception pendant la génération du PDF :", err);
@@ -407,72 +336,40 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
   });
 }
 
-// Envoie l'e-mail avec PDF joint (reste identique)
-export async function sendConfirmationEmail(user: User, stage: Stage, options: ReservationOptions) {
-  const pdfBuffer = await generateReservationPDF(stage, user, options);
-  
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.MAIL_USER!,
-      pass: process.env.MAIL_PASS!,
-    },
-  });
-
-  const stageTypeDescriptions = {
-    1: "Stage volontaire - Récupération de 4 points",
-    2: "Stage obligatoire (période probatoire)",
-    3: "Stage en alternative à la poursuite judiciaire",
-    4: "Peine complémentaire ou sursis avec mise à l'épreuve"
+// Données de test par défaut
+export const getTestData = () => {
+  const testStage: Stage = {
+    id: 999,
+    Titre: "Centre de Formation EG-FORMATIONS TEST",
+    Adresse: "123 Avenue des Tests",
+    CodePostal: "75001",
+    Ville: "Paris",
+    DateDebut: new Date('2025-08-15'),
+    DateFin: new Date('2025-08-16'),
+    HeureDebut: "08:30",
+    HeureFin: "12:00",
+    HeureDebut2: "13:30",
+    HeureFin2: "17:00",
+    Prix: 259,
+    NumeroStage: "EG2025TEST001",
+    agrement: {
+      id: 1,
+      departement: "75",
+      numeroAgrement: "2025-TEST-001-AGR",
+      nomDepartement: "Paris"
+    }
   };
 
-  const agrementInfo = stage.agrement 
-    ? `\n🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
-    : '';
+  const testUser: User = {
+    id: 999,
+    firstName: "Jean",
+    lastName: "EXEMPLE",
+    email: "test@exemple.com"
+  };
 
-  const emailContent = `
-Bonjour ${user.firstName} ${user.lastName},
+  const testOptions: ReservationOptions = {
+    stageType: 1 // Stage volontaire
+  };
 
-Nous vous confirmons votre inscription au stage de sécurité routière suivant :
-
-📍 Lieu : ${stage.Titre}
-📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
-📅 Dates : du ${new Date(stage.DateDebut).toLocaleDateString('fr-FR')} au ${new Date(stage.DateFin).toLocaleDateString('fr-FR')}
-⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
-🔢 Numéro de stage : ${stage.NumeroStage}${agrementInfo}
-💰 Prix : ${stage.Prix}€
-📋 Type : ${stageTypeDescriptions[options.stageType]}
-
-Votre convocation officielle est jointe à cet e-mail en format PDF.
-
-IMPORTANT : 
-- Votre présence et le respect des horaires sont obligatoires
-- Munissez-vous de votre permis de conduire et de votre pièce d'identité
-- Présentez cette convocation le jour du stage
-${options.stageType === 2 ? '- N\'oubliez pas la lettre 48N de la Préfecture' : ''}
-${options.stageType === 3 ? '- N\'oubliez pas le document transmis par le tribunal' : ''}
-${options.stageType === 4 ? '- N\'oubliez pas le document de justice (sursis avec mise à l\'épreuve)' : ''}
-
-Pour toute question, contactez-nous au 0783372565.
-
-Cordialement,
-L'équipe EG-FORMATIONS
-  `;
-
-  await transporter.sendMail({
-    from: `"EG-FORMATIONS" <${process.env.MAIL_USER}>`,
-    to: user.email,
-    subject: `Convocation stage de sécurité routière - ${stage.Ville}`,
-    text: emailContent,
-    html: emailContent.replace(/\n/g, '<br>'),
-    attachments: [
-      {
-        filename: `convocation_stage_${stage.NumeroStage}.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
-  });
-
-  console.log("✅ Convocation avec logo envoyée par email à:", user.email);
-}
+  return { testStage, testUser, testOptions };
+};

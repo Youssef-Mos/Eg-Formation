@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withAdminAuth, validateRequestData, logApiAccess } from "@/lib/apiSecurity";
 import nodemailer from "nodemailer";
-//import PDFDocument from "pdfkit";
+// IMPORT DU GÉNÉRATEUR jsPDF
+import { generateReservationPDF } from "@/app/utils/convocationGeneratorJsPDF";
 
 const prisma = new PrismaClient();
 
@@ -18,63 +19,21 @@ const isValidMoveData = (data: any): data is { userId: number; fromStageId: numb
   );
 };
 
-// Fonction pour générer l'attestation PDF (similaire à celle utilisée pour validate-payment)
-/*async function generateReservationPDF(stage: any, user: any, typeStage: string): Promise<Buffer> {
-  const fontPath = process.env.NEXT_PUBLIC_PDF_FONT_PATH || "public/fonts/OpenSansHebrew-Light.ttf";
-  
-  const doc = new PDFDocument({
-    autoFirstPage: false,
-    font: fontPath
-  });
-
-  const chunks: any[] = [];
-
-  return new Promise((resolve, reject) => {
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", (err) => reject(err));
-
-    try {
-      doc.registerFont("OpenSans", fontPath);
-      doc.addPage();
-      doc.font("OpenSans");
-
-      doc.fontSize(20).text("Attestation de stage - Modification", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(16).text("Changement de date de stage", { align: "center" });
-      doc.moveDown();
-      doc.fontSize(14).text(`Participant : ${user.firstName || user.lastName ? `${user.firstName} ${user.lastName}` : user.email}`);
-      doc.text(`Stage : ${stage.Titre}`);
-      doc.text(`Type de stage : ${formatTypeStage(typeStage)}`);
-      doc.text(`Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}`);
-      doc.text(`Dates : du ${new Date(stage.DateDebut).toLocaleDateString()} au ${new Date(stage.DateFin).toLocaleDateString()}`);
-      doc.text(`Heures : ${stage.HeureDebut} - ${stage.HeureFin}`);
-      doc.moveDown();
-      doc.text("Votre réservation a été déplacée vers ce nouveau stage. Cette attestation confirme votre inscription.");
-      doc.end();
-    } catch (err) {
-      console.error("Exception pendant l'écriture du PDF :", err);
-      reject(err);
-    }
-  });
-}
-
-// Fonction pour formater le type de stage (utilisée dans le PDF)
-function formatTypeStage(type: string): string {
-  const types: Record<string, string> = {
-    "recuperation_points": "Récupération des points",
-    "permis_probatoire": "Permis probatoire (lettre Réf. 48N)",
-    "alternative_poursuites": "Alternative aux poursuites pénales",
-    "peine_complementaire": "Peine complémentaire",
-    "stage": "Stage standard"
+// Fonction helper pour mapper le type de stage vers le numéro
+function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
+  const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
+    "recuperation_points": 1,        // Stage volontaire
+    "permis_probatoire": 2,          // Permis probatoire  
+    "alternative_poursuites": 3,     // Alternative aux poursuites (tribunal)
+    "peine_complementaire": 4        // Peine complémentaire
   };
   
-  return types[type] || type;
+  return typeMapping[typeStage] || 1; // Par défaut : stage volontaire
 }
 */
 // Fonction pour envoyer l'email avec l'attestation
 async function sendEmailNotification(email: string, userName: string, oldStage: any, newStage: any, pdfBuffer: Buffer) {
-  const transporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransporter({
     service: "gmail",
     auth: {
       user: process.env.MAIL_USER!,
@@ -98,6 +57,7 @@ async function sendEmailNotification(email: string, userName: string, oldStage: 
           <li><strong>Dates :</strong> ${new Date(newStage.DateDebut).toLocaleDateString()} au ${new Date(newStage.DateFin).toLocaleDateString()}</li>
           <li><strong>Horaires :</strong> ${newStage.HeureDebut} - ${newStage.HeureFin}</li>
           <li><strong>Adresse :</strong> ${newStage.Adresse}, ${newStage.CodePostal} ${newStage.Ville}</li>
+          <li><strong>Numéro de stage :</strong> ${newStage.NumeroStage}</li>
         </ul>
         
         <p>Vous trouverez ci-joint votre nouvelle attestation de réservation.</p>
@@ -110,7 +70,7 @@ async function sendEmailNotification(email: string, userName: string, oldStage: 
     `,
     attachments: [
       {
-        filename: "nouvelle_attestation.pdf",
+        filename: `nouvelle_convocation_stage_${newStage.NumeroStage}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
       },
@@ -143,10 +103,16 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
     
-    // 2. Récupérer les détails des deux stages
+    // 2. Récupérer les détails des deux stages AVEC L'AGRÉMENT
     const [fromStage, toStage] = await Promise.all([
-      prisma.stage.findUnique({ where: { id: fromStageId } }),
-      prisma.stage.findUnique({ where: { id: toStageId } })
+      prisma.stage.findUnique({ 
+        where: { id: fromStageId },
+        include: { agrement: true }
+      }),
+      prisma.stage.findUnique({ 
+        where: { id: toStageId },
+        include: { agrement: true }
+      })
     ]);
     
     if (!fromStage || !toStage) {
@@ -183,30 +149,76 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       })
     ]);
     
-    // 5. Générer et envoyer l'attestation
-    /*try {
-      const pdfBuffer = await generateReservationPDF(toStage, reservation.user, reservation.TypeStage);
+    // 5. Générer et envoyer l'attestation avec jsPDF
+    try {
+      console.log(`📄 Génération PDF pour déplacement de réservation - User ${userId}, Stage ${toStageId}`);
+      
+      // Transformer les données pour correspondre aux interfaces du générateur jsPDF
+      const stageData = {
+        id: toStage.id,
+        Titre: toStage.Titre,
+        Adresse: toStage.Adresse,
+        CodePostal: toStage.CodePostal,
+        Ville: toStage.Ville,
+        DateDebut: toStage.DateDebut,
+        DateFin: toStage.DateFin,
+        HeureDebut: toStage.HeureDebut,
+        HeureFin: toStage.HeureFin,
+        HeureDebut2: toStage.HeureDebut2,
+        HeureFin2: toStage.HeureFin2,
+        Prix: toStage.Prix,
+        NumeroStage: toStage.NumeroStage,
+        agrement: toStage.agrement
+          ? {
+              ...toStage.agrement,
+              nomDepartement: toStage.agrement.nomDepartement ?? undefined
+            }
+          : null
+      };
+
+      const userData = {
+        id: reservation.user.id,
+        firstName: reservation.user.firstName,
+        lastName: reservation.user.lastName,
+        email: reservation.user.email
+      };
+
+      const reservationOptions = {
+        stageType: mapTypeStageToNumber(reservation.TypeStage)
+      };
+
+      // Générer le PDF avec jsPDF
+      const pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);
+      
+      console.log(`✅ PDF généré avec succès (${pdfBuffer.length} bytes)`);
+      
+      // Envoyer l'email de notification
       const userName = reservation.user.firstName || reservation.user.lastName 
         ? `${reservation.user.firstName} ${reservation.user.lastName}`.trim()
         : reservation.user.email;
       
       await sendEmailNotification(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
-      console.log(`Email de notification envoyé à ${reservation.user.email}`);
+      console.log(`✅ Email de notification envoyé à ${reservation.user.email}`);
+      
     } catch (emailError) {
-      console.error("Erreur lors de l'envoi de l'email:", emailError);
-    }*/
+      console.error("❌ Erreur lors de la génération PDF ou envoi email:", emailError);
+      // On continue malgré l'erreur email pour ne pas annuler le déplacement
+    }
     
     logApiAccess(request, session, true);
     return NextResponse.json({ 
       success: true,
       message: "Réservation déplacée avec succès et client notifié par email"
     });
+    
   } catch (error) {
-    console.error("Erreur déplacement:", error);
+    console.error("❌ Erreur déplacement:", error);
     logApiAccess(request, session, false, "MOVE_FAILED");
     return NextResponse.json(
       { error: "Erreur serveur", code: "MOVE_FAILED" },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 });
