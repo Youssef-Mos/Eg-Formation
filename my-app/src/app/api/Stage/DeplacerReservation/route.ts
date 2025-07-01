@@ -30,10 +30,10 @@ function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   
   return typeMapping[typeStage] || 1; // Par défaut : stage volontaire
 }
-*/
+
 // Fonction pour envoyer l'email avec l'attestation
 async function sendEmailNotification(email: string, userName: string, oldStage: any, newStage: any, pdfBuffer: Buffer) {
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.MAIL_USER!,
