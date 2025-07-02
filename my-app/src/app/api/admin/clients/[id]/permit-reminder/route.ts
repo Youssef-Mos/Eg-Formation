@@ -8,15 +8,12 @@ const prisma = new PrismaClient();
 
 // Configuration du transporteur email (à adapter selon votre service)
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "localhost",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: false,
+  service: "gmail",  // ✅ Plus simple que host/port
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
   },
 });
-
 // Envoyer un rappel de permis par email
 export async function POST(
   request: NextRequest,
@@ -77,7 +74,7 @@ export async function POST(
     }
 
     // Vérifier si un rappel n'a pas été envoyé récemment (moins de 24h)
-    if (user.permitNotificationSent) {
+    /*if (user.permitNotificationSent) {
       const lastNotification = new Date(user.permitNotificationSent);
       const now = new Date();
       const hoursSinceLastNotification = (now.getTime() - lastNotification.getTime()) / (1000 * 60 * 60);
@@ -93,7 +90,7 @@ export async function POST(
           { status: 429 }
         );
       }
-    }
+    }*/
 
     // Créer une notification en base
     await prisma.notification.create({

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from '@prisma/client';
 import { withAuth, validateRequestData, validators, logApiAccess } from "@/lib/apiSecurity";
+import { sendConfirmationEmail } from "@/app/utils/convocationGeneratorJsPDF"; // ✅ AJOUT
 
 const prisma = new PrismaClient();
 
@@ -22,9 +23,12 @@ export const POST = withAuth(async (request: NextRequest, { session }) => {
   const userId = Number(session.user.id);
 
   try {
-    // Vérifier si le stage existe et a des places disponibles
+    // ✅ MODIFICATION : Récupérer le stage AVEC l'agrément
     const stage = await prisma.stage.findUnique({
-      where: { id: stageId }
+      where: { id: stageId },
+      include: {
+        agrement: true // ✅ Pour le PDF
+      }
     });
 
     if (!stage) {
@@ -61,6 +65,25 @@ export const POST = withAuth(async (request: NextRequest, { session }) => {
       );
     }
 
+    // ✅ AJOUT : Récupérer les données utilisateur pour l'email
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true
+      }
+    });
+
+    if (!user) {
+      logApiAccess(request, session, false, "USER_NOT_FOUND");
+      return NextResponse.json(
+        { error: "Utilisateur non trouvé", code: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
     // Créer la réservation et décrémenter les places
     const [reservation] = await Promise.all([
       prisma.reservation.create({
@@ -72,8 +95,60 @@ export const POST = withAuth(async (request: NextRequest, { session }) => {
       })
     ]);
 
+    // ✅ AJOUT : Envoi de l'email de convocation
+    try {
+      console.log(`📧 Envoi de la convocation à ${user.email}...`);
+      
+      // Transformer les données pour le générateur PDF
+      const stageData = {
+        id: stage.id,
+        Titre: stage.Titre,
+        Adresse: stage.Adresse,
+        CodePostal: stage.CodePostal,
+        Ville: stage.Ville,
+        DateDebut: stage.DateDebut,
+        DateFin: stage.DateFin,
+        HeureDebut: stage.HeureDebut,
+        HeureFin: stage.HeureFin,
+        HeureDebut2: stage.HeureDebut2,
+        HeureFin2: stage.HeureFin2,
+        Prix: stage.Prix,
+        NumeroStage: stage.NumeroStage,
+        agrement: stage.agrement
+          ? {
+              ...stage.agrement,
+              nomDepartement: stage.agrement.nomDepartement ?? undefined
+            }
+          : null
+      };
+
+      const userData = {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      };
+
+      const reservationOptions = {
+        stageType: 1 as 1 | 2 | 3 | 4 // Par défaut : stage volontaire
+      };
+
+      // Envoyer l'email avec PDF
+      await sendConfirmationEmail(userData, stageData, reservationOptions);
+      
+      console.log(`✅ Convocation envoyée à ${user.email}`);
+      
+    } catch (emailError) {
+      console.error('❌ Erreur lors de l\'envoi de la convocation:', emailError);
+      // ⚠️ On continue même si l'email échoue - la réservation est créée
+    }
+
     logApiAccess(request, session, true);
-    return NextResponse.json({ success: true, reservation });
+    return NextResponse.json({ 
+      success: true, 
+      reservation,
+      message: "Réservation créée avec succès. Une convocation vous a été envoyée par email."
+    });
   } catch (error: any) {
     console.error("Erreur création réservation:", error);
     logApiAccess(request, session, false, "CREATE_FAILED");
