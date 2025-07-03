@@ -139,7 +139,7 @@ function SuccessPageContent() {
               {isNewPayment 
                 ? "Votre réservation a été mise à jour avec succès. Votre paiement par carte bancaire a été enregistré."
                 : "Félicitations ! Votre réservation a été confirmée."} 
-              Une attestation a été envoyée à votre adresse email ({user.email}).
+              Une convocation a été envoyée à votre adresse email ({user.email}).
             </p>
           </div>
 
@@ -226,7 +226,7 @@ function SuccessPageContent() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <h3 className="font-bold text-blue-800 mb-2">Instructions importantes</h3>
             <ul className="text-blue-700 space-y-1 pl-5 list-disc">
-              <li>Conservez précieusement votre attestation de réservation</li>
+              <li>Conservez précieusement votre convocation de réservation</li>
               <li>Présentez-vous 15 minutes avant le début du stage</li>
               <li>N&apos;oubliez pas votre pièce d&apos;identité et votre permis de conduire</li>
               {typeStage.code === "permis_probatoire" && (
@@ -242,7 +242,7 @@ function SuccessPageContent() {
               className="flex items-center justify-center bg-zinc-800 text-white py-3 px-6 rounded-lg hover:bg-zinc-700 transition font-medium"
             >
               <ArrowDownIcon className="w-5 h-5 mr-2" />
-              Télécharger l&apos;attestation PDF
+              Télécharger l&apos;convocation PDF
             </button>
             
             <Link 

@@ -196,7 +196,7 @@ export default function StageDetail() {
     if (!reservation || !stage || !session?.user?.id) return;
     
     if (reservation.paid === false) {
-      toast.error("Veuillez régler votre réservation pour télécharger l'attestation");
+      toast.error("Veuillez régler votre réservation pour télécharger la convocation.");
       return;
     }
     
@@ -204,16 +204,16 @@ export default function StageDetail() {
     try {
       const downloadUrl = `/api/reservation/download-pdf?userId=${session.user.id}&stageId=${stage.id}&typeStage=${reservation.TypeStage}`;
       window.open(downloadUrl, '_blank');
-      toast.success("Téléchargement de l'attestation démarré");
+      toast.success("Téléchargement de la convocation démarré");
     } catch (error) {
       console.error("Erreur de téléchargement:", error);
-      toast.error("Erreur lors du téléchargement de l'attestation");
+      toast.error("Erreur lors du téléchargement de la convocation");
     } finally {
       setPdfLoading(false);
     }
   };
 
-  // NOUVELLE FONCTION : Demander une facture à l'admin
+  // NOUVELLE FONCTION : Demander une facture à la admin
   const handleRequestInvoice = async () => {
     if (!reservation) return;
     
@@ -322,8 +322,8 @@ export default function StageDetail() {
                   </p>
                   <ul className="list-disc list-inside text-amber-700 space-y-1 mb-3">
                     <li>Garantir votre place au stage</li>
-                    <li>Recevoir votre attestation par email</li>
-                    <li>Pouvoir télécharger votre attestation et demander votre facture</li>
+                    <li>Recevoir votre convocation par email</li>
+                    <li>Pouvoir télécharger votre convocation et demander votre facture</li>
                   </ul>
                   
                   <div className="mt-4 border-t border-amber-200 pt-4">
@@ -344,11 +344,11 @@ export default function StageDetail() {
               {/* Documents disponibles si réservé ET payé */}
               {reservation && (reservation.paid !== false) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  {/* Attestation */}
+                  {/* convocation */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
                       <FileText className="w-5 h-5 mr-2" />
-                      Attestation de réservation
+                      convocation de réservation
                     </h3>
                     <p className="text-blue-700 mb-3 text-sm">
                       Document officiel de votre inscription au stage.
@@ -359,7 +359,7 @@ export default function StageDetail() {
                       className="bg-blue-600 hover:bg-blue-700 w-full"
                       size="sm"
                     >
-                      {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
+                      {pdfLoading ? "Téléchargement..." : "Télécharger la convocation"}
                     </Button>
                   </div>
 
@@ -539,7 +539,7 @@ export default function StageDetail() {
               
               <div className="space-y-4 text-zinc-700">
                 <p>
-                  <span className="font-medium">Présentation :</span> Merci de vous présenter 15 minutes avant le début du stage avec votre pièce d'identité et votre attestation.
+                  <span className="font-medium">Présentation :</span> Merci de vous présenter 15 minutes avant le début du stage avec votre pièce d'identité et votre convocation.
                 </p>
                 
                 <p>
@@ -578,7 +578,7 @@ export default function StageDetail() {
                   disabled={pdfLoading}
                   className="w-full sm:w-auto"
                 >
-                  {pdfLoading ? "Téléchargement..." : "Télécharger l'attestation"}
+                  {pdfLoading ? "Téléchargement..." : "Télécharger la  convocation"}
                 </Button>
               )}
             </div>

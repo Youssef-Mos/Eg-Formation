@@ -297,7 +297,7 @@ return (
 <p>Le site www.egformations.com est hébergé par : Vercel</p>
 <h3 className="text-lg font-bold mt-4">Déclarations officielles</h3>
 <div className="pl-4 my-3">
-<p><strong>Agrément préfectoral :</strong> EG-FORMATIONS est un centre de sensibilisation à la sécurité routière agréé par la préfecture de [département] sous le numéro [numéro d'agrément].</p>
+<p><strong>Agrément préfectoral :</strong> EG-FORMATIONS est un centre de sensibilisation à la sécurité routière agréé par la préfecture du 59 (Nord) sous le numéro #R2305900010 et la préfecture du 62 (Pas-De-Calais) sous le numéro #R2306200020.</p>
 </div>
 <h3 className="text-lg font-bold mt-4">Protection des données personnelles</h3>
 <p>Conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés, vous disposez d'un droit d'accès, de rectification, de limitation, de portabilité et de suppression de vos données personnelles.</p>
