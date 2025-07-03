@@ -23,6 +23,8 @@ export const GET = withAuth(async (request: NextRequest, { session }) => {
             DateFin: true,
             HeureDebut: true,
             HeureFin: true,
+            HeureDebut2: true,
+            HeureFin2: true,
             Prix: true,
           },
         },
