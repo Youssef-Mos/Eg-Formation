@@ -425,7 +425,7 @@ return (
 
 <h4 className="font-semibold mt-3">3.2 Prestataires techniques</h4>
 <ul className="list-disc pl-6 mt-2 space-y-1">
-<li><strong>Hébergeur web</strong> : [Nom de l'hébergeur] - Stockage des données</li>
+<li><strong>Hébergeur web</strong> : Vercel - Stockage des données</li>
 <li><strong>Stripe</strong> : Traitement sécurisé des paiements</li>
 <li><strong>Service d'emailing</strong> : Envoi des convocations et confirmations</li>
 <li><strong>Google Analytics</strong> : Analyse d'audience (si consentement)</li>

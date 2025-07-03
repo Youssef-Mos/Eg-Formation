@@ -9,7 +9,7 @@ import Link from "next/link";
 import ListeStages from "../ui-stage/LiseStage";
 import StageFilter from "./StageFilter";
 import AgrementManagement from "@/components/admin/AgrementManagement";
-import { Plus, Shield } from "lucide-react";
+import { Plus, Shield, Filter } from "lucide-react";
 
 // Interface mise à jour avec le nouveau filtre places disponibles
 type FilterValues = {
@@ -17,7 +17,7 @@ type FilterValues = {
   departement: string;
   date: Date | null;
   motsCles: string;
-  placesDisponibles: [number, number]; // NOUVEAU : Range [min, max]
+  placesDisponibles: [number, number]; // Range [min, max]
 };
 
 // Interface pour les données de stage (pour calculer le maximum)
@@ -38,8 +38,11 @@ export default function ReservationSection() {
   const [maxPlacesDisponibles, setMaxPlacesDisponibles] = useState<number>(50);
   const [isLoading, setIsLoading] = useState(true);
   
-  // NOUVEAU : État pour gérer l'affichage du modal de gestion des agréments
+  // État pour gérer l'affichage du modal de gestion des agréments
   const [showAgrementManagement, setShowAgrementManagement] = useState(false);
+
+  // ✅ NOUVEAU : État pour contrôler l'affichage des filtres admin
+  const [showAdminFilters, setShowAdminFilters] = useState(false);
 
   // État des filtres avec la nouvelle propriété
   const [filters, setFilters] = useState<FilterValues>({
@@ -47,7 +50,7 @@ export default function ReservationSection() {
     departement: "",
     date: null,
     motsCles: "",
-    placesDisponibles: [0, 50], // NOUVEAU : valeurs par défaut
+    placesDisponibles: [0, 50],
   });
 
   // Fonction de réinitialisation mise à jour
@@ -57,7 +60,7 @@ export default function ReservationSection() {
       departement: "",
       date: null,
       motsCles: "",
-      placesDisponibles: [0, maxPlacesDisponibles], // NOUVEAU : reset avec le max dynamique
+      placesDisponibles: [0, maxPlacesDisponibles],
     });
   };
 
@@ -109,52 +112,82 @@ export default function ReservationSection() {
 
   return (
     <section className="flex flex-col gap-5 justify-center items-center">
-      {/* Boutons admin pour ajouter un stage et gérer les agréments */}
+      {/* ✅ SECTION ADMIN COMPLÈTE : Boutons + Filtres */}
       {session?.user?.role === "admin" && (
         <motion.div 
-          className="mt-4 flex gap-3"
+          className="mt-4 flex flex-col gap-4 w-full max-w-6xl"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Bouton Ajouter un stage */}
-          <Link href="/admin/add-stage">
+          {/* Boutons d'administration */}
+          <div className="flex flex-wrap gap-3 justify-center">
+            {/* Bouton Ajouter un stage */}
+            <Link href="/admin/add-stage">
+              <Button 
+                className="cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2" 
+                variant="outline"
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter un stage
+              </Button>
+            </Link>
+
+            {/* Bouton Gérer les agréments */}
             <Button 
+              onClick={() => setShowAgrementManagement(true)}
               className="cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2" 
               variant="outline"
             >
-              <Plus className="w-4 h-4" />
-              Ajouter un stage
+              <Shield className="w-4 h-4" />
+              Gérer agréments
             </Button>
-          </Link>
 
-          {/* NOUVEAU : Bouton Gérer les agréments */}
-          <Button 
-            onClick={() => setShowAgrementManagement(true)}
-            className="cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2" 
-            variant="outline"
-          >
-            <Shield className="w-4 h-4" />
-            Gérer agréments
-          </Button>
+            {/* ✅ NOUVEAU : Bouton pour afficher/masquer les filtres */}
+            <Button 
+              onClick={() => setShowAdminFilters(!showAdminFilters)}
+              className={`cursor-pointer hover:shadow-lg hover:shadow-zinc-300 transition-all duration-200 ease-in-out hover:scale-105 flex items-center gap-2 ${
+                showAdminFilters ? 'bg-blue-100 text-blue-700 border-blue-300' : ''
+              }`}
+              variant="outline"
+            >
+              <Filter className="w-4 h-4" />
+              {showAdminFilters ? 'Masquer filtres' : 'Filtres admin'}
+            </Button>
+          </div>
+
+          {/* ✅ FILTRES ADMIN : Affichage conditionnel */}
+          <AnimatePresence>
+            {showAdminFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">Filtres administrateur</h3>
+                    <span className="text-sm text-gray-500 bg-blue-100 px-2 py-1 rounded-full">
+                      Réservé aux admins
+                    </span>
+                  </div>
+                  
+                  <StageFilter
+                    filters={filters}
+                    onFilterChange={setFilters}
+                    onReset={handleResetFilters}
+                    villesDisponibles={villesDisponibles}
+                    maxPlacesDisponibles={maxPlacesDisponibles}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
-
-      {/* Composant de filtrage */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="w-full"
-      >
-        <StageFilter
-          filters={filters}
-          onFilterChange={setFilters}
-          onReset={handleResetFilters}
-          villesDisponibles={villesDisponibles}
-          maxPlacesDisponibles={maxPlacesDisponibles} // NOUVEAU : passer le maximum
-        />
-      </motion.div>
 
       {/* Container de la liste des stages */}
       <motion.div 
@@ -177,7 +210,7 @@ export default function ReservationSection() {
         </div>
       </motion.div>
 
-      {/* NOUVEAU : Modal de gestion des agréments */}
+      {/* Modal de gestion des agréments */}
       {showAgrementManagement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <motion.div

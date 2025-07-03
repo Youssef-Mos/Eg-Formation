@@ -24,6 +24,8 @@ interface Reservation {
     DateFin: string;
     HeureDebut: string;
     HeureFin: string;
+    HeureDebut2: string;
+    HeureFin2: string;
     Prix: number;
   };
   createdAt: string;
@@ -226,7 +228,7 @@ export default function MesReservations() {
               <span className="font-medium">Dates:</span> {new Date(r.stage.DateDebut).toLocaleDateString("fr-FR")} — {new Date(r.stage.DateFin).toLocaleDateString("fr-FR")}
             </p>
             <p className="mb-1 text-zinc-700">
-              <span className="font-medium">Horaires:</span> {r.stage.HeureDebut} — {r.stage.HeureFin}
+              <span className="font-medium">Horaires:</span> {r.stage.HeureDebut} — {r.stage.HeureFin} et {r.stage.HeureDebut2} — {r.stage.HeureFin2}
             </p>
             <p className="mb-1 text-zinc-700">
               <span className="font-medium">Type:</span> {formatTypeStage(r.TypeStage)}

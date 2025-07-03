@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { PrismaClient } from "@prisma/client";
-import { processInvoiceAfterPayment } from "@/app/utils/invoiceGeneratorJsPDF";
+import { processInvoiceAfterPaymentAdmin } from "@/app/utils/invoiceGeneratorJSADMIN";
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -104,6 +104,7 @@ export async function POST(request: Request) {
       }
 
       // Générer et envoyer la facture
+      
       if (finalReservationId && session.payment_intent) {
         try {
           console.log("🧾 Génération de la facture...");
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
           const amount = session.amount_total || 0;
           const currency = session.currency || 'eur';
           
-          const result = await processInvoiceAfterPayment(
+          const result = await processInvoiceAfterPaymentAdmin(
             finalReservationId,
             paymentIntentId,
             amount,

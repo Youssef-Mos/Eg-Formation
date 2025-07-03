@@ -462,6 +462,7 @@ L'équipe EG-FORMATIONS
   await transporter.sendMail({
     from: `"EG-FORMATIONS" <${process.env.MAIL_USER}>`,
     to: user.email,
+    cc: process.env.MAIL_USER, // ✅ AJOUT : Propriétaire en copie
     subject: `Convocation stage de sécurité routière - ${stage.Ville}`,
     text: emailContent,
     html: emailContent.replace(/\n/g, '<br>'),
@@ -474,5 +475,5 @@ L'équipe EG-FORMATIONS
     ],
   });
 
-  console.log("✅ Convocation avec logo envoyée par email à:", user.email);
+  console.log(`✅ Convocation avec logo envoyée par email à: ${user.email} (copie à: ${process.env.MAIL_USER})`);
 }

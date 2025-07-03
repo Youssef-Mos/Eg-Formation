@@ -266,7 +266,7 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
                 <div className="text-sm text-gray-600">
                   Consultez les{" "}
                   <LinkPreview 
-                    url="http://localhost:3000/register/CGU" 
+                    url="https://eg-formations.net/mention-legales" 
                     className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 hover:no-underline transition-all duration-200 inline-flex items-center gap-1"
                   >
                     Conditions Générales d'Utilisation (CGU)
@@ -293,7 +293,7 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
                 <div className="text-sm text-gray-600">
                   Consultez le{" "}
                   <LinkPreview 
-                    url="http://localhost:3000/register/reglement" 
+                    url="https://eg-formations.net/mention-legales" 
                     className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 hover:no-underline transition-all duration-200 inline-flex items-center gap-1"
                   >
                     Règlement intérieur et politique RGPD

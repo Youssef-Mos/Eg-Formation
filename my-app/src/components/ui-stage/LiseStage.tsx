@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { 
-  Calendar, 
+  Calendar,             
   MapPin, 
   Clock, 
   Users, 
@@ -56,7 +56,7 @@ interface Stage {
   HeureDebut2: string;
   HeureFin2: string;
   Prix: number;
-  createdAt: Date; // Ajout pour le tri
+  createdAt: Date;
 }
 
 interface FilterValues {
@@ -64,7 +64,7 @@ interface FilterValues {
   departement: string;
   date: Date | null;
   motsCles: string;
-  placesDisponibles: [number, number]; // NOUVEAU : Range [min, max]
+  placesDisponibles: [number, number];
 }
 
 interface ListeStagesProps {
@@ -160,9 +160,12 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         if (!res.ok) throw new Error("Erreur de récupération");
         const data = await res.json();
         
-        // Trier les stages par date de création (plus récents en premier)
+        // ✅ MODIFICATION : Trier les stages par date de stage (DateDebut) chronologique
+        // Les dates les plus récentes en premier (proche dans le temps)
         const sortedStages = data.sort((a: Stage, b: Stage) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          const dateA = new Date(a.DateDebut).getTime();
+          const dateB = new Date(b.DateDebut).getTime();
+          return dateA - dateB; // Tri croissant : dates les plus proches en premier
         });
         
         // Vérifier les stages complets et envoyer des notifications
@@ -287,7 +290,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
       !filters.date ||
       new Date(stage.DateDebut).toDateString() === new Date(filters.date).toDateString();
 
-    // NOUVEAU : Filtrage par places disponibles
+    // Filtrage par places disponibles
     const [minPlaces, maxPlaces] = filters.placesDisponibles;
     const matchPlaces = stage.PlaceDisponibles >= minPlaces && stage.PlaceDisponibles <= maxPlaces;
 
@@ -308,7 +311,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         </h1>
         <p className="text-gray-600 text-sm sm:text-base">
           {filteredStages.length > 0 
-            ? `${filteredStages.length} stage(s) disponible(s) • Triés par date d'ajout`
+            ? `${filteredStages.length} stage(s) disponible(s) • Triés par date de stage`
             : "Aucun stage trouvé"
           }
         </p>
