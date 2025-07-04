@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withApiSecurity, logApiAccess } from "@/lib/apiSecurity";
 import { put } from '@vercel/blob';
+import nodemailer from "nodemailer"; // ✅ AJOUT
 
 const prisma = new PrismaClient();
 
@@ -82,7 +83,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ NOUVEAU : Upload vers Vercel Blob au lieu du système de fichiers
+    // ✅ AJOUT : Récupérer les informations complètes de l'utilisateur pour l'email
+    const user = await prisma.user.findUnique({
+      where: { id: Number(session!.user.id) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone1: true
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Utilisateur non trouvé", code: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    // Upload vers Vercel Blob
     const userId = session!.user.id;
     const timestamp = Date.now();
     const extension = file.name.split('.').pop();
@@ -92,8 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Upload du fichier vers Vercel Blob
     const blob = await put(blobFileName, file, {
-      access: 'public', // ou 'private' selon vos besoins
-      
+      access: 'public',
     });
 
     console.log('Fichier uploadé vers Blob:', blob.url);
@@ -104,7 +123,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: Number(userId),
         fileName: file.name,
-        filePath: blob.url, // ✅ Stocker l'URL Blob au lieu du chemin local
+        filePath: blob.url,
         fileSize: file.size,
         fileType: file.type,
         status: 'pending'
@@ -133,6 +152,73 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // ✅ AJOUT : Envoyer un email de notification à l'admin
+    try {
+      console.log('📧 Envoi de la notification admin...');
+      
+      // Configuration du transporteur Gmail
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.MAIL_USER!,
+          pass: process.env.MAIL_PASS!,
+        },
+      });
+
+      const adminEmailContent = `
+📄 NOUVEAU DOCUMENT DE PERMIS À VÉRIFIER
+
+Un utilisateur vient de télécharger un document de permis de conduire qui nécessite votre vérification.
+
+👤 INFORMATIONS UTILISATEUR :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Nom : ${user.lastName} ${user.firstName}
+• Email : ${user.email}
+• Téléphone : ${user.phone1 || 'Non renseigné'}
+• ID Utilisateur : ${user.id}
+
+📎 INFORMATIONS DOCUMENT :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Nom du fichier : ${file.name}
+• Type : ${file.type}
+• Taille : ${(file.size / 1024 / 1024).toFixed(2)} MB
+• Date d'upload : ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+• Statut : En attente de vérification
+• ID Document : ${permitDocument.id}
+
+⚠️ ACTION REQUISE :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Connectez-vous à l'interface d'administration pour :
+• Visualiser le document
+• Approuver ou rejeter la vérification
+• Ajouter des commentaires si nécessaire
+
+🕐 DÉLAI DE TRAITEMENT :
+Les utilisateurs s'attendent à une réponse sous 48h maximum.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EG-FORMATIONS - Système de notification automatique
+      `;
+
+      // Envoyer l'email à l'admin
+      await transporter.sendMail({
+        from: `"EG-FORMATIONS - Notification" <${process.env.MAIL_USER}>`,
+        to: process.env.MAIL_USER, // ✅ Admin reçoit l'email
+        subject: `🔍 Nouveau document de permis à vérifier - ${user.lastName} ${user.firstName}`,
+        text: adminEmailContent,
+        html: adminEmailContent.replace(/\n/g, '<br>').replace(/━/g, '─'),
+      });
+
+      console.log(`✅ Email de notification admin envoyé à: ${process.env.MAIL_USER}`);
+      
+    } catch (emailError) {
+      console.error('❌ Erreur lors de l\'envoi de l\'email admin:', emailError);
+      // On continue même si l'email échoue - le document est uploadé
+    }
+
     console.log('Upload terminé avec succès');
     logApiAccess(request, session, true);
     
@@ -144,7 +230,7 @@ export async function POST(request: NextRequest) {
         fileName: permitDocument.fileName,
         status: permitDocument.status,
         createdAt: permitDocument.createdAt,
-        url: blob.url // ✅ Retourner l'URL pour accès futur
+        url: blob.url
       }
     });
     
@@ -183,7 +269,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         fileName: true,
-        filePath: true, // ✅ Maintenant c'est l'URL Blob
+        filePath: true,
         status: true,
         adminComments: true,
         createdAt: true,
