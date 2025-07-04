@@ -35,7 +35,7 @@ export default function BodyHome () {
               <span className="font-bold text-lg lg:text-xl text-zinc-800 mb-2">Formation certifiée</span>
               <p className="text-gray-600 mb-2">Notre engagement qualité :</p>
             <div className="flex flex-col gap-3 mt-1">
-               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Formateurs experts : psychologue et BAFA</span>
+               <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Formateurs experts : psychologue et BAFM</span>
                 <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Stages de sensibilisation à la sécurité routière</span>
                <span className="flex items-center"><CheckCircle className="w-4 h-4 text-zinc-600 mr-2 flex-shrink-0" />Centre agréé par la préfecture </span>
             </div></div>

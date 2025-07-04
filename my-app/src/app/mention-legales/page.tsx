@@ -277,13 +277,14 @@ return (
 <CardContent className="max-h-[70vh] overflow-y-auto prose prose-sm">
 <h3 className="text-lg font-bold mt-2">Éditeur du site</h3>
 <div>
-  Le site www.egformations.com est édité par : MOSBAH Youssef{" "}
+  Le site https://eg-formations.net est édité par : MOSBAH Youssef{" "}
   <LinkPreview url="https://www.linkedin.com/in/youssef-mosbah-855652292/" className="text-blue-600 hover:underline">
     Profil LinkedIn
   </LinkPreview>
 </div>
 <div className="pl-4 my-3">
 <p><strong>EG-FORMATIONS</strong></p>
+<p>EI (Entreprise individuelle)</p>
 <p>Numéro SIRET : 328 034 798 00020</p>
 <p>Code APE : 8553Z - Enseignement de la conduite</p>
 <p>Numéro de TVA intracommunautaire : FR24 328034798</p>
@@ -292,9 +293,9 @@ return (
 <p>Email : <a href="mailto:contact@eg-formations.com" className="text-blue-600 hover:underline">contact@eg-formations.com</a></p>
 </div>
 <h3 className="text-lg font-bold mt-4">Représentant légal</h3>
-<p>Le site www.egformations.com est représenté par : Eric Gernez</p>
+<p>Le site https://eg-formations.net est représenté par : Eric Gernez</p>
 <h3 className="text-lg font-bold mt-4">Hébergement du site</h3>
-<p>Le site www.egformations.com est hébergé par : Vercel</p>
+<p>Le site https://eg-formations.net est hébergé par : Vercel</p>
 <h3 className="text-lg font-bold mt-4">Déclarations officielles</h3>
 <div className="pl-4 my-3">
 <p><strong>Agrément préfectoral :</strong> EG-FORMATIONS est un centre de sensibilisation à la sécurité routière agréé par la préfecture du 59 (Nord) sous le numéro #R2305900010 et la préfecture du 62 (Pas-De-Calais) sous le numéro #R2306200020.</p>
@@ -308,11 +309,11 @@ return (
 </div>
 <p>Pour plus d'informations sur la façon dont nous traitons vos données, consultez notre Politique de Confidentialité accessible depuis notre site web.</p>
 <h3 className="text-lg font-bold mt-4">Propriété intellectuelle</h3>
-<p>L'ensemble du contenu du site www.egformations.com (images, textes, vidéos, logo, etc.) est la propriété exclusive d'EG-FORMATIONS ou de tiers ayant autorisé EG-FORMATIONS à les utiliser.</p>
+<p>L'ensemble du contenu du site https://eg-formations.net (images, textes, vidéos, logo, etc.) est la propriété exclusive d'EG-FORMATIONS ou de tiers ayant autorisé EG-FORMATIONS à les utiliser.</p>
 <p>Toute reproduction, représentation, modification, publication, adaptation, totale ou partielle des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite, sauf autorisation écrite préalable d'EG-FORMATIONS.</p>
 <p>Toute exploitation non autorisée du site ou de l'un quelconque des éléments qu'il contient sera considérée comme constitutive d'une contrefaçon et poursuivie conformément aux dispositions des articles L.335-2 et suivants du Code de Propriété Intellectuelle.</p>
 <h3 className="text-lg font-bold mt-4">Liens hypertextes et références</h3>
-<p>La création de liens hypertextes vers le site www.egformations.com est soumise à l'accord préalable d'EG-FORMATIONS. Les liens hypertextes établis en direction d'autres sites à partir de www.egformations.com ne sauraient, en aucun cas, engager la responsabilité d'EG-FORMATIONS, notamment au regard de leur contenu.</p>
+<p>La création de liens hypertextes vers le site https://eg-formations.net est soumise à l'accord préalable d'EG-FORMATIONS. Les liens hypertextes établis en direction d'autres sites à partir de https://eg-formations.net ne sauraient, en aucun cas, engager la responsabilité d'EG-FORMATIONS, notamment au regard de leur contenu.</p>
 <h3 className="text-lg font-bold mt-4">Droit applicable et juridiction compétente</h3>
 <p>Les présentes mentions légales sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents.</p>
 <div className="text-sm text-gray-500 mt-8">
