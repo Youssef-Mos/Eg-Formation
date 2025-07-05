@@ -61,6 +61,7 @@ interface Stage {
   Prix: number;
   createdAt: Date;
   hidden: boolean; // ✅ Maintenant récupéré de la base de données
+  updatedAt: Date; // ✅ Nouveau champ pour la date de mise à jour
 }
 
 interface FilterValues {

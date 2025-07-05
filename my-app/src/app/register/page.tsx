@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import Nav from "@/components/nav";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import Footer from "@/components/footer";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -424,57 +424,102 @@ function RegisterContent() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+// Dans votre fichier de formulaire d'inscription (Register.tsx)
+// ✅ MODIFICATION de la fonction handleSubmit
+
+// Dans votre handleSubmit du formulaire d'inscription
+// ✅ Dans votre composant d'inscription - HandleSubmit FINAL
+
+// ✅ Dans votre composant d'inscription - HandleSubmit AUTOMATIQUE
+
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  
+  if (!validateCurrentTab()) {
+    return;
+  }
+  
+  setIsSubmitting(true);
+
+  try {
+    const dataToSend = {
+      ...formData,
+      birthDate: formData.birthDate.toISOString(),
+      permitDate: formData.permitDate.toISOString(),
+    };
+
+    // ✅ ÉTAPE 1: INSCRIPTION
+    toast.loading('Création de votre compte...', { id: 'inscription' });
     
-    if (!validateCurrentTab()) {
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(dataToSend),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      toast.error(result.error || 'Échec de l\'inscription', { id: 'inscription' });
+      setIsSubmitting(false);
       return;
     }
-    
-    setIsSubmitting(true);
 
-    try {
-      const dataToSend = {
-        ...formData,
-        birthDate: formData.birthDate.toISOString(),
-        permitDate: formData.permitDate.toISOString(),
-      };
-  
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSend),
-      });
-  
-      const result = await response.json();
-  
-      if (!response.ok) {
-        toast.error(result.error || 'Échec de l&apos;inscription');
-        setIsSubmitting(false);
-        return;
-      }
-  
-      toast.success('Inscription réussie !');
-  
-      const loginResult = await signIn('credentials', {
+    toast.success('Compte créé avec succès !', { id: 'inscription' });
+
+    // ✅ ÉTAPE 2: CONNEXION AUTOMATIQUE IMMÉDIATE
+    toast.loading('Connexion automatique...', { id: 'connexion' });
+    
+    const loginResult = await signIn('credentials', {
+      username: formData.username,
+      password: formData.password,
+      redirect: false,
+    });
+
+    if (loginResult?.error) {
+      console.error('Erreur de connexion:', loginResult.error);
+      // ✅ Réessayer une fois après un délai
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const retryLogin = await signIn('credentials', {
         username: formData.username,
         password: formData.password,
         redirect: false,
       });
-  
-      if (loginResult?.error) {
-        toast.error('Erreur lors de la connexion automatique.');
-      } else {
-        router.push(callbackUrl ? callbackUrl : '/');
+      
+      if (retryLogin?.error) {
+        toast.error('Erreur de connexion automatique', { id: 'connexion' });
+        setIsSubmitting(false);
+        return;
       }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error("Échec de l&apos;inscription");
-      setIsSubmitting(false);
     }
-  };
+
+    toast.success('Connexion réussie !', { id: 'connexion' });
+
+    // ✅ ÉTAPE 3: REDIRECTION VERS PAGE D'ATTENTE
+    toast.loading('Préparation de votre espace...', { id: 'redirect' });
+    
+    // Construire l'URL avec callback
+    const params = new URLSearchParams();
+    if (callbackUrl) {
+      params.set('target', callbackUrl);
+    }
+    
+    const waitingUrl = `/waiting-redirect?${params.toString()}`;
+    
+    // ✅ Petit délai puis redirection
+    setTimeout(() => {
+      router.push(waitingUrl);
+    }, 1000);
+
+  } catch (error) {
+    console.error('Erreur:', error);
+    toast.error("Échec de l'inscription");
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex flex-col">

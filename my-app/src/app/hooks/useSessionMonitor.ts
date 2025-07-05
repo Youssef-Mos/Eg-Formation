@@ -8,117 +8,168 @@ import { useRouter } from "next/navigation";
 
 interface UseSessionMonitorOptions {
   enabled?: boolean;
-  warningMinutes?: number; // Minutes avant expiration pour avertir
-  checkInterval?: number; // Intervalle de vérification en ms
+  warningMinutes?: number;
+  checkInterval?: number;
 }
 
 export function useSessionMonitor({
   enabled = true,
   warningMinutes = 5,
-  checkInterval = 30000 // 30 secondes
+  checkInterval = 60000 // ✅ Augmenté à 1 minute pour éviter spam
 }: UseSessionMonitorOptions = {}) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  
+  // ✅ États pour éviter les actions répétitives
   const warningShown = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isHandlingExpiration = useRef(false); // ✅ NOUVEAU : Éviter les boucles
+  const lastCheck = useRef<number>(0); // ✅ NOUVEAU : Éviter les vérifications trop fréquentes
 
   const handleSessionExpired = useCallback(async () => {
+    // ✅ Éviter les appels multiples simultanés
+    if (isHandlingExpiration.current) {
+      console.log("🟡 Déconnexion déjà en cours, ignoré");
+      return;
+    }
+
+    // ✅ Vérifier qu'on est vraiment connecté avant de déconnecter
+    if (status !== "authenticated") {
+      console.log("🟡 Utilisateur déjà déconnecté, ignoré");
+      return;
+    }
+
+    isHandlingExpiration.current = true;
     console.log("🔴 Session expirée - déconnexion automatique");
-    toast.error("Votre session a expiré. Vous avez été déconnecté automatiquement.");
     
+    // ✅ Arrêter immédiatement la surveillance
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
     try {
+      toast.error("Votre session a expiré. Redirection vers la connexion...", {
+        duration: 3000
+      });
+      
       await signOut({ 
         redirect: false,
         callbackUrl: "/login?error=session_expired"
       });
-      router.push("/login?error=session_expired");
+      
+      // ✅ Délai avant redirection pour éviter les conflits
+      setTimeout(() => {
+        router.push("/login?error=session_expired");
+      }, 1000);
+      
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
-      // Force refresh en cas d'erreur
+      // ✅ Force refresh seulement en cas d'erreur
       window.location.href = "/login?error=session_expired";
+    } finally {
+      // ✅ Reset après un délai pour éviter les rappels immédiats
+      setTimeout(() => {
+        isHandlingExpiration.current = false;
+      }, 5000);
     }
-  }, [router]);
+  }, [router, status]);
 
   const handleSessionWarning = useCallback(() => {
-    if (!warningShown.current) {
-      console.log("⚠️ Avertissement d'expiration de session");
-      toast.warning(
-        `Votre session expire dans ${warningMinutes} minutes. Activité recommandée pour maintenir la connexion.`,
-        {
-          duration: 10000,
-          action: {
-            label: "Rester connecté",
-            onClick: () => {
-              // Faire une requête pour rafraîchir la session
-              fetch("/api/auth/session", { 
+    // ✅ Vérifier qu'on est toujours connecté avant d'avertir
+    if (status !== "authenticated" || warningShown.current) {
+      return;
+    }
+
+    console.log("⚠️ Avertissement d'expiration de session");
+    warningShown.current = true;
+
+    toast.warning(
+      `Votre session expire dans ${warningMinutes} minutes.`,
+      {
+        duration: 8000,
+        action: {
+          label: "Prolonger",
+          onClick: async () => {
+            try {
+              const response = await fetch("/api/auth/session", { 
                 method: "GET",
                 cache: "no-store" 
-              }).then(() => {
+              });
+              
+              if (response.ok) {
                 toast.success("Session prolongée avec succès");
                 warningShown.current = false;
-              });
+              }
+            } catch (error) {
+              console.error("Erreur lors du prolongement:", error);
             }
           }
         }
-      );
-      warningShown.current = true;
-    }
-  }, [warningMinutes]);
+      }
+    );
+  }, [warningMinutes, status]);
 
   const checkSessionValidity = useCallback(() => {
-    if (!session?.expires || status !== "authenticated") {
+    const now = Date.now();
+    
+    // ✅ Éviter les vérifications trop fréquentes (max toutes les 30 secondes)
+    if (now - lastCheck.current < 30000) {
+      return;
+    }
+    lastCheck.current = now;
+
+    // ✅ Ne vérifier que si on est vraiment connecté
+    if (status !== "authenticated" || !session?.expires) {
+      return;
+    }
+
+    // ✅ Éviter les vérifications si déconnexion en cours
+    if (isHandlingExpiration.current) {
       return;
     }
 
     const expiryTime = new Date(session.expires).getTime();
-    const currentTime = Date.now();
-    const timeUntilExpiry = expiryTime - currentTime;
+    const timeUntilExpiry = expiryTime - now;
 
-    console.log(`🕐 Session expire dans: ${Math.round(timeUntilExpiry / 1000 / 60)} minutes`);
+    // ✅ Log moins verbeux
+    if (timeUntilExpiry > 0) {
+      const minutesLeft = Math.round(timeUntilExpiry / 1000 / 60);
+      if (minutesLeft % 10 === 0 || minutesLeft <= 5) { // Log toutes les 10 min ou les 5 dernières
+        console.log(`🕐 Session expire dans: ${minutesLeft} minutes`);
+      }
+    }
 
-    // Session expirée
-    if (timeUntilExpiry <= 0) {
+    // ✅ Session expirée (avec marge de sécurité de 30 secondes)
+    if (timeUntilExpiry <= -30000) {
       handleSessionExpired();
       return;
     }
 
-    // Avertissement avant expiration
+    // ✅ Avertissement avant expiration
     const warningTime = warningMinutes * 60 * 1000;
     if (timeUntilExpiry <= warningTime && timeUntilExpiry > 0) {
       handleSessionWarning();
-    }
-
-    // Reset warning si on est loin de l'expiration
-    if (timeUntilExpiry > warningTime) {
+    } else if (timeUntilExpiry > warningTime) {
+      // Reset warning si on est loin de l'expiration
       warningShown.current = false;
     }
   }, [session, status, handleSessionExpired, handleSessionWarning, warningMinutes]);
 
-  // Fonction pour vérifier la validité côté serveur
-  const verifyServerSession = useCallback(async () => {
-    try {
-      const response = await fetch("/api/auth/verify-session", {
-        method: "GET",
-        cache: "no-store"
-      });
-
-      if (!response.ok) {
-        console.log("🔴 Session invalidée côté serveur");
-        handleSessionExpired();
-        return false;
-      }
-
-      const data = await response.json();
-      return data.valid;
-    } catch (error) {
-      console.error("Erreur lors de la vérification de session:", error);
-      return true; // Ne pas déconnecter en cas d'erreur réseau
-    }
-  }, [handleSessionExpired]);
-
-  // Surveillance périodique
+  // ✅ Surveillance périodique SIMPLIFIÉE
   useEffect(() => {
-    if (!enabled || status !== "authenticated") {
+    // ✅ Ne démarrer que si vraiment connecté et activé
+    if (!enabled || status !== "authenticated" || !session) {
+      // ✅ Nettoyer l'intervalle si conditions pas remplies
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    // ✅ Éviter les multiples intervalles
+    if (intervalRef.current) {
       return;
     }
 
@@ -127,13 +178,11 @@ export function useSessionMonitor({
     // Vérification immédiate
     checkSessionValidity();
 
-    // Vérification périodique
+    // ✅ Intervalle moins fréquent et plus sûr
     intervalRef.current = setInterval(() => {
-      checkSessionValidity();
-      
-      // Vérification côté serveur moins fréquente (toutes les 2 minutes)
-      if (Math.random() < 0.25) { // 25% de chance = environ toutes les 2 minutes
-        verifyServerSession();
+      // ✅ Double vérification avant chaque check
+      if (status === "authenticated" && session && !isHandlingExpiration.current) {
+        checkSessionValidity();
       }
     }, checkInterval);
 
@@ -141,21 +190,24 @@ export function useSessionMonitor({
       if (intervalRef.current) {
         console.log("🟡 Arrêt de la surveillance de session");
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [enabled, status, checkInterval, checkSessionValidity, verifyServerSession]);
+  }, [enabled, status, session, checkInterval, checkSessionValidity]);
 
-  // Surveillance des changements de visibilité (onglet)
+  // ✅ Surveillance des changements de visibilité SIMPLIFIÉE
   useEffect(() => {
     if (!enabled || status !== "authenticated") {
       return;
     }
 
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
+      if (!document.hidden && status === "authenticated" && !isHandlingExpiration.current) {
         console.log("🔄 Onglet redevenu visible - vérification de session");
-        checkSessionValidity();
-        verifyServerSession();
+        // ✅ Petit délai pour éviter les conflits
+        setTimeout(() => {
+          checkSessionValidity();
+        }, 1000);
       }
     };
 
@@ -164,23 +216,34 @@ export function useSessionMonitor({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [enabled, status, checkSessionValidity, verifyServerSession]);
+  }, [enabled, status, checkSessionValidity]);
 
-  // Surveillance du storage (déconnexion depuis un autre onglet)
+  // ✅ Surveillance du storage SIMPLIFIÉE ET SÉCURISÉE
   useEffect(() => {
     if (!enabled) return;
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "nextauth.message") {
-        try {
-          const message = JSON.parse(e.newValue || "{}");
-          if (message.event === "session" && !message.session) {
-            console.log("🔴 Déconnexion détectée depuis un autre onglet");
-            handleSessionExpired();
-          }
-        } catch (error) {
-          console.error("Erreur lors du parsing du message de session:", error);
+      // ✅ Vérifications plus strictes
+      if (e.key !== "nextauth.message" || !e.newValue || isHandlingExpiration.current) {
+        return;
+      }
+
+      try {
+        const message = JSON.parse(e.newValue);
+        
+        // ✅ Vérifier que c'est vraiment un événement de déconnexion
+        if (message.event === "session" && message.session === null && status === "authenticated") {
+          console.log("🔴 Déconnexion détectée depuis un autre onglet");
+          
+          // ✅ Délai pour éviter les conflits avec l'onglet qui a déclenché la déconnexion
+          setTimeout(() => {
+            if (status === "authenticated") { // Double vérification
+              handleSessionExpired();
+            }
+          }, 500);
         }
+      } catch (error) {
+        // ✅ Erreur silencieuse, pas besoin de log
       }
     };
 
@@ -189,12 +252,26 @@ export function useSessionMonitor({
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [enabled, handleSessionExpired]);
+  }, [enabled, handleSessionExpired, status]);
+
+  // ✅ Fonction de nettoyage au démontage
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      isHandlingExpiration.current = false;
+      warningShown.current = false;
+    };
+  }, []);
 
   return {
-    isSessionValid: status === "authenticated" && session?.expires && new Date(session.expires).getTime() > Date.now(),
+    isSessionValid: status === "authenticated" && 
+                   session?.expires && 
+                   new Date(session.expires).getTime() > Date.now() &&
+                   !isHandlingExpiration.current,
     session,
     status,
-    manualRefresh: verifyServerSession
+    isExpiring: isHandlingExpiration.current
   };
 }
