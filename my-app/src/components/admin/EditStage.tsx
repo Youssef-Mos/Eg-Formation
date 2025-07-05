@@ -53,6 +53,8 @@ export interface Stage {
   HeureFin2: string;
   Prix: number;
   createdAt: Date; // Ajout pour compatibilité TypeScript
+  hidden: boolean; // ✅ AJOUTER ce champ
+  updatedAt: Date; // ✅ NOUVEAU CHAMP
 }
 
 interface EditStageModalProps {
@@ -356,7 +358,7 @@ export default function EditStageModal({ isOpen, stage, onClose, onUpdate }: Edi
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="places">Places disponibles</Label>
+                        <Label htmlFor="places">Places restantes sur {stage.PlaceDisponibles}</Label>
                         <Input
                           id="places"
                           type="number"
