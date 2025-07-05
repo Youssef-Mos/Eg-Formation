@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import LoginModalResa from "../ui-reservation/loginredirect";
 import EditStageModal from "../admin/EditStage";
 import {
   AlertDialog,
@@ -161,8 +160,6 @@ const getDeleteErrorMessage = (errorCode: string, reservationsCount?: number) =>
 export default function ListeStages({ filters }: ListeStagesProps) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoginOpen, setLoginOpen] = useState(false);
-  const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
   const [notifiedStages, setNotifiedStages] = useState<Set<number>>(new Set());
 
   const [isEditModalOpen, setEditModalOpen] = useState(false);
@@ -377,8 +374,8 @@ export default function ListeStages({ filters }: ListeStagesProps) {
 
     const targetUrl = `/reservation/${stage.id}`;
     if (!session) {
-      setCallbackUrl(targetUrl);
-      setLoginOpen(true);
+      // ✅ MODIFICATION : Rediriger vers l'inscription avec callback vers la réservation
+      router.push(`/register?callbackUrl=${encodeURIComponent(targetUrl)}`);
     } else {
       router.push(targetUrl);
     }
@@ -721,11 +718,16 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                             `}
                             onClick={() => handleReservation(stage)}
                           >
-                            {isOngoing 
-                              ? 'Rejoindre maintenant !' 
-                              : isAlmostFull 
-                                ? 'Réserver vite !' 
-                                : 'Réserver maintenant'}
+                            {/* ✅ MODIFICATION : Texte différent selon l'état de connexion */}
+                            {!session ? (
+                              'S\'inscrire maintenant'
+                            ) : isOngoing ? (
+                              'Rejoindre maintenant !' 
+                            ) : isAlmostFull ? (
+                              'Réserver vite !' 
+                            ) : (
+                              'Réserver maintenant'
+                            )}
                           </Button>
                         )}
                       </div>
@@ -857,12 +859,6 @@ export default function ListeStages({ filters }: ListeStagesProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <LoginModalResa
-        isOpen={isLoginOpen}
-        onClose={() => setLoginOpen(false)}
-        callbackUrl={callbackUrl}
-      />
 
       <EditStageModal
         isOpen={isEditModalOpen}
