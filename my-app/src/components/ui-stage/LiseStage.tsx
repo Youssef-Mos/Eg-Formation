@@ -30,7 +30,11 @@ import {
   Ban,
   Trash2,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  EyeOff,  // Pour masquage manuel
+  Eye,     // Pour démasquage manuel
+  ClockIcon, // Pour stages terminés
+  CheckCircle // Pour stages terminés
 } from "lucide-react";
 import {
   Pagination,
@@ -57,6 +61,7 @@ interface Stage {
   HeureFin2: string;
   Prix: number;
   createdAt: Date;
+  hidden: boolean; // ✅ Maintenant récupéré de la base de données
 }
 
 interface FilterValues {
@@ -70,6 +75,26 @@ interface FilterValues {
 interface ListeStagesProps {
   filters: FilterValues;
 }
+
+// ✅ FONCTION pour vérifier si un stage est terminé (un jour après la fin)
+const isStageFinished = (dateFin: Date): boolean => {
+  const now = new Date();
+  const stageEndDate = new Date(dateFin);
+  // Ajouter 1 jour après la fin du stage
+  const oneDayAfterEnd = new Date(stageEndDate);
+  oneDayAfterEnd.setDate(oneDayAfterEnd.getDate() + 1);
+  
+  return now > oneDayAfterEnd;
+};
+
+// ✅ FONCTION pour vérifier si un stage est en cours
+const isStageOngoing = (dateDebut: Date, dateFin: Date): boolean => {
+  const now = new Date();
+  const startDate = new Date(dateDebut);
+  const endDate = new Date(dateFin);
+  
+  return now >= startDate && now <= endDate;
+};
 
 // Fonction pour envoyer une notification email à l'admin
 const sendAdminNotification = async (stage: Stage) => {
@@ -148,6 +173,9 @@ export default function ListeStages({ filters }: ListeStagesProps) {
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ✅ État pour gérer les stages en cours de masquage/démasquage (loading)
+  const [hidingStages, setHidingStages] = useState<Set<number>>(new Set());
+
   const ITEMS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
   const { data: session } = useSession();
@@ -160,12 +188,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         if (!res.ok) throw new Error("Erreur de récupération");
         const data = await res.json();
         
-        // ✅ MODIFICATION : Trier les stages par date de stage (DateDebut) chronologique
-        // Les dates les plus récentes en premier (proche dans le temps)
+        // ✅ Trier les stages par date de stage (DateDebut) chronologique
         const sortedStages = data.sort((a: Stage, b: Stage) => {
           const dateA = new Date(a.DateDebut).getTime();
           const dateB = new Date(b.DateDebut).getTime();
-          return dateA - dateB; // Tri croissant : dates les plus proches en premier
+          return dateA - dateB;
         });
         
         // Vérifier les stages complets et envoyer des notifications
@@ -214,7 +241,6 @@ export default function ListeStages({ filters }: ListeStagesProps) {
           errorData.reservationsCount
         );
         
-        // Afficher une alerte détaillée pour les erreurs spécifiques
         toast.error(
           <div className="flex items-start gap-3">
             {errorInfo.icon}
@@ -245,10 +271,107 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     }
   };
 
+  // ✅ Fonction pour masquer/démasquer un stage avec API et persistance BDD
+  const handleToggleHidden = async (stage: Stage) => {
+    setHidingStages(prev => new Set(prev).add(stage.id));
+    
+    try {
+      const newHiddenState = !stage.hidden;
+      const res = await fetch(`/api/Stage/ToggleHidden/${stage.id}`, {
+        method: "PATCH",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ hidden: newHiddenState })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        
+        // Gestion des erreurs spécifiques
+        let errorMessage = 'Erreur lors du masquage/démasquage';
+        switch (errorData.error) {
+          case 'AUTH_REQUIRED':
+            errorMessage = 'Authentification requise';
+            break;
+          case 'ADMIN_REQUIRED':
+            errorMessage = 'Droits administrateur requis';
+            break;
+          case 'STAGE_NOT_FOUND':
+            errorMessage = 'Stage non trouvé';
+            break;
+          case 'INVALID_STAGE_ID':
+            errorMessage = 'ID de stage invalide';
+            break;
+          default:
+            errorMessage = errorData.message || 'Erreur inconnue';
+        }
+        
+        toast.error(
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-6 h-6 text-red-500" />
+            <div>
+              <div className="font-semibold">Erreur de {newHiddenState ? 'masquage' : 'démasquage'}</div>
+              <div className="text-sm text-gray-600 mt-1">{errorMessage}</div>
+            </div>
+          </div>,
+          { duration: 6000 }
+        );
+        return;
+      }
+
+      const responseData = await res.json();
+      
+      // ✅ Mettre à jour le stage dans la liste avec les données de la réponse
+      setStages((prev) =>
+        prev.map((s) =>
+          s.id === stage.id ? { ...s, hidden: newHiddenState } : s
+        )
+      );
+
+      // Notification de succès
+      toast.success(
+        <div className="flex items-center gap-2">
+          {newHiddenState ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          <span>Stage "{stage.Titre}" {newHiddenState ? 'masqué' : 'démasqué'} avec succès</span>
+        </div>
+      );
+
+      console.log('✅ Toggle hidden réussi:', responseData);
+
+    } catch (error) {
+      console.error('❌ Erreur lors du toggle hidden:', error);
+      toast.error(
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 text-red-500" />
+          <div>
+            <div className="font-semibold">Erreur réseau</div>
+            <div className="text-sm text-gray-600 mt-1">
+              Impossible de {stage.hidden ? 'démasquer' : 'masquer'} le stage. Vérifiez votre connexion.
+            </div>
+          </div>
+        </div>,
+        { duration: 6000 }
+      );
+    } finally {
+      setHidingStages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(stage.id);
+        return newSet;
+      });
+    }
+  };
+
   const handleReservation = (stage: Stage) => {
     // Vérifier si le stage a encore des places
     if (stage.PlaceDisponibles === 0) {
       toast.error("Ce stage est complet. Aucune place disponible.");
+      return;
+    }
+
+    // Vérifier si le stage est terminé
+    if (isStageFinished(stage.DateFin)) {
+      toast.error("Ce stage est terminé. Les réservations ne sont plus possibles.");
       return;
     }
 
@@ -272,8 +395,16 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     );
   };
 
-  // Filtrage avant pagination
+  // ✅ FILTRAGE INTELLIGENT avec masquage automatique et manuel
   const filteredStages = stages.filter((stage) => {
+    const isFinished = isStageFinished(stage.DateFin);
+    const isManuallyHidden = stage.hidden; // ✅ Récupéré de la BDD
+    
+    // Pour les NON-ADMINS : masquer les stages terminés ET masqués manuellement
+    if (!session?.user?.role || session.user.role !== "admin") {
+      if (isFinished || isManuallyHidden) return false;
+    }
+
     const matchVille =
       !filters.ville ||
       stage.Ville?.toLowerCase().includes(filters.ville.toLowerCase());
@@ -290,7 +421,6 @@ export default function ListeStages({ filters }: ListeStagesProps) {
       !filters.date ||
       new Date(stage.DateDebut).toDateString() === new Date(filters.date).toDateString();
 
-    // Filtrage par places disponibles
     const [minPlaces, maxPlaces] = filters.placesDisponibles;
     const matchPlaces = stage.PlaceDisponibles >= minPlaces && stage.PlaceDisponibles <= maxPlaces;
 
@@ -337,20 +467,52 @@ export default function ListeStages({ filters }: ListeStagesProps) {
             {paginatedStages.map((stage) => {
               const isComplete = stage.PlaceDisponibles === 0;
               const isAlmostFull = stage.PlaceDisponibles <= 2 && stage.PlaceDisponibles > 0;
+              const isFinished = isStageFinished(stage.DateFin);
+              const isOngoing = isStageOngoing(stage.DateDebut, stage.DateFin);
+              const isManuallyHidden = stage.hidden; // ✅ De la BDD
+              const isHiding = hidingStages.has(stage.id);
+              
+              // ✅ Déterminer le style et les badges à afficher
+              const cardStyle = isFinished || isManuallyHidden 
+                ? 'bg-gray-100 border-gray-400 opacity-60' 
+                : isComplete 
+                  ? 'bg-gray-50 border-gray-300 opacity-75' 
+                  : 'bg-white border-gray-200 hover:shadow-xl hover:border-blue-200 hover:-translate-y-1';
               
               return (
                 <div
                   key={stage.id}
                   className={`
                     group relative border rounded-2xl p-4 sm:p-6 shadow-sm transition-all duration-300 ease-in-out
-                    ${isComplete 
-                      ? 'bg-gray-50 border-gray-300 opacity-75' 
-                      : 'bg-white border-gray-200 hover:shadow-xl hover:border-blue-200 hover:-translate-y-1'
-                    }
+                    ${cardStyle}
                   `}
                 >
+                  {/* ✅ Badge "TERMINÉ" pour les stages finis (visible admin seulement) */}
+                  {isFinished && session?.user?.role === "admin" && (
+                    <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+                      <CheckCircle className="w-3 h-3" />
+                      TERMINÉ
+                    </div>
+                  )}
+
+                  {/* ✅ Badge "MASQUÉ" pour les stages masqués manuellement */}
+                  {isManuallyHidden && session?.user?.role === "admin" && !isFinished && (
+                    <div className="absolute -top-2 -left-2 bg-gray-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+                      <EyeOff className="w-3 h-3" />
+                      MASQUÉ
+                    </div>
+                  )}
+
+                  {/* ✅ Badge "EN COURS" pour les stages actuellement en cours */}
+                  {isOngoing && !isFinished && !isManuallyHidden && (
+                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
+                      <ClockIcon className="w-3 h-3" />
+                      EN COURS
+                    </div>
+                  )}
+
                   {/* Badge "COMPLET" */}
-                  {isComplete && (
+                  {isComplete && !isFinished && !isManuallyHidden && !isOngoing && (
                     <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
                       <Ban className="w-3 h-3" />
                       COMPLET
@@ -358,7 +520,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                   )}
 
                   {/* Badge "Dernières places" */}
-                  {isAlmostFull && !isComplete && (
+                  {isAlmostFull && !isComplete && !isFinished && !isManuallyHidden && !isOngoing && (
                     <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
                       <AlertTriangle className="w-3 h-3" />
                       DERNIÈRES PLACES
@@ -369,16 +531,18 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-2">
                     <h2 className={`
                       text-lg sm:text-xl font-bold transition-colors duration-200 line-clamp-2
-                      ${isComplete 
+                      ${isFinished || isManuallyHidden 
                         ? 'text-gray-500' 
-                        : 'text-gray-800 group-hover:text-blue-600'
+                        : isComplete 
+                          ? 'text-gray-500' 
+                          : 'text-gray-800 group-hover:text-blue-600'
                       }
                     `}>
                       {stage.Titre}
                     </h2>
                     <div className={`
                       flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full flex-shrink-0
-                      ${isComplete 
+                      ${isFinished || isManuallyHidden || isComplete 
                         ? 'text-gray-400 bg-gray-200' 
                         : 'text-gray-500 bg-gray-50'
                       }
@@ -394,11 +558,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                     <div className="flex items-start gap-2">
                       <MapPin className={`
                         w-4 h-4 mt-0.5 flex-shrink-0
-                        ${isComplete ? 'text-gray-400' : 'text-blue-500'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-400' : 'text-blue-500'}
                       `} />
                       <div className={`
                         text-sm min-w-0
-                        ${isComplete ? 'text-gray-500' : 'text-gray-600'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-500' : 'text-gray-600'}
                       `}>
                         <p className="truncate">{stage.Adresse}</p>
                         <p className="font-medium">{stage.CodePostal} {stage.Ville}</p>
@@ -409,11 +573,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                     <div className="flex items-center gap-2">
                       <Calendar className={`
                         w-4 h-4 flex-shrink-0
-                        ${isComplete ? 'text-gray-400' : 'text-green-500'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-400' : 'text-green-500'}
                       `} />
                       <div className={`
                         text-sm min-w-0
-                        ${isComplete ? 'text-gray-500' : 'text-gray-600'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-500' : 'text-gray-600'}
                       `}>
                         <span className="block sm:inline">
                           Du {formatDate(stage.DateDebut)}
@@ -428,11 +592,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                     <div className="flex items-start gap-2">
                       <Clock className={`
                         w-4 h-4 mt-0.5 flex-shrink-0
-                        ${isComplete ? 'text-gray-400' : 'text-orange-500'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-400' : 'text-orange-500'}
                       `} />
                       <div className={`
                         text-sm min-w-0
-                        ${isComplete ? 'text-gray-500' : 'text-gray-600'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-500' : 'text-gray-600'}
                       `}>
                         <p>{stage.HeureDebut} - {stage.HeureFin}</p>
                         <p>{stage.HeureDebut2} - {stage.HeureFin2}</p>
@@ -443,11 +607,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                     <div className="flex items-center gap-2">
                       <Users className={`
                         w-4 h-4 flex-shrink-0
-                        ${isComplete ? 'text-red-500' : isAlmostFull ? 'text-orange-500' : 'text-purple-500'}
+                        ${isComplete ? 'text-red-500' : isAlmostFull ? 'text-orange-500' : isFinished || isManuallyHidden ? 'text-gray-400' : 'text-purple-500'}
                       `} />
                       <span className={`
                         text-sm font-medium
-                        ${isComplete ? 'text-red-600' : isAlmostFull ? 'text-orange-600' : 'text-gray-600'}
+                        ${isComplete ? 'text-red-600' : isAlmostFull ? 'text-orange-600' : isFinished || isManuallyHidden ? 'text-gray-500' : 'text-gray-600'}
                       `}>
                         {isComplete 
                           ? 'Aucune place disponible' 
@@ -463,11 +627,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                     <div className="flex items-center gap-1">
                       <Euro className={`
                         w-5 h-5
-                        ${isComplete ? 'text-gray-400' : 'text-green-600'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-400' : 'text-green-600'}
                       `} />
                       <span className={`
                         text-xl font-bold
-                        ${isComplete ? 'text-gray-500' : 'text-gray-800'}
+                        ${isFinished || isManuallyHidden || isComplete ? 'text-gray-500' : 'text-gray-800'}
                       `}>
                         {stage.Prix}€
                       </span>
@@ -475,7 +639,8 @@ export default function ListeStages({ filters }: ListeStagesProps) {
 
                     {/* Boutons d'action */}
                     {session?.user?.role === "admin" ? (
-                      <div className="flex gap-2 w-full sm:w-auto">
+                      <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                        {/* Bouton Supprimer */}
                         <Button
                           variant="destructive"
                           size="sm"
@@ -485,6 +650,8 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                           <Trash2 className="w-4 h-4" />
                           Supprimer
                         </Button>
+                        
+                        {/* Bouton Modifier */}
                         <Button
                           size="sm"
                           className="flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200 bg-blue-600 hover:bg-blue-700"
@@ -492,10 +659,47 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                         >
                           Modifier
                         </Button>
+
+                        {/* ✅ Bouton Masquer/Démasquer (seulement si pas terminé automatiquement) */}
+                        {!isFinished && (
+                          <Button
+                            size="sm"
+                            variant={isManuallyHidden ? "default" : "outline"}
+                            className={`flex-1 sm:flex-none cursor-pointer hover:scale-105 transition-transform duration-200 flex items-center gap-1 ${
+                              isManuallyHidden 
+                                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                : 'border-gray-600 text-gray-600 hover:bg-gray-50'
+                            }`}
+                            onClick={() => handleToggleHidden(stage)}
+                            disabled={isHiding}
+                          >
+                            {isHiding ? (
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            ) : isManuallyHidden ? (
+                              <>
+                                <Eye className="w-4 h-4" />
+                                Démasquer
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-4 h-4" />
+                                Masquer
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="w-full sm:w-auto">
-                        {isComplete ? (
+                        {isFinished ? (
+                          <Button
+                            size="sm"
+                            disabled
+                            className="w-full sm:w-auto bg-gray-300 text-gray-500 cursor-not-allowed"
+                          >
+                            Stage terminé
+                          </Button>
+                        ) : isComplete ? (
                           <Button
                             size="sm"
                             disabled
@@ -508,14 +712,20 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                             size="sm"
                             className={`
                               w-full sm:w-auto cursor-pointer hover:scale-105 transition-transform duration-200 shadow-lg
-                              ${isAlmostFull 
-                                ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-orange-500/25' 
-                                : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/25'
+                              ${isOngoing 
+                                ? 'bg-green-600 hover:bg-green-700 hover:shadow-green-500/25' 
+                                : isAlmostFull 
+                                  ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-orange-500/25' 
+                                  : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/25'
                               }
                             `}
                             onClick={() => handleReservation(stage)}
                           >
-                            {isAlmostFull ? 'Réserver vite !' : 'Réserver maintenant'}
+                            {isOngoing 
+                              ? 'Rejoindre maintenant !' 
+                              : isAlmostFull 
+                                ? 'Réserver vite !' 
+                                : 'Réserver maintenant'}
                           </Button>
                         )}
                       </div>

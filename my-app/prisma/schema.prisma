@@ -39,6 +39,8 @@ model Stage {
   HeureFin2   String @default("18:00")
   Prix          Float
   createdAt      DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt  // ✅ AJOUT de @default(now())
+  hidden           Boolean  @default(false) // ✅ NOUVEAU CHAMP
   
   // Nouvelle relation vers Agrement
   agrementId     Int?
