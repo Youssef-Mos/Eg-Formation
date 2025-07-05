@@ -358,7 +358,7 @@ export default function EditStageModal({ isOpen, stage, onClose, onUpdate }: Edi
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="places">Places restantes sur {stage.PlaceDisponibles}</Label>
+                        <Label htmlFor="places">Places restantes</Label>
                         <Input
                           id="places"
                           type="number"
