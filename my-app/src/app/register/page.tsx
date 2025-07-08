@@ -164,9 +164,9 @@ function RegisterContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   
-  // État actif pour la navigation - MODIFIÉ pour inclure l'onglet billing
+  // État actif pour la navigation - MODIFIÉ pour avoir 5 onglets au lieu de 6
   const [activeTab, setActiveTab] = useState("personal");
-  const tabs = ["personal", "address", "billing", "permit", "account", "terms"];
+  const tabs = ["personal", "address", "billing", "permit", "account"]; // ✅ Supprimé "terms"
   const tabIndex = tabs.indexOf(activeTab);
   const progress = ((tabIndex + 1) / tabs.length) * 100;
   
@@ -205,7 +205,7 @@ function RegisterContent() {
     username: '',
     password: '',
     confirmPassword: '',
-    // NOUVEAUX CHAMPS DE FACTURATION
+    // CHAMPS DE FACTURATION
     useSameAddressForBilling: true,
     billingAddress1: '',
     billingAddress2: '',
@@ -213,9 +213,10 @@ function RegisterContent() {
     billingPostalCode: '',
     billingCity: '',
     billingCountry: 'FR',
-    acceptTerms: false,
-    acceptRules: false,
-    confirmPointsCheck: false,
+    // ✅ CONDITIONS GÉNÉRALES ACCEPTÉES PAR DÉFAUT (plus d'étape séparée)
+    acceptTerms: true,
+    acceptRules: true,
+    confirmPointsCheck: true,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -343,7 +344,6 @@ function RegisterContent() {
         }
         return true;
 
-      // NOUVEAU CAS DE VALIDATION POUR L'ADRESSE DE FACTURATION
       case "billing":
         if (!formData.useSameAddressForBilling) {
           if (!formData.billingAddress1.trim()) {
@@ -398,20 +398,7 @@ function RegisterContent() {
         }
         return true;
 
-      case "terms":
-        if (!formData.acceptTerms) {
-          toast.error("Vous devez accepter les conditions générales d&apos;utilisation");
-          return false;
-        }
-        if (!formData.acceptRules) {
-          toast.error("Vous devez accepter le règlement intérieur");
-          return false;
-        }
-        if (!formData.confirmPointsCheck) {
-          toast.error("Vous devez confirmer avoir vérifié votre solde de points");
-          return false;
-        }
-        return true;
+      // ✅ SUPPRIMÉ le cas "terms"
         
       default:
         return true;
@@ -424,109 +411,102 @@ function RegisterContent() {
     }
   };
 
-// Dans votre fichier de formulaire d'inscription (Register.tsx)
-// ✅ MODIFICATION de la fonction handleSubmit
-
-// Dans votre handleSubmit du formulaire d'inscription
-// ✅ Dans votre composant d'inscription - HandleSubmit FINAL
-
-// ✅ Dans votre composant d'inscription - HandleSubmit AUTOMATIQUE
-
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  
-  if (!validateCurrentTab()) {
-    return;
-  }
-  
-  setIsSubmitting(true);
-
-  try {
-    const dataToSend = {
-      ...formData,
-      birthDate: formData.birthDate.toISOString(),
-      permitDate: formData.permitDate.toISOString(),
-    };
-
-    // ✅ ÉTAPE 1: INSCRIPTION
-    toast.loading('Création de votre compte...', { id: 'inscription' });
+  // ✅ MODIFIÉ : handleSubmit reste identique
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     
-    const response = await fetch('/api/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(dataToSend),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      toast.error(result.error || 'Échec de l\'inscription', { id: 'inscription' });
-      setIsSubmitting(false);
+    if (!validateCurrentTab()) {
       return;
     }
-
-    toast.success('Compte créé avec succès !', { id: 'inscription' });
-
-    // ✅ ÉTAPE 2: CONNEXION AUTOMATIQUE IMMÉDIATE
-    toast.loading('Connexion automatique...', { id: 'connexion' });
     
-    const loginResult = await signIn('credentials', {
-      username: formData.username,
-      password: formData.password,
-      redirect: false,
-    });
+    setIsSubmitting(true);
 
-    if (loginResult?.error) {
-      console.error('Erreur de connexion:', loginResult.error);
-      // ✅ Réessayer une fois après un délai
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const dataToSend = {
+        ...formData,
+        birthDate: formData.birthDate.toISOString(),
+        permitDate: formData.permitDate.toISOString(),
+      };
+
+      // ✅ ÉTAPE 1: INSCRIPTION
+      toast.loading('Création de votre compte...', { id: 'inscription' });
       
-      const retryLogin = await signIn('credentials', {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error(result.error || 'Échec de l\'inscription', { id: 'inscription' });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success('Compte créé avec succès !', { id: 'inscription' });
+
+      // ✅ ÉTAPE 2: CONNEXION AUTOMATIQUE IMMÉDIATE
+      toast.loading('Connexion automatique...', { id: 'connexion' });
+      
+      const loginResult = await signIn('credentials', {
         username: formData.username,
         password: formData.password,
         redirect: false,
       });
-      
-      if (retryLogin?.error) {
-        toast.error('Erreur de connexion automatique', { id: 'connexion' });
-        setIsSubmitting(false);
-        return;
+
+      if (loginResult?.error) {
+        console.error('Erreur de connexion:', loginResult.error);
+        // ✅ Réessayer une fois après un délai
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const retryLogin = await signIn('credentials', {
+          username: formData.username,
+          password: formData.password,
+          redirect: false,
+        });
+        
+        if (retryLogin?.error) {
+          toast.error('Erreur de connexion automatique', { id: 'connexion' });
+          setIsSubmitting(false);
+          return;
+        }
       }
+
+      toast.success('Connexion réussie !', { id: 'connexion' });
+
+      // ✅ ÉTAPE 3: REDIRECTION VERS PAGE D'ATTENTE
+      toast.loading('Préparation de votre espace...', { id: 'redirect' });
+      
+      // Construire l'URL avec callback
+      const params = new URLSearchParams();
+      if (callbackUrl) {
+        params.set('target', callbackUrl);
+      }
+      
+      const waitingUrl = `/waiting-redirect?${params.toString()}`;
+      
+      // ✅ Petit délai puis redirection
+      setTimeout(() => {
+        router.push(waitingUrl);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error("Échec de l'inscription");
+      setIsSubmitting(false);
     }
-
-    toast.success('Connexion réussie !', { id: 'connexion' });
-
-    // ✅ ÉTAPE 3: REDIRECTION VERS PAGE D'ATTENTE
-    toast.loading('Préparation de votre espace...', { id: 'redirect' });
-    
-    // Construire l'URL avec callback
-    const params = new URLSearchParams();
-    if (callbackUrl) {
-      params.set('target', callbackUrl);
-    }
-    
-    const waitingUrl = `/waiting-redirect?${params.toString()}`;
-    
-    // ✅ Petit délai puis redirection
-    setTimeout(() => {
-      router.push(waitingUrl);
-    }, 1000);
-
-  } catch (error) {
-    console.error('Erreur:', error);
-    toast.error("Échec de l'inscription");
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 container max-w-5xl mx-auto py-10 px-4">
         <h1 className="text-3xl font-bold mb-6 text-center">Inscription à EG-Formation</h1>
         
-        {/* Barre de progression MISE À JOUR */}
+        {/* Barre de progression MISE À JOUR pour 5 étapes */}
         <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">
           <div 
             className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
@@ -534,7 +514,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           ></div>
         </div>
         
-        {/* Étapes MISES À JOUR (6 au lieu de 5) */}
+        {/* Étapes MISES À JOUR (5 au lieu de 6) */}
         <div className="flex justify-between text-sm mb-8 px-1">
           <div className={`flex flex-col items-center ${tabIndex >= 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
@@ -562,15 +542,9 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           </div>
           <div className={`flex flex-col items-center ${tabIndex >= 4 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 4 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-              {tabIndex > 4 ? <CheckCircle2 className="w-5 h-5" /> : "5"}
+              "5"
             </div>
             <span>Compte</span>
-          </div>
-          <div className={`flex flex-col items-center ${tabIndex >= 5 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${tabIndex >= 5 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-              "6"
-            </div>
-            <span>Conditions</span>
           </div>
         </div>
         
@@ -887,7 +861,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
               </Card>
             </TabsContent>
 
-            {/* NOUVEL ONGLET 3: Adresse de facturation */}
+            {/* Onglet 3: Adresse de facturation */}
             <TabsContent value="billing">
               <Card>
                 <CardHeader>
@@ -1069,7 +1043,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
               </Card>
             </TabsContent>
 
-            {/* Onglet 4: Permis de conduire (ancien onglet 3) */}
+            {/* Onglet 4: Permis de conduire */}
             <TabsContent value="permit">
               <Card>
                 <CardHeader>
@@ -1154,7 +1128,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
               </Card>
             </TabsContent>
 
-            {/* Onglet 5: Compte utilisateur (ancien onglet 4) */}
+            {/* ✅ MODIFIÉ : Onglet 5 final - Compte utilisateur avec soumission */}
             <TabsContent value="account">
               <Card>
                 <CardHeader>
@@ -1163,7 +1137,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     Créer votre compte
                   </CardTitle>
                   <CardDescription>
-                    Définissez vos identifiants de connexion.
+                    Définissez vos identifiants de connexion et finalisez votre inscription.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1256,93 +1230,37 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       )}
                     </div>
                   </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={goToPreviousTab}>
-                    <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
-                  </Button>
-                  <Button type="button" onClick={handleNextClick}>
-                    Suivant <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            </TabsContent>
 
-            {/* Onglet 6: Conditions générales (ancien onglet 5) */}
-            <TabsContent value="terms">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Conditions et vérifications</CardTitle>
-                  <CardDescription>
-                    Veuillez lire et accepter les conditions pour finaliser votre inscription.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <Checkbox 
-                        id="acceptTerms" 
-                        checked={formData.acceptTerms}
-                        onCheckedChange={(checked) => setFormData({...formData, acceptTerms: checked === true})}
-                      />
-                      <div className="grid gap-1.5 leading-none">
-                        <label
-                          htmlFor="acceptTerms"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          Le stagiaire déclare adhérer aux conditions générales d&apos;inscription d&apos;EG-FORMATIONS
-                        </label>
-                        <div className="text-sm text-muted-foreground">
-                        Consultez les{" "}
-                        <LinkPreview url="http://localhost:3000/register/CGU" className="font-medium text-blue-600 hover:underline">
-                          Conditions Générales d&apos;Utilisation (CGU)
-                        </LinkPreview>
-                      </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <Checkbox 
-                        id="acceptRules" 
-                        checked={formData.acceptRules}
-                        onCheckedChange={(checked) => setFormData({...formData, acceptRules: checked === true})}
-                      />
-                      <div className="grid gap-1.5 leading-none">
-                        <label
-                          htmlFor="acceptRules"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          Le stagiaire déclare avoir pris connaissance du règlement intérieur et en avoir compris tous les termes
-                        </label>
-                        <div className="text-sm text-muted-foreground">
-                        Consultez le{" "}
-                        <LinkPreview url="http://localhost:3000/register/reglement" className="font-medium text-blue-600 hover:underline">
-                          Règlement intérieur
-                        </LinkPreview>
-                      </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <Checkbox 
-                        id="confirmPointsCheck" 
-                        checked={formData.confirmPointsCheck}
-                        onCheckedChange={(checked) => setFormData({...formData, confirmPointsCheck: checked === true})}
-                      />
-                      <div className="grid gap-1.5 leading-none">
-                        <label
-                          htmlFor="confirmPointsCheck"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          Le stagiaire déclare avoir pris connaissance de son solde de points (relevé d&apos;information RII) et ne pas faire l&apos;objet d&apos;une invalidation de son permis de conduire
-                        </label>
-                        <div className="text-sm text-muted-foreground">
-                        Consultez le{" "}
-                        <LinkPreview url="http://localhost:3000/register/reglement" className="font-medium text-blue-600 hover:underline">
-                          Règlement intérieur
-                        </LinkPreview>
-                      </div>
-                      </div>
+                  {/* ✅ NOUVEAU : Section des conditions générales intégrée */}
+                  <div className="border-t pt-6 mt-6">
+                    <h3 className="text-lg font-medium mb-4">Conditions générales</h3>
+                    <div className="space-y-3 text-sm text-gray-600">
+                      <p className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>
+                          En finalisant votre inscription, vous acceptez les{" "}
+                          <LinkPreview url="http://localhost:3000/register/CGU" className="font-medium text-blue-600 hover:underline">
+                            Conditions Générales d&apos;Utilisation (CGU)
+                          </LinkPreview>
+                          {" "}d&apos;EG-FORMATIONS.
+                        </span>
+                      </p>
+                      <p className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Vous déclarez avoir pris connaissance du{" "}
+                          <LinkPreview url="http://localhost:3000/register/reglement" className="font-medium text-blue-600 hover:underline">
+                            règlement intérieur
+                          </LinkPreview>
+                          {" "}et en avoir compris tous les termes.
+                        </span>
+                      </p>
+                      <p className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Vous confirmez avoir vérifié votre solde de points (relevé d&apos;information RII) et ne pas faire l&apos;objet d&apos;une invalidation de votre permis de conduire.
+                        </span>
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -1352,7 +1270,8 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={isSubmitting || !formData.acceptTerms || !formData.acceptRules || !formData.confirmPointsCheck}
+                    disabled={isSubmitting}
+                    className="bg-green-600 hover:bg-green-700"
                   >
                     {isSubmitting ? (
                       <>
@@ -1378,7 +1297,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   );
 }
 
-// ✅ NOUVEAU : Composant principal avec Suspense boundary
+// ✅ Composant principal avec Suspense boundary
 export default function Register() {
   return (
     <Suspense fallback={

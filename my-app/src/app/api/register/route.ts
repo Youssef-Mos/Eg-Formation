@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Vérification minimale côté serveur
+    // ✅ MODIFIÉ : Suppression des champs des conditions générales de la validation
     const requiredFields = [
       'email',
       'password',
@@ -23,10 +23,8 @@ export async function POST(request: Request) {
       'city',
       'phone1',
       'permitNumber',
-      'permitIssuedAt',
-      'acceptTerms',
-      'acceptRules',
-      'confirmPointsCheck'
+      'permitIssuedAt'
+      // ✅ SUPPRIMÉ : 'acceptTerms', 'acceptRules', 'confirmPointsCheck'
     ];
 
     for (const field of requiredFields) {
@@ -38,7 +36,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // ✅ NOUVELLE VALIDATION : Adresse de facturation
+    // ✅ VALIDATION : Adresse de facturation (inchangée)
     if (!body.useSameAddressForBilling) {
       const billingRequiredFields = ['billingAddress1', 'billingPostalCode', 'billingCity'];
       
@@ -58,7 +56,7 @@ export async function POST(request: Request) {
     // Supprimer les champs qui ne sont pas dans le modèle Prisma
     const { confirmPassword, ...userData } = body;
 
-    // ✅ NOUVELLE LOGIQUE : Gestion des champs de facturation
+    // ✅ LOGIQUE : Gestion des champs de facturation (inchangée)
     const billingData = body.useSameAddressForBilling ? {
       useSameAddressForBilling: true,
       billingAddress1: null,
@@ -77,7 +75,7 @@ export async function POST(request: Request) {
       billingCountry: body.billingCountry || 'FR',
     };
 
-    // ✅ NOUVEAUX CHAMPS : Statut du permis
+    // ✅ CHAMPS : Statut du permis (inchangés)
     const permitData = {
       permitDocumentUploaded: false,
       permitDocumentVerified: false,
@@ -97,7 +95,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // ✅ NOUVEAU : Créer une notification de bienvenue avec rappel du permis
+    // ✅ NOTIFICATION de bienvenue avec rappel du permis (inchangée)
     await prisma.notification.create({
       data: {
         userId: user.id,

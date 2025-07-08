@@ -261,7 +261,7 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
                   htmlFor="acceptCGU"
                   className="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  J'accepte les conditions générales d'utilisation d'EG-FORMATIONS
+                  J'accepte les conditions générales d'utilisation et de ventes d'EG-FORMATIONS
                 </label>
                 <div className="text-sm text-gray-600">
                   Consultez les{" "}
@@ -269,7 +269,7 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
                     url="https://eg-formations.net/mention-legales" 
                     className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 hover:no-underline transition-all duration-200 inline-flex items-center gap-1"
                   >
-                    Conditions Générales d'Utilisation (CGU)
+                    Conditions Générales d'Utilisation et de ventes (CGU)
                     <ExternalLink className="w-3 h-3" />
                   </LinkPreview>
                 </div>

@@ -27,7 +27,8 @@ export function DatePickerfilterdebut({ onDateChange }: { onDateChange: (date: D
             className={`w-[240px] cursor-pointer pl-3 text-left font-normal bg-zinc-50 shadow-lg  ${!selectedDate && "text-muted-foreground"}`}
             onClick={() => setIsPopoverOpen(true)}
           >
-            {selectedDate ? format(selectedDate, "PPP") : <span> Date de début du Stage</span>}
+            {/* ✅ NOUVEAU : Placeholder mis à jour pour refléter "à partir de cette date" */}
+            {selectedDate ? format(selectedDate, "PPP") : <span>À partir de quelle date ?</span>}
             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
           </Button>
         </PopoverTrigger>

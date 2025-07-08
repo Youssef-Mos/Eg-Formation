@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Calendar, MapPin } from "lucide-react";
 
 interface DeplacementClientProps {
   user: {
@@ -24,7 +24,15 @@ interface DeplacementClientProps {
     email: string;
   };
   fromStageId: number;
-  stages: Array<{ id: number; Titre: string; PlaceDisponibles: number }>;
+  stages: Array<{ 
+    id: number; 
+    Titre: string; 
+    PlaceDisponibles: number;
+    DateDebut: Date;
+    DateFin: Date;
+    Ville: string;
+    CodePostal: string;
+  }>;
   refresh: () => void;
   setGlobalLoading?: (loading: boolean) => void;
 }
@@ -41,10 +49,39 @@ export function DeplacementClient({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
-  // Filtrer les stages ayant des places disponibles et différents du stage actuel
-  const availableStages = stages.filter(
-    (s) => s.id !== fromStageId && s.PlaceDisponibles > 0
-  );
+  // ✅ Fonction pour formater les dates
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString("fr-FR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  };
+
+  // ✅ Fonction pour formater la période complète
+  const formatDateRange = (dateDebut: Date, dateFin: Date) => {
+    const debut = new Date(dateDebut);
+    const fin = new Date(dateFin);
+    
+    // Si c'est le même jour
+    if (debut.toDateString() === fin.toDateString()) {
+      return formatDate(debut);
+    }
+    
+    // Si c'est le même mois
+    if (debut.getMonth() === fin.getMonth() && debut.getFullYear() === fin.getFullYear()) {
+      return `${debut.getDate()} - ${fin.getDate()} ${debut.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}`;
+    }
+    
+    // Sinon affichage complet
+    return `${formatDate(debut)} - ${formatDate(fin)}`;
+  };
+
+  // ✅ Filtrer et trier les stages par date
+  const availableStages = stages
+    .filter((s) => s.id !== fromStageId && s.PlaceDisponibles > 0)
+    .sort((a, b) => new Date(a.DateDebut).getTime() - new Date(b.DateDebut).getTime());
 
   const handleMove = async () => {
     if (!targetStageId) {
@@ -92,6 +129,9 @@ export function DeplacementClient({
     }
   };
 
+  // ✅ Trouver le stage sélectionné pour afficher ses détails
+  const selectedStage = availableStages.find(stage => stage.id.toString() === targetStageId);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -112,19 +152,64 @@ export function DeplacementClient({
             Aucun stage disponible pour le déplacement.
           </div>
         ) : (
-          <div className="py-4">
+          <div className="py-4 space-y-4">
             <Select value={targetStageId} onValueChange={setTargetStageId} disabled={loading || success}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un stage" />
+                <SelectValue placeholder="Sélectionner un stage par date" />
               </SelectTrigger>
               <SelectContent>
                 {availableStages.map((stage) => (
                   <SelectItem key={stage.id} value={stage.id.toString()}>
-                    {stage.Titre} ({stage.PlaceDisponibles} places)
+                    <div className="flex flex-col items-start py-1">
+                      {/* ✅ Date en principal */}
+                      <div className="flex items-center gap-2 font-medium">
+                        <Calendar className="w-4 h-4 text-blue-500" />
+                        <span>{formatDateRange(stage.DateDebut, stage.DateFin)}</span>
+                      </div>
+                      
+                      {/* ✅ Informations complémentaires */}
+                      <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span>{stage.Ville} ({stage.CodePostal})</span>
+                        </div>
+                        <span>•</span>
+                        <span className="text-green-600 font-medium">
+                          {stage.PlaceDisponibles} place{stage.PlaceDisponibles > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      
+                      {/* ✅ Titre en petit */}
+                      <div className="text-xs text-gray-500 mt-1 truncate max-w-full">
+                        {stage.Titre}
+                      </div>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            {/* ✅ Aperçu du stage sélectionné */}
+            {selectedStage && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-sm">
+                  <div className="font-medium text-blue-800 mb-2">Détails du stage sélectionné :</div>
+                  <div className="space-y-1 text-blue-700">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>{formatDateRange(selectedStage.DateDebut, selectedStage.DateFin)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span>{selectedStage.Ville} ({selectedStage.CodePostal})</span>
+                    </div>
+                    <div className="text-xs mt-2 text-blue-600">
+                      📋 {selectedStage.Titre}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
         

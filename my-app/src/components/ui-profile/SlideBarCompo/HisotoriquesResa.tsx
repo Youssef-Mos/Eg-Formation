@@ -85,6 +85,72 @@ const formatPaymentMethod = (method: string | undefined): string => {
   return methods[method] || method;
 };
 
+// ✅ NOUVEAU : Fonction pour formater les dates
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return "Non spécifié";
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  } catch {
+    return "Date invalide";
+  }
+};
+
+// ✅ NOUVEAU : Fonction pour formater une période de dates
+const formatDateRange = (dateDebut?: string, dateFin?: string): string => {
+  if (!dateDebut && !dateFin) return "Dates non spécifiées";
+  if (!dateDebut) return `Jusqu'au ${formatDate(dateFin)}`;
+  if (!dateFin) return `À partir du ${formatDate(dateDebut)}`;
+  
+  try {
+    const debut = new Date(dateDebut);
+    const fin = new Date(dateFin);
+    
+    // Si c'est le même jour
+    if (debut.toDateString() === fin.toDateString()) {
+      return formatDate(dateDebut);
+    }
+    
+    // Si c'est le même mois et la même année
+    if (debut.getMonth() === fin.getMonth() && debut.getFullYear() === fin.getFullYear()) {
+      return `${debut.getDate()} - ${fin.getDate()} ${debut.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}`;
+    }
+    
+    // Sinon, affichage complet
+    return `${formatDate(dateDebut)} - ${formatDate(dateFin)}`;
+  } catch {
+    return "Période invalide";
+  }
+};
+
+// ✅ NOUVEAU : Fonction pour déterminer le statut temporel d'un stage
+const getStageTimeStatus = (dateDebut?: string, dateFin?: string) => {
+  if (!dateDebut) return { status: 'unknown', label: 'Date inconnue', color: 'text-gray-500' };
+  
+  const now = new Date();
+  const debut = new Date(dateDebut);
+  const fin = dateFin ? new Date(dateFin) : debut;
+  
+  if (fin < now) {
+    return { status: 'past', label: 'Terminé', color: 'text-gray-500' };
+  } else if (debut <= now && now <= fin) {
+    return { status: 'ongoing', label: 'En cours', color: 'text-green-600' };
+  } else {
+    const daysUntil = Math.ceil((debut.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntil <= 7) {
+      return { status: 'soon', label: `Dans ${daysUntil} jour${daysUntil > 1 ? 's' : ''}`, color: 'text-orange-600' };
+    } else {
+      return { status: 'future', label: 'À venir', color: 'text-blue-600' };
+    }
+  }
+};
+
 export default function HistoriqueResa() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [loadingStages, setLoadingStages] = useState(true);
@@ -94,7 +160,7 @@ export default function HistoriqueResa() {
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState<number | null>(null);
-  const [cancelProcessing, setCancelProcessing] = useState<number | null>(null); // 🆕 NOUVEAU
+  const [cancelProcessing, setCancelProcessing] = useState<number | null>(null);
   const [expandedStageView, setExpandedStageView] = useState(false);
   const expandedSectionRef = useRef<HTMLDivElement>(null);
 
@@ -105,14 +171,27 @@ export default function HistoriqueResa() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  // Fetch all stages
+  // ✅ MODIFIÉ : Fetch all stages avec tri par date
   useEffect(() => {
     const fetchStages = async () => {
       try {
         const res = await fetch('/api/Stage/RecupStage');
         if (!res.ok) throw new Error('Erreur récupération des stages');
         const data: Stage[] = await res.json();
-        setStages(data);
+        
+        // ✅ TRI PAR DATE : Les stages les plus proches en premier
+        const sortedStages = data.sort((a, b) => {
+          // Gérer les cas où les dates peuvent être nulles
+          if (!a.DateDebut && !b.DateDebut) return 0;
+          if (!a.DateDebut) return 1; // a va à la fin
+          if (!b.DateDebut) return -1; // b va à la fin
+          
+          const dateA = new Date(a.DateDebut).getTime();
+          const dateB = new Date(b.DateDebut).getTime();
+          return dateA - dateB; // Tri croissant : les plus proches en premier
+        });
+        
+        setStages(sortedStages);
       } catch (err) {
         console.error(err);
         toast.error('Impossible de charger les stages');
@@ -208,7 +287,7 @@ export default function HistoriqueResa() {
     }
   };
 
-  // 🆕 NOUVELLE FONCTION : Annuler une réservation (côté admin)
+  // Annuler une réservation (côté admin)
   const handleCancelReservation = async (userId: number, reservationId: number, userName: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir annuler la réservation de ${userName} ?`)) {
       return;
@@ -246,7 +325,7 @@ export default function HistoriqueResa() {
     }
   };
 
-  // NOUVELLE FONCTION : Gérer les factures pour un participant
+  // Gérer les factures pour un participant
   const handleManageInvoice = (userId: number, reservationId: number, userName: string) => {
     // Rediriger vers la page de gestion des factures avec les paramètres
     router.push(`/admin/factures?reservationId=${reservationId}&userId=${userId}&userName=${encodeURIComponent(userName)}`);
@@ -278,8 +357,13 @@ export default function HistoriqueResa() {
     <div className="container mx-auto p-4">
       {/* En-tête avec bouton de gestion des factures */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Historique des Réservations</h1>
-        {/* NOUVEAU : Bouton pour accéder à la gestion globale des factures */}
+        <div>
+          <h1 className="text-2xl font-bold">Historique des Réservations</h1>
+          <p className="text-gray-600 text-sm mt-1">
+            {stages.length} stage{stages.length > 1 ? 's' : ''} • Triés par date de début
+          </p>
+        </div>
+        {/* Bouton pour accéder à la gestion globale des factures */}
         <Button
           onClick={() => router.push('/admin/factures')}
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
@@ -297,7 +381,13 @@ export default function HistoriqueResa() {
         >
           <div className="bg-zinc-800 text-white p-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">{selectedStageDetails.Titre}</h2>
+              <div>
+                <h2 className="text-xl font-bold">{selectedStageDetails.Titre}</h2>
+                {/* ✅ AJOUT : Affichage des dates dans l'en-tête */}
+                <p className="text-zinc-300 text-sm mt-1">
+                  📅 {formatDateRange(selectedStageDetails.DateDebut, selectedStageDetails.DateFin)}
+                </p>
+              </div>
               <Button 
                 variant="ghost" 
                 className="text-white hover:bg-zinc-700"
@@ -451,7 +541,6 @@ export default function HistoriqueResa() {
                                     "Valider paiement"}
                                 </Button>
                                 
-                                {/* 🆕 NOUVEAU : Bouton d'annulation pour les réservations non payées */}
                                 <Button 
                                   size="sm"
                                   variant="destructive"
@@ -495,7 +584,15 @@ export default function HistoriqueResa() {
                             <DeplacementClient
                               user={profile}
                               fromStageId={selectedStageDetails.id}
-                              stages={stages}
+                              stages={stages.map(s => ({
+                                id: s.id,
+                                Titre: s.Titre,
+                                PlaceDisponibles: s.PlaceDisponibles,
+                                DateDebut: s.DateDebut ? new Date(s.DateDebut) : new Date(0),
+                                DateFin: s.DateFin ? new Date(s.DateFin) : new Date(0),
+                                Ville: s.Ville || "",
+                                CodePostal: s.CodePostal || ""
+                              }))}
                               refresh={() => loadStageDetails(selectedStageDetails.id)}
                               setGlobalLoading={setIsGlobalLoading}
                             />
@@ -515,7 +612,7 @@ export default function HistoriqueResa() {
         </div>
       )}
   
-      {/* Grille des stages */}
+      {/* ✅ MODIFIÉ : Grille des stages avec dates */}
       {!expandedStageView && (
         <>
           {loadingStages ? (
@@ -524,25 +621,81 @@ export default function HistoriqueResa() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {paginatedStages.map(stage => (
-                <div key={stage.id} className="border p-4 rounded-lg bg-white shadow-sm">
-                  <h2 className="text-xl font-semibold mb-2">{stage.Titre}</h2>
-                  <div className="flex items-center text-zinc-600 mb-2">
-                    <Users className="w-4 h-4 mr-1" />
-                    <p>Places restantes: {stage.PlaceDisponibles}</p>
+              {paginatedStages.map(stage => {
+                const timeStatus = getStageTimeStatus(stage.DateDebut, stage.DateFin);
+                
+                return (
+                  <div key={stage.id} className="border p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
+                    {/* ✅ En-tête avec titre et statut */}
+                    <div className="mb-3">
+                      <h2 className="text-xl font-semibold mb-2 line-clamp-2">{stage.Titre}</h2>
+                      
+                      {/* ✅ NOUVEAU : Affichage des dates */}
+                      <div className="flex items-center text-gray-700 mb-2">
+                        <Calendar className="w-4 h-4 mr-2 text-blue-500" />
+                        <span className="text-sm font-medium">
+                          {formatDateRange(stage.DateDebut, stage.DateFin)}
+                        </span>
+                      </div>
+                      
+                      {/* ✅ NOUVEAU : Statut temporel */}
+                      <div className={`text-xs font-medium ${timeStatus.color} mb-2`}>
+                        {timeStatus.label}
+                      </div>
+                      
+                      {/* ✅ NOUVEAU : Localisation si disponible */}
+                      {stage.Ville && (
+                        <div className="flex items-center text-gray-600 mb-2">
+                          <MapPin className="w-4 h-4 mr-1" />
+                          <span className="text-sm">{stage.Ville} ({stage.CodePostal})</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* ✅ Footer avec places et bouton */}
+                    <div className="border-t pt-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center text-zinc-600">
+                          <Users className="w-4 h-4 mr-1" />
+                          <span className="text-sm">
+                            {stage.PlaceDisponibles > 0 
+                              ? `${stage.PlaceDisponibles} place${stage.PlaceDisponibles > 1 ? 's' : ''} restante${stage.PlaceDisponibles > 1 ? 's' : ''}`
+                              : 'Complet'
+                            }
+                          </span>
+                        </div>
+                        
+                        {/* ✅ NOUVEAU : Indicateur visuel pour les places */}
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          stage.PlaceDisponibles === 0 
+                            ? 'bg-red-100 text-red-700'
+                            : stage.PlaceDisponibles <= 2 
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-green-100 text-green-700'
+                        }`}>
+                          {stage.PlaceDisponibles === 0 
+                            ? 'Complet'
+                            : stage.PlaceDisponibles <= 2 
+                              ? 'Dernières places'
+                              : 'Disponible'
+                          }
+                        </div>
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        className="w-full hover:bg-blue-50 hover:border-blue-300"
+                        onClick={() => {
+                          setSelectedStage(stage.id);
+                          loadStageDetails(stage.id);
+                        }}
+                      >
+                        Voir les détails et participants
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setSelectedStage(stage.id);
-                      loadStageDetails(stage.id);
-                    }}
-                  >
-                    Voir les détails et participants
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>

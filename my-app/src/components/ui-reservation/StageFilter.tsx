@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { DatePickerfilterdebut } from "./Datedébutfilter";
-import { Check, ChevronsUpDown, X, Filter, Users } from "lucide-react";
+import { Check, ChevronsUpDown, X, Filter, Users, Calendar, Clock, CheckCircle } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -21,12 +21,14 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
+// ✅ INTERFACE MISE À JOUR avec nouveau champ statut et date renommée
 interface FilterValues {
   ville: string;
   departement: string;
-  date: Date | null;
+  dateDebut: Date | null; // ✅ Renommé de "date" vers "dateDebut" pour plus de clarté
   motsCles: string;
-  placesDisponibles: [number, number]; // Nouveau: range de places [min, max]
+  placesDisponibles: [number, number];
+  statutStage: 'tout' | 'en-cours' | 'termines'; // ✅ NOUVEAU champ pour le statut
 }
 
 interface StageFilterProps {
@@ -34,15 +36,22 @@ interface StageFilterProps {
   onFilterChange: (filters: FilterValues) => void;
   onReset: () => void;
   villesDisponibles: string[];
-  maxPlacesDisponibles?: number; // Nouveau: nombre max de places pour calibrer le slider
+  maxPlacesDisponibles?: number;
 }
+
+// ✅ OPTIONS de statut mises à jour
+const STATUT_OPTIONS = [
+  { value: 'tout', label: 'Tous les stages', icon: Calendar, color: 'text-gray-600' },
+  { value: 'en-cours', label: 'Stages disponibles', icon: Clock, color: 'text-green-600' },
+  { value: 'termines', label: 'Stages terminés', icon: CheckCircle, color: 'text-slate-600' }
+] as const;
 
 export default function StageFilter({
   filters,
   onFilterChange,
   onReset,
   villesDisponibles,
-  maxPlacesDisponibles = 50, // Valeur par défaut
+  maxPlacesDisponibles = 50,
 }: StageFilterProps) {
 
   const [open, setOpen] = React.useState(false);
@@ -54,11 +63,14 @@ export default function StageFilter({
     });
   };
 
-  // Compter les filtres actifs
+  // ✅ COMPTAGE MIS À JOUR des filtres actifs avec nouveau champ statutStage
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
     if (key === 'placesDisponibles') {
       const [min, max] = value as [number, number];
       return min > 0 || max < maxPlacesDisponibles;
+    }
+    if (key === 'statutStage') {
+      return value !== 'tout'; // ✅ Le filtre statut est actif si différent de "tout"
     }
     return value !== "" && value !== null;
   }).length;
@@ -87,7 +99,39 @@ export default function StageFilter({
 
       {/* Grille responsive des filtres */}
       <div className="space-y-6">
-        {/* Première ligne : Filtres principaux */}
+        {/* ✅ NOUVELLE PREMIÈRE LIGNE : Statut des stages */}
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <label className="text-sm font-medium text-gray-700 mb-3 block">
+            Afficher les stages
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {STATUT_OPTIONS.map((option) => {
+              const IconComponent = option.icon;
+              const isSelected = filters.statutStage === option.value;
+              
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleChange('statutStage', option.value)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-3 rounded-lg border transition-all duration-200 text-sm font-medium",
+                    isSelected
+                      ? "bg-white border-blue-300 shadow-sm text-blue-700 ring-2 ring-blue-100"
+                      : "bg-white/50 border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 hover:shadow-sm"
+                  )}
+                >
+                  <IconComponent className={cn("w-4 h-4", isSelected ? "text-blue-600" : option.color)} />
+                  <span>{option.label}</span>
+                  {isSelected && (
+                    <Check className="w-4 h-4 text-blue-600 ml-auto" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Deuxième ligne : Filtres principaux */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           {/* VILLE - Combobox */}
           <div className="flex flex-col gap-2 group">
@@ -157,16 +201,22 @@ export default function StageFilter({
             />
           </div>
 
-          {/* Date */}
+          {/* ✅ DATE MODIFIÉE : "À partir de cette date" */}
           <div className="flex flex-col gap-2 group">
             <label className="text-sm font-medium text-gray-700 group-hover:text-amber-600 transition-colors duration-200">
-              Date
+              À partir de cette date
             </label>
             <div className="h-11">
               <DatePickerfilterdebut
-                onDateChange={(date) => handleChange("date", date ?? null)}
+                onDateChange={(date) => handleChange("dateDebut", date ?? null)}
               />
             </div>
+            {/* ✅ NOUVEAU : Explication pour clarifier le comportement */}
+            {filters.dateDebut && (
+              <p className="text-xs text-amber-600 mt-1">
+                Affiche les stages qui commencent à partir du {new Date(filters.dateDebut).toLocaleDateString('fr-FR')}
+              </p>
+            )}
           </div>
 
           {/* Mots clés */}
@@ -183,7 +233,7 @@ export default function StageFilter({
           </div>
         </div>
 
-        {/* Deuxième ligne : Slider Places et Bouton Reset */}
+        {/* Troisième ligne : Slider Places et Bouton Reset */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Places disponibles - Slider */}
           <div className="flex flex-col gap-2 group lg:col-span-2">
@@ -249,10 +299,24 @@ export default function StageFilter({
         </div>
       </div>
 
-      {/* Indicateur de filtres actifs */}
+      {/* ✅ INDICATEUR MIS À JOUR des filtres actifs */}
       {activeFiltersCount > 0 && (
         <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
           <span className="text-xs font-medium text-gray-500 px-2 py-1">Filtres actifs:</span>
+          
+          {/* ✅ NOUVEAU : Badge statut */}
+          {filters.statutStage !== 'tout' && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
+              <Calendar className="w-3 h-3" />
+              {STATUT_OPTIONS.find(opt => opt.value === filters.statutStage)?.label}
+              <button
+                onClick={() => handleChange("statutStage", "tout")}
+                className="hover:bg-indigo-200 rounded-full p-0.5 transition-colors duration-150"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
           
           {filters.ville && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
@@ -278,11 +342,12 @@ export default function StageFilter({
             </span>
           )}
           
-          {filters.date && (
+          {/* ✅ MODIFIÉ : Badge date avec nouveau libellé */}
+          {filters.dateDebut && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
-              Date sélectionnée
+              À partir du {new Date(filters.dateDebut).toLocaleDateString('fr-FR')}
               <button
-                onClick={() => handleChange("date", null)}
+                onClick={() => handleChange("dateDebut", null)}
                 className="hover:bg-amber-200 rounded-full p-0.5 transition-colors duration-150"
               >
                 <X className="w-3 h-3" />

@@ -64,12 +64,14 @@ interface Stage {
   updatedAt: Date; // ✅ Nouveau champ pour la date de mise à jour
 }
 
+// ✅ INTERFACE MISE À JOUR avec le nouveau système de filtres
 interface FilterValues {
   ville: string;
   departement: string;
-  date: Date | null;
+  dateDebut: Date | null; // ✅ Renommé de "date" vers "dateDebut" 
   motsCles: string;
   placesDisponibles: [number, number];
+  statutStage: 'tout' | 'en-cours' | 'termines'; // ✅ NOUVEAU champ pour le statut
 }
 
 interface ListeStagesProps {
@@ -393,9 +395,10 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     );
   };
 
-  // ✅ FILTRAGE INTELLIGENT avec masquage automatique et manuel
+  // ✅ NOUVELLE LOGIQUE DE FILTRAGE avec système de statut et date "à partir de"
   const filteredStages = stages.filter((stage) => {
     const isFinished = isStageFinished(stage.DateFin);
+    const isOngoing = isStageOngoing(stage.DateDebut, stage.DateFin);
     const isManuallyHidden = stage.hidden; // ✅ Récupéré de la BDD
     
     // Pour les NON-ADMINS : masquer les stages terminés ET masqués manuellement
@@ -403,22 +406,38 @@ export default function ListeStages({ filters }: ListeStagesProps) {
       if (isFinished || isManuallyHidden) return false;
     }
 
+    // ✅ SIMPLIFIÉ : Filtrage par statut de stage
+    if (filters.statutStage !== 'tout') {
+      if (filters.statutStage === 'en-cours') {
+        // Afficher tous les stages NON terminés (disponibles + en cours)
+        if (isFinished) return false;
+      } else if (filters.statutStage === 'termines') {
+        // Ne montrer que les stages terminés
+        if (!isFinished) return false;
+      }
+    }
+
+    // Filtre ville (inchangé)
     const matchVille =
       !filters.ville ||
       stage.Ville?.toLowerCase().includes(filters.ville.toLowerCase());
 
+    // Filtre département (inchangé)
     const matchDepartement =
       !filters.departement ||
       stage.CodePostal.startsWith(filters.departement);
 
+    // Filtre mots-clés (inchangé)
     const matchMotsCles =
       !filters.motsCles ||
       stage.Titre?.toLowerCase().includes(filters.motsCles.toLowerCase());
 
+    // ✅ NOUVEAU : Filtre date "à partir de" au lieu de date exacte
     const matchDate =
-      !filters.date ||
-      new Date(stage.DateDebut).toDateString() === new Date(filters.date).toDateString();
+      !filters.dateDebut ||
+      new Date(stage.DateDebut) >= new Date(filters.dateDebut);
 
+    // Filtre places disponibles (inchangé)
     const [minPlaces, maxPlaces] = filters.placesDisponibles;
     const matchPlaces = stage.PlaceDisponibles >= minPlaces && stage.PlaceDisponibles <= maxPlaces;
 
@@ -430,6 +449,17 @@ export default function ListeStages({ filters }: ListeStagesProps) {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedStages = filteredStages.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  // ✅ NOUVEAU : Calculer le statut pour l'affichage du header
+  const getStatusMessage = () => {
+    if (filters.statutStage === 'en-cours') {
+      return `${filteredStages.length} stage(s) disponible(s) • Triés par date de stage`;
+    } else if (filters.statutStage === 'termines') {
+      return `${filteredStages.length} stage(s) terminé(s) • Triés par date de stage`;
+    } else {
+      return `${filteredStages.length} stage(s) disponible(s) • Triés par date de stage`;
+    }
+  };
+
   return (
     <div className="container mx-auto p-3 sm:p-4 lg:p-6">
       {/* Header moderne */}
@@ -439,7 +469,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
         </h1>
         <p className="text-gray-600 text-sm sm:text-base">
           {filteredStages.length > 0 
-            ? `${filteredStages.length} stage(s) disponible(s) • Triés par date de stage`
+            ? getStatusMessage() // ✅ Utilise la nouvelle fonction pour afficher le statut
             : "Aucun stage trouvé"
           }
         </p>
