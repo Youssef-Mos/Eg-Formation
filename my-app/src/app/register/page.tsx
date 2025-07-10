@@ -1232,37 +1232,7 @@ function RegisterContent() {
                   </div>
 
                   {/* ✅ NOUVEAU : Section des conditions générales intégrée */}
-                  <div className="border-t pt-6 mt-6">
-                    <h3 className="text-lg font-medium mb-4">Conditions générales</h3>
-                    <div className="space-y-3 text-sm text-gray-600">
-                      <p className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span>
-                          En finalisant votre inscription, vous acceptez les{" "}
-                          <LinkPreview url="http://localhost:3000/register/CGU" className="font-medium text-blue-600 hover:underline">
-                            Conditions Générales d&apos;Utilisation (CGU)
-                          </LinkPreview>
-                          {" "}d&apos;EG-FORMATIONS.
-                        </span>
-                      </p>
-                      <p className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span>
-                          Vous déclarez avoir pris connaissance du{" "}
-                          <LinkPreview url="http://localhost:3000/register/reglement" className="font-medium text-blue-600 hover:underline">
-                            règlement intérieur
-                          </LinkPreview>
-                          {" "}et en avoir compris tous les termes.
-                        </span>
-                      </p>
-                      <p className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span>
-                          Vous confirmez avoir vérifié votre solde de points (relevé d&apos;information RII) et ne pas faire l&apos;objet d&apos;une invalidation de votre permis de conduire.
-                        </span>
-                      </p>
-                    </div>
-                  </div>
+
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button type="button" variant="outline" onClick={goToPreviousTab}>

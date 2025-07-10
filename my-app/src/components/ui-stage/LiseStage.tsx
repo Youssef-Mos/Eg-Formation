@@ -44,6 +44,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
+// ✅ INTERFACE MISE À JOUR avec le nouveau champ de notification
 interface Stage {
   id: number;
   Titre: string;
@@ -60,8 +61,9 @@ interface Stage {
   HeureFin2: string;
   Prix: number;
   createdAt: Date;
-  hidden: boolean; // ✅ Maintenant récupéré de la base de données
-  updatedAt: Date; // ✅ Nouveau champ pour la date de mise à jour
+  hidden: boolean;
+  updatedAt: Date;
+  completionNotificationSent?: boolean; // ✅ NOUVEAU CHAMP pour les notifications
 }
 
 // ✅ INTERFACE MISE À JOUR avec le nouveau système de filtres
@@ -96,31 +98,6 @@ const isStageOngoing = (dateDebut: Date, dateFin: Date): boolean => {
   const endDate = new Date(dateFin);
   
   return now >= startDate && now <= endDate;
-};
-
-// Fonction pour envoyer une notification email à l'admin
-const sendAdminNotification = async (stage: Stage) => {
-  try {
-    const response = await fetch('/api/admin/stage-complete-notification', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        stageId: stage.id,
-        stageTitle: stage.Titre,
-        stageNumber: stage.NumeroStage,
-        stageDate: stage.DateDebut,
-        stageLocation: `${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}`,
-      }),
-    });
-
-    if (response.ok) {
-      console.log('✅ Notification admin envoyée pour le stage complet:', stage.NumeroStage);
-    }
-  } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi de la notification admin:', error);
-  }
 };
 
 // Fonction pour obtenir un message d'erreur détaillé
@@ -163,7 +140,7 @@ const getDeleteErrorMessage = (errorCode: string, reservationsCount?: number) =>
 export default function ListeStages({ filters }: ListeStagesProps) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [notifiedStages, setNotifiedStages] = useState<Set<number>>(new Set());
+  // ✅ SUPPRIMÉ : const [notifiedStages, setNotifiedStages] = useState<Set<number>>(new Set());
 
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -181,6 +158,92 @@ export default function ListeStages({ filters }: ListeStagesProps) {
   const { data: session } = useSession();
   const router = useRouter();
 
+  // ✅ NOUVELLE FONCTION DE NOTIFICATION avec gestion BDD
+  const sendAdminNotification = async (stage: Stage) => {
+    try {
+      console.log(`📧 Tentative d'envoi de notification pour stage complet: ${stage.NumeroStage}`);
+      
+      const response = await fetch('/api/admin/stage-complete-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stageId: stage.id,
+          stageTitle: stage.Titre,
+          stageNumber: stage.NumeroStage,
+          stageDate: stage.DateDebut,
+          stageLocation: `${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}`,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        if (result.emailConfigured) {
+          console.log(`✅ Notification email envoyée pour le stage complet: ${stage.NumeroStage}`);
+        } else {
+          console.log(`⚠️ Notification loggée pour le stage complet: ${stage.NumeroStage} (email non configuré)`);
+        }
+        
+        // ✅ NOUVEAU : Marquer le stage comme notifié en BDD
+        try {
+          const markResponse = await fetch(`/api/Stage/MarkNotified/${stage.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ completionNotificationSent: true })
+          });
+          
+          if (markResponse.ok) {
+            // Mettre à jour l'état local
+            setStages(prev => prev.map(s => 
+              s.id === stage.id 
+                ? { ...s, completionNotificationSent: true }
+                : s
+            ));
+            console.log(`✅ Stage ${stage.NumeroStage} marqué comme notifié en BDD`);
+          } else {
+            console.error('❌ Erreur lors du marquage en BDD:', await markResponse.json());
+          }
+          
+        } catch (dbError) {
+          console.error('❌ Erreur lors de la mise à jour de la notification en BDD:', dbError);
+        }
+      } else {
+        // Gestion des erreurs de l'API de notification
+        if (result.emailConfigured === false) {
+          console.log(`⚠️ Notification stage ${stage.NumeroStage} - Email non configuré, procédure normale`);
+          
+          // Même si l'email n'est pas configuré, marquer comme notifié pour éviter les tentatives répétées
+          try {
+            await fetch(`/api/Stage/MarkNotified/${stage.id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ completionNotificationSent: true })
+            });
+            
+            setStages(prev => prev.map(s => 
+              s.id === stage.id 
+                ? { ...s, completionNotificationSent: true }
+                : s
+            ));
+          } catch (dbError) {
+            console.error('❌ Erreur lors du marquage en BDD:', dbError);
+          }
+        } else {
+          console.error('❌ Erreur notification:', result);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'envoi de la notification admin:', error);
+    }
+  };
+
+  // ✅ useEffect CORRIGÉ avec nouvelle logique de notification
   useEffect(() => {
     const fetchStages = async () => {
       try {
@@ -195,11 +258,14 @@ export default function ListeStages({ filters }: ListeStagesProps) {
           return dateA - dateB;
         });
         
-        // Vérifier les stages complets et envoyer des notifications
+        // ✅ NOUVELLE LOGIQUE : Vérifier les stages complets avec BDD tracking
         sortedStages.forEach((stage: Stage) => {
-          if (stage.PlaceDisponibles === 0 && !notifiedStages.has(stage.id)) {
+          // Envoyer notification seulement si:
+          // 1. Le stage est complet (PlaceDisponibles === 0)
+          // 2. ET la notification n'a pas encore été envoyée
+          if (stage.PlaceDisponibles === 0 && !stage.completionNotificationSent) {
+            console.log(`📧 Stage complet détecté, envoi notification: ${stage.NumeroStage}`);
             sendAdminNotification(stage);
-            setNotifiedStages(prev => new Set(prev).add(stage.id));
           }
         });
         
@@ -213,7 +279,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     };
 
     fetchStages();
-  }, [notifiedStages]);
+  }, []); // ✅ PLUS DE DÉPENDANCES sur notifiedStages
 
   const formatDate = (dateString: Date) => {
     const date = new Date(dateString);

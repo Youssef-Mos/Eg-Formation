@@ -41,6 +41,7 @@ model Stage {
   createdAt      DateTime @default(now())
   updatedAt        DateTime @default(now()) @updatedAt  // ✅ AJOUT de @default(now())
   hidden           Boolean  @default(false) // ✅ NOUVEAU CHAMP
+  completionNotificationSent Boolean  @default(false)
   
   // Nouvelle relation vers Agrement
   agrementId     Int?

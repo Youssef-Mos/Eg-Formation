@@ -39,14 +39,50 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   const { stageId, stageTitle, stageNumber, stageDate, stageLocation } = data;
 
   try {
+    // ✅ VÉRIFIER si les credentials email sont configurés
+    const mailUser = process.env.MAIL_USER;
+    const mailPass = process.env.MAIL_PASS;
+    
+    if (!mailUser || !mailPass) {
+      console.log(`⚠️ Notification stage complet ${stageNumber} - Email non configuré, notification log seulement`);
+      logApiAccess(request, session, true, "EMAIL_NOT_CONFIGURED");
+      
+      return NextResponse.json({
+        success: true,
+        message: "Stage complet noté (email non configuré)",
+        stageId,
+        stageNumber,
+        emailConfigured: false,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Configuration du transporteur email
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.MAIL_USER!,
-        pass: process.env.MAIL_PASS!,
+        user: mailUser,
+        pass: mailPass,
       },
     });
+
+    // ✅ TESTER la connexion email avant d'envoyer
+    try {
+      await transporter.verify();
+    } catch (emailError) {
+      console.log(`⚠️ Erreur de configuration email pour stage ${stageNumber}:`, emailError);
+      logApiAccess(request, session, true, "EMAIL_CONFIG_ERROR");
+      
+      return NextResponse.json({
+        success: true,
+        message: "Stage complet noté (erreur config email)",
+        stageId,
+        stageNumber,
+        emailConfigured: false,
+        error: "Configuration email invalide",
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // Format de la date
     const formattedDate = new Date(stageDate).toLocaleDateString('fr-FR', {
@@ -159,8 +195,8 @@ Notification générée par ${session.user.email} le ${new Date().toLocaleDateSt
 
     // Envoi de l'email
     await transporter.sendMail({
-      from: `"EG-FORMATIONS - Système" <${process.env.MAIL_USER}>`,
-      to: process.env.ADMIN_EMAIL || process.env.MAIL_USER,
+      from: `"EG-FORMATIONS - Système" <${mailUser}>`,
+      to: process.env.ADMIN_EMAIL || mailUser,
       subject: `🚨 STAGE COMPLET - ${stageNumber} - ${stageTitle}`,
       text: textContent,
       html: emailContent,
@@ -172,6 +208,9 @@ Notification générée par ${session.user.email} le ${new Date().toLocaleDateSt
     return NextResponse.json({
       success: true,
       message: "Notification admin envoyée avec succès",
+      stageId,
+      stageNumber,
+      emailConfigured: true,
       timestamp: new Date().toISOString()
     });
 
@@ -182,6 +221,9 @@ Notification générée par ${session.user.email} le ${new Date().toLocaleDateSt
       { 
         error: "Erreur lors de l'envoi de la notification",
         code: "EMAIL_SEND_ERROR",
+        stageId,
+        stageNumber,
+        details: error.message,
         timestamp: new Date().toISOString()
       },
       { status: 500 }
