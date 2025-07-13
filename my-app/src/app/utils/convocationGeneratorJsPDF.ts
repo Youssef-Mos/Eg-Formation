@@ -73,15 +73,16 @@ function generateClientNumber(): string {
   return result;
 }
 
-// Formate une date en français
+// ✅ FONCTION CORRIGÉE - Formate une date en français sans problème de fuseau horaire
 function formatDateFR(date: Date): string {
   const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
   const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
   
-  const dayName = days[date.getDay()];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
+  // ✅ Utiliser les méthodes UTC pour éviter les décalages de fuseau horaire
+  const dayName = days[date.getUTCDay()];
+  const day = date.getUTCDate();
+  const month = months[date.getUTCMonth()];
+  const year = date.getUTCFullYear();
   
   return `${dayName} ${day} ${month} ${year}`;
 }
@@ -204,7 +205,7 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       }
       currentY += 10;
 
-      // Détails des dates et horaires
+      // ✅ CORRECTION : Détails des dates et horaires avec formatage UTC
       const dateDebut = new Date(stage.DateDebut);
       const dateFin = new Date(stage.DateFin);
 
@@ -430,6 +431,10 @@ export async function sendConfirmationEmail(user: User, stage: Stage, options: R
     ? `\n🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
     : '';
 
+  // ✅ CORRECTION : Utilisation des dates avec formatage UTC dans l'email aussi
+  const dateDebut = new Date(stage.DateDebut);
+  const dateFin = new Date(stage.DateFin);
+
   const emailContent = `
 Bonjour ${user.firstName} ${user.lastName},
 
@@ -437,7 +442,7 @@ Nous vous confirmons votre inscription au stage de sécurité routière suivant 
 
 📍 Lieu : ${stage.Titre}
 📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
-📅 Dates : du ${new Date(stage.DateDebut).toLocaleDateString('fr-FR')} au ${new Date(stage.DateFin).toLocaleDateString('fr-FR')}
+📅 Dates : du ${formatDateFR(dateDebut)} au ${formatDateFR(dateFin)}
 ⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
 🔢 Numéro de stage : ${stage.NumeroStage}${agrementInfo}
 💰 Prix : ${stage.Prix}€
@@ -471,7 +476,7 @@ L'équipe EG-FORMATIONS
         filename: `convocation_stage_${stage.NumeroStage}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
-      },
+    },
     ],
   });
 

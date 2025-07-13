@@ -47,7 +47,7 @@ function Calendar({
 
   const handleYearNavigation = (direction: 'prev' | 'next') => {
     const offset = direction === 'prev' ? -12 : 12
-    setYearRangeStart(prev => Math.max(1950, prev + offset))
+    setYearRangeStart(prev => Math.max(1930, prev + offset))
   }
 
   const CustomCaption = (captionProps: { displayMonth: Date }) => {

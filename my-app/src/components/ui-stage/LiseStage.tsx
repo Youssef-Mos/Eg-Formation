@@ -80,15 +80,14 @@ interface ListeStagesProps {
   filters: FilterValues;
 }
 
-// ✅ FONCTION pour vérifier si un stage est terminé (un jour après la fin)
-const isStageFinished = (dateFin: Date): boolean => {
+// ✅ FONCTION pour vérifier si un stage est terminé (6h00 le jour du début)
+const isStageFinished = (dateDebut: Date): boolean => {
   const now = new Date();
-  const stageEndDate = new Date(dateFin);
-  // Ajouter 1 jour après la fin du stage
-  const oneDayAfterEnd = new Date(stageEndDate);
-  oneDayAfterEnd.setDate(oneDayAfterEnd.getDate() + 1);
+  const stageStartDate = new Date(dateDebut);
+  // Fixer l'heure à 6h00 le jour de début du stage
+  stageStartDate.setHours(6, 0, 0, 0);
   
-  return now > oneDayAfterEnd;
+  return now >= stageStartDate;
 };
 
 // ✅ FONCTION pour vérifier si un stage est en cours
