@@ -73,16 +73,40 @@ function generateClientNumber(): string {
   return result;
 }
 
+// ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
+function parseDateSafely(dateInput: Date | string): Date {
+  if (dateInput instanceof Date) {
+    return dateInput;
+  }
+  
+  // Si c'est une string au format YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+  const dateStr = dateInput.toString();
+  
+  if (dateStr.includes('T')) {
+    // Si la date contient une heure, on prend juste la partie date
+    const datePart = dateStr.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day); // Mois en base 0
+  } else {
+    // Format YYYY-MM-DD simple
+    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day); // Mois en base 0
+  }
+}
+
 // ✅ FONCTION CORRIGÉE - Formate une date en français sans problème de fuseau horaire
-function formatDateFR(date: Date): string {
+function formatDateFR(dateInput: Date | string): string {
   const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
   const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
   
-  // ✅ Utiliser les méthodes UTC pour éviter les décalages de fuseau horaire
-  const dayName = days[date.getUTCDay()];
-  const day = date.getUTCDate();
-  const month = months[date.getUTCMonth()];
-  const year = date.getUTCFullYear();
+  // ✅ Parser la date de façon sûre
+  const date = parseDateSafely(dateInput);
+  
+  // ✅ Utiliser les méthodes locales car on a créé la date correctement
+  const dayName = days[date.getDay()];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
   
   return `${dayName} ${day} ${month} ${year}`;
 }
@@ -205,13 +229,10 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       }
       currentY += 10;
 
-      // ✅ CORRECTION : Détails des dates et horaires avec formatage UTC
-      const dateDebut = new Date(stage.DateDebut);
-      const dateFin = new Date(stage.DateFin);
-
-      doc.text(`${formatDateFR(dateDebut)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}`, margin, currentY);
+      // ✅ CORRECTION : Détails des dates et horaires avec parsing sécurisé
+      doc.text(`${formatDateFR(stage.DateDebut)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}`, margin, currentY);
       currentY += 6;
-      doc.text(`${formatDateFR(dateFin)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}, à l'adresse suivante :`, margin, currentY);
+      doc.text(`${formatDateFR(stage.DateFin)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}, à l'adresse suivante :`, margin, currentY);
       currentY += 10;
 
       // Adresse du stage
@@ -412,7 +433,7 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
 export async function sendConfirmationEmail(user: User, stage: Stage, options: ReservationOptions) {
   const pdfBuffer = await generateReservationPDF(stage, user, options);
   
-  const transporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransporter({
     service: "gmail",
     auth: {
       user: process.env.MAIL_USER!,
@@ -431,10 +452,7 @@ export async function sendConfirmationEmail(user: User, stage: Stage, options: R
     ? `\n🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
     : '';
 
-  // ✅ CORRECTION : Utilisation des dates avec formatage UTC dans l'email aussi
-  const dateDebut = new Date(stage.DateDebut);
-  const dateFin = new Date(stage.DateFin);
-
+  // ✅ CORRECTION : Utilisation du formatage sécurisé dans l'email aussi
   const emailContent = `
 Bonjour ${user.firstName} ${user.lastName},
 
@@ -442,7 +460,7 @@ Nous vous confirmons votre inscription au stage de sécurité routière suivant 
 
 📍 Lieu : ${stage.Titre}
 📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
-📅 Dates : du ${formatDateFR(dateDebut)} au ${formatDateFR(dateFin)}
+📅 Dates : du ${formatDateFR(stage.DateDebut)} au ${formatDateFR(stage.DateFin)}
 ⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
 🔢 Numéro de stage : ${stage.NumeroStage}${agrementInfo}
 💰 Prix : ${stage.Prix}€
