@@ -433,7 +433,7 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
 export async function sendConfirmationEmail(user: User, stage: Stage, options: ReservationOptions) {
   const pdfBuffer = await generateReservationPDF(stage, user, options);
   
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.MAIL_USER!,

@@ -28,6 +28,51 @@ interface InvoiceData {
   };
 }
 
+// ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
+function parseDateSafely(dateInput: Date | string): Date {
+  if (dateInput instanceof Date) {
+    return dateInput;
+  }
+  
+  // Si c'est une string au format YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+  const dateStr = dateInput.toString();
+  
+  if (dateStr.includes('T')) {
+    // Si la date contient une heure, on prend juste la partie date
+    const datePart = dateStr.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day); // Mois en base 0
+  } else {
+    // Format YYYY-MM-DD simple
+    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day); // Mois en base 0
+  }
+}
+
+// ✅ FONCTION UTILITAIRE - Formate une date en français sans problème de fuseau horaire
+function formatDateSafeFR(dateInput: Date | string): string {
+  const date = parseDateSafely(dateInput);
+  
+  // ✅ SOLUTION : Utiliser timeZone: "UTC" pour éviter les décalages
+  return date.toLocaleDateString('fr-FR', {
+    timeZone: "UTC",
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long', 
+    day: 'numeric'
+  });
+}
+
+// ✅ FONCTION UTILITAIRE - Formate une date courte en français sans problème de fuseau horaire
+function formatDateShortFR(dateInput: Date | string): string {
+  const date = parseDateSafely(dateInput);
+  
+  // ✅ SOLUTION : Utiliser timeZone: "UTC" pour éviter les décalages
+  return date.toLocaleDateString('fr-FR', {
+    timeZone: "UTC"
+  });
+}
+
 // Générateur de numéro de facture
 export function generateInvoiceNumber(): string {
   const now = new Date();
@@ -245,11 +290,11 @@ Vous trouverez ci-joint votre facture n° ${invoiceData.invoiceNumber}.
 
 📋 Détails du stage :
 • Titre : ${invoiceData.stage.title}
-• Date : ${invoiceData.stage.date.toLocaleDateString('fr-FR')}
+• Date : ${formatDateShortFR(invoiceData.stage.date)}
 • Numéro de stage : ${invoiceData.stage.numeroStage}
 • Montant : ${invoiceData.stage.price}€
 
-✅ Paiement confirmé le ${invoiceData.payment.paymentDate.toLocaleDateString('fr-FR')}
+✅ Paiement confirmé le ${formatDateShortFR(invoiceData.payment.paymentDate)}
 
 Pour toute question, n'hésitez pas à nous contacter au 07 83 37 25 65.
 
