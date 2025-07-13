@@ -7,6 +7,37 @@ import nodemailer from "nodemailer"; // ✅ AJOUT
 
 const prisma = new PrismaClient();
 
+// ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
+function parseDateSafely(dateInput: Date | string): Date {
+  if (dateInput instanceof Date) {
+    return dateInput;
+  }
+  
+  // Si c'est une string au format YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+  const dateStr = dateInput.toString();
+  
+  if (dateStr.includes('T')) {
+    // Si la date contient une heure, on prend juste la partie date
+    const datePart = dateStr.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day); // Mois en base 0
+  } else {
+    // Format YYYY-MM-DD simple
+    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+    return new Date(year, month - 1, day); // Mois en base 0
+  }
+}
+
+// ✅ FONCTION UTILITAIRE - Formate une date courte en français sans problème de fuseau horaire
+function formatDateSafeFR(dateInput: Date | string): string {
+  const date = parseDateSafely(dateInput);
+  
+  // ✅ SOLUTION : Utiliser timeZone: "UTC" pour éviter les décalages
+  return date.toLocaleDateString('fr-FR', {
+    timeZone: "UTC"
+  });
+}
+
 export async function POST(request: Request) {
   // Vérifier l'authentification
   const session = await getServerSession(authOptions);
@@ -161,7 +192,7 @@ Votre réservation pour le stage de sécurité routière a été enregistrée av
 
 📍 Lieu : ${stage.Titre}
 📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
-📅 Dates : du ${new Date(stage.DateDebut).toLocaleDateString('fr-FR')} au ${new Date(stage.DateFin).toLocaleDateString('fr-FR')}
+📅 Dates : du ${formatDateSafeFR(stage.DateDebut)} au ${formatDateSafeFR(stage.DateFin)}
 ⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
 🔢 Numéro de stage : ${stage.NumeroStage}
 ${agrementInfo ? `${agrementInfo}\n` : ''}💰 Prix : ${stage.Prix}€
@@ -215,7 +246,7 @@ L'équipe EG-FORMATIONS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 N° de réservation : ${reservation.id}
-Date de réservation : ${new Date().toLocaleDateString('fr-FR')}
+Date de réservation : ${formatDateSafeFR(new Date())}
       `;
 
       // Envoyer l'email avec copie au propriétaire
