@@ -72,7 +72,7 @@ function Calendar({
           </button>
           <button
             onClick={() => {
-              setYearRangeStart(Math.max(1950, captionProps.displayMonth.getFullYear() - 6))
+              setYearRangeStart(Math.max(1930, captionProps.displayMonth.getFullYear() - 6))
               setIsPickerOpen(prev => prev === 'year' ? null : 'year')
             }}
             className="px-3 py-1 text-sm font-medium hover:bg-accent rounded-md cursor-pointer"
@@ -122,11 +122,11 @@ function Calendar({
             <div className="flex justify-between items-center " >
               <button
                 onClick={() => handleYearNavigation('prev')}
-                disabled={yearRangeStart <= 1950}
+                disabled={yearRangeStart <= 1930}
                 className={cn(
                   buttonVariants({ variant: "ghost" }),
                   "size-7 p-0 cursor-pointer",
-                  yearRangeStart <= 1950 && "opacity-50 cursor-not-allowed"
+                  yearRangeStart <= 1930 && "opacity-50 cursor-not-allowed"
                 )}
               >
                 <ChevronLeft className="size-4" />
@@ -156,9 +156,9 @@ function Calendar({
                     className={cn(
                       "p-2 text-sm rounded-md hover:bg-accent cursor-pointer",
                       year === currentMonth.getFullYear() && "bg-primary hover:bg-zinc-800 text-primary-foreground",
-                      year < 1950 && "opacity-50 cursor-not-allowed"
+                      year < 1930 && "opacity-50 cursor-not-allowed"
                     )}
-                    disabled={year < 1950}
+                    disabled={year < 1930}
                   >
                     {year}
                   </button>
