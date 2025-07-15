@@ -1,42 +1,14 @@
-// app/api/reservation/create-without-payment/route.ts
+// ===== FICHIER 1: app/api/reservation/create-without-payment/route.ts =====
+
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import nodemailer from "nodemailer"; // ✅ AJOUT
+import nodemailer from "nodemailer";
+// ✅ IMPORT DES UTILS DE DATE
+import { formatDateForEmail, formatCurrentDate } from "@/app/utils/dateUtils";
 
 const prisma = new PrismaClient();
-
-// ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
-function parseDateSafely(dateInput: Date | string): Date {
-  if (dateInput instanceof Date) {
-    return dateInput;
-  }
-  
-  // Si c'est une string au format YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
-  const dateStr = dateInput.toString();
-  
-  if (dateStr.includes('T')) {
-    // Si la date contient une heure, on prend juste la partie date
-    const datePart = dateStr.split('T')[0];
-    const [year, month, day] = datePart.split('-').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day); // Mois en base 0
-  } else {
-    // Format YYYY-MM-DD simple
-    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day); // Mois en base 0
-  }
-}
-
-// ✅ FONCTION UTILITAIRE - Formate une date courte en français sans problème de fuseau horaire
-function formatDateSafeFR(dateInput: Date | string): string {
-  const date = parseDateSafely(dateInput);
-  
-  // ✅ SOLUTION : Utiliser timeZone: "UTC" pour éviter les décalages
-  return date.toLocaleDateString('fr-FR', {
-    timeZone: "UTC"
-  });
-}
 
 export async function POST(request: Request) {
   // Vérifier l'authentification
@@ -68,7 +40,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ AJOUT : Récupérer les détails du stage AVEC l'agrément
+    // Récupérer les détails du stage AVEC l'agrément
     const stage = await prisma.stage.findUnique({
       where: { id: Number(stageId) },
       include: {
@@ -107,7 +79,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ AJOUT : Récupérer les informations utilisateur
+    // Récupérer les informations utilisateur
     const user = await prisma.user.findUnique({
       where: { id: Number(userId) },
       select: {
@@ -132,7 +104,7 @@ export async function POST(request: Request) {
         stageId: Number(stageId),
         TypeStage: typeStage,
         paymentMethod: paymentMethod,
-        paid: false // Paiement pas encore effectué
+        paid: false
       }
     });
 
@@ -144,11 +116,10 @@ export async function POST(request: Request) {
       }
     });
 
-    // ✅ AJOUT : Envoi d'email de notification de paiement requis
+    // ✅ ENVOI D'EMAIL avec dates corrigées
     try {
       console.log(`📧 Envoi de la notification de paiement à ${user.email}...`);
       
-      // Configuration du transporteur Gmail
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -157,7 +128,6 @@ export async function POST(request: Request) {
         },
       });
 
-      // Déterminer le type de stage pour l'email
       const stageTypeDescriptions = {
         "recuperation_points": "Stage volontaire - Récupération de 4 points",
         "permis_probatoire": "Stage obligatoire (période probatoire)",
@@ -167,12 +137,10 @@ export async function POST(request: Request) {
 
       const stageDescription = stageTypeDescriptions[typeStage as keyof typeof stageTypeDescriptions] || typeStage;
 
-      // Informations d'agrément
       const agrementInfo = stage.agrement 
         ? `🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
         : '';
 
-      // Méthode de paiement en français
       const paymentMethodFR = {
         'bank_transfer': 'Virement bancaire',
         'check': 'Chèque',
@@ -192,7 +160,7 @@ Votre réservation pour le stage de sécurité routière a été enregistrée av
 
 📍 Lieu : ${stage.Titre}
 📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
-📅 Dates : du ${formatDateSafeFR(stage.DateDebut)} au ${formatDateSafeFR(stage.DateFin)}
+📅 Dates : du ${formatDateForEmail(stage.DateDebut)} au ${formatDateForEmail(stage.DateFin)}
 ⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
 🔢 Numéro de stage : ${stage.NumeroStage}
 ${agrementInfo ? `${agrementInfo}\n` : ''}💰 Prix : ${stage.Prix}€
@@ -246,14 +214,13 @@ L'équipe EG-FORMATIONS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 N° de réservation : ${reservation.id}
-Date de réservation : ${formatDateSafeFR(new Date())}
+Date de réservation : ${formatCurrentDate()}
       `;
 
-      // Envoyer l'email avec copie au propriétaire
       await transporter.sendMail({
         from: `"EG-FORMATIONS" <${process.env.MAIL_USER}>`,
         to: user.email,
-        cc: process.env.MAIL_USER, // ✅ Propriétaire en copie
+        cc: process.env.MAIL_USER,
         subject: `🚨 Paiement requis - Stage ${stage.Ville} (${stage.NumeroStage})`,
         text: emailContent,
         html: emailContent.replace(/\n/g, '<br>').replace(/━/g, '─'),
@@ -263,7 +230,6 @@ Date de réservation : ${formatDateSafeFR(new Date())}
       
     } catch (emailError) {
       console.error('❌ Erreur lors de l\'envoi de l\'email de paiement:', emailError);
-      // On continue même si l'email échoue - la réservation est créée
     }
 
     return NextResponse.json({

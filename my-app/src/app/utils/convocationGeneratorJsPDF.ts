@@ -1,6 +1,6 @@
 // utils/convocationGeneratorJsPDF.ts
 import nodemailer from "nodemailer";
-
+import { createSafeDate, formatDateLongFR, formatDateForEmail } from "@/app/utils/dateUtils";
 interface User {
   firstName: string;
   lastName: string;
@@ -95,20 +95,9 @@ function parseDateSafely(dateInput: Date | string): Date {
 }
 
 // ✅ FONCTION CORRIGÉE - Formate une date en français sans problème de fuseau horaire
+// ✅ DANS utils/convocationGeneratorJsPDF.ts
 function formatDateFR(dateInput: Date | string): string {
-  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-  const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-  
-  // ✅ Parser la date de façon sûre
-  const date = parseDateSafely(dateInput);
-  
-  // ✅ Utiliser les méthodes locales car on a créé la date correctement
-  const dayName = days[date.getDay()];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  
-  return `${dayName} ${day} ${month} ${year}`;
+  return formatDateLongFR(dateInput);
 }
 
 // Génère le PDF de convocation avec jsPDF et logo
@@ -229,7 +218,7 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       }
       currentY += 10;
 
-      // ✅ CORRECTION : Détails des dates et horaires avec parsing sécurisé
+     // ✅ CORRECTION : Détails des dates et horaires avec formatage sûr
       doc.text(`${formatDateFR(stage.DateDebut)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}`, margin, currentY);
       currentY += 6;
       doc.text(`${formatDateFR(stage.DateFin)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}, à l'adresse suivante :`, margin, currentY);
@@ -430,6 +419,7 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
 }
 
 // Envoie l'e-mail avec PDF joint (reste identique)
+// ✅ FONCTION EMAIL CORRIGÉE
 export async function sendConfirmationEmail(user: User, stage: Stage, options: ReservationOptions) {
   const pdfBuffer = await generateReservationPDF(stage, user, options);
   
@@ -452,7 +442,6 @@ export async function sendConfirmationEmail(user: User, stage: Stage, options: R
     ? `\n🏛️ Agrément : ${stage.agrement.numeroAgrement} (${stage.agrement.departement}${stage.agrement.nomDepartement ? ` - ${stage.agrement.nomDepartement}` : ''})`
     : '';
 
-  // ✅ CORRECTION : Utilisation du formatage sécurisé dans l'email aussi
   const emailContent = `
 Bonjour ${user.firstName} ${user.lastName},
 
@@ -460,7 +449,7 @@ Nous vous confirmons votre inscription au stage de sécurité routière suivant 
 
 📍 Lieu : ${stage.Titre}
 📍 Adresse : ${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}
-📅 Dates : du ${formatDateFR(stage.DateDebut)} au ${formatDateFR(stage.DateFin)}
+📅 Dates : du ${formatDateForEmail(stage.DateDebut)} au ${formatDateForEmail(stage.DateFin)}
 ⏰ Horaires : ${stage.HeureDebut}-${stage.HeureFin} / ${stage.HeureDebut2}-${stage.HeureFin2}
 🔢 Numéro de stage : ${stage.NumeroStage}${agrementInfo}
 💰 Prix : ${stage.Prix}€
@@ -485,7 +474,7 @@ L'équipe EG-FORMATIONS
   await transporter.sendMail({
     from: `"EG-FORMATIONS" <${process.env.MAIL_USER}>`,
     to: user.email,
-    cc: process.env.MAIL_USER, // ✅ AJOUT : Propriétaire en copie
+    cc: process.env.MAIL_USER, // ✅ CC automatique au propriétaire
     subject: `Convocation stage de sécurité routière - ${stage.Ville}`,
     text: emailContent,
     html: emailContent.replace(/\n/g, '<br>'),
@@ -494,7 +483,7 @@ L'équipe EG-FORMATIONS
         filename: `convocation_stage_${stage.NumeroStage}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
-    },
+      },
     ],
   });
 

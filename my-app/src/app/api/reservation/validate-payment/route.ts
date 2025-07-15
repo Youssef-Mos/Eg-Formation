@@ -1,27 +1,25 @@
-// app/api/reservation/validate-payment/route.ts
+// ===== FICHIER 2: app/api/reservation/validate-payment/route.ts =====
+
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-// ✅ CHANGEMENT : Utiliser directement sendConfirmationEmail qui inclut le CC
 import { sendConfirmationEmail } from "@/app/utils/convocationGeneratorJsPDF";
 
-const prisma = new PrismaClient();
+const prisma2 = new PrismaClient();
 
-// Fonction helper pour mapper le type de stage vers le numéro
 function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
-    "recuperation_points": 1,        // Stage volontaire
-    "permis_probatoire": 2,          // Permis probatoire  
-    "alternative_poursuites": 3,     // Alternative aux poursuites (tribunal)
-    "peine_complementaire": 4        // Peine complémentaire
+    "recuperation_points": 1,
+    "permis_probatoire": 2,
+    "alternative_poursuites": 3,
+    "peine_complementaire": 4
   };
   
-  return typeMapping[typeStage] || 1; // Par défaut : stage volontaire
+  return typeMapping[typeStage] || 1;
 }
 
-export async function POST(request: Request) {
-  // Vérifier l'authentification et le rôle admin
+export async function POST2(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user || session.user.role !== "admin") {
     return NextResponse.json(
@@ -40,13 +38,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Récupérer les détails complets avec l'agrément inclus
-    const reservation = await prisma.reservation.findUnique({
+    const reservation = await prisma2.reservation.findUnique({
       where: { id: Number(reservationId) },
       include: {
         stage: {
           include: {
-            agrement: true // ✅ CRUCIAL : Inclure l'agrément
+            agrement: true
           }
         },
         user: true
@@ -60,7 +57,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Vérifier que la réservation correspond bien à l'utilisateur et au stage
     if (reservation.userId !== Number(userId) || reservation.stageId !== Number(stageId)) {
       return NextResponse.json(
         { error: "Les informations de réservation ne correspondent pas" },
@@ -68,7 +64,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Vérifier si déjà payé
     if (reservation.paid) {
       return NextResponse.json(
         { error: "Cette réservation est déjà marquée comme payée" },
@@ -76,17 +71,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Mettre à jour le statut de paiement
-    const updatedReservation = await prisma.reservation.update({
+    const updatedReservation = await prisma2.reservation.update({
       where: { id: Number(reservationId) },
       data: { paid: true }
     });
 
-    // ✅ CHANGEMENT PRINCIPAL : Utiliser sendConfirmationEmail qui inclut déjà le CC
+    // ✅ Envoi convocation avec dates corrigées (sendConfirmationEmail gère déjà les dates)
     try {
       console.log(`📧 Validation paiement + envoi convocation à ${reservation.user.email}...`);
       
-      // Préparer les données pour sendConfirmationEmail
       const stageData = {
         id: reservation.stage.id,
         Titre: reservation.stage.Titre,
@@ -120,10 +113,6 @@ export async function POST(request: Request) {
         stageType: mapTypeStageToNumber(reservation.TypeStage || "recuperation_points")
       };
 
-      // ✅ Utiliser sendConfirmationEmail qui gère automatiquement :
-      // - Le PDF avec les bonnes dates (corrigées)
-      // - L'email avec CC au propriétaire
-      // - Le formatage français
       await sendConfirmationEmail(userData, stageData, reservationOptions);
       
       console.log(`✅ Convocation envoyée après validation paiement à ${userData.email} (CC: ${process.env.MAIL_USER})`);
@@ -131,8 +120,7 @@ export async function POST(request: Request) {
     } catch (emailError) {
       console.error("❌ Erreur lors de l'envoi de l'email:", emailError);
       
-      // ✅ SÉCURITÉ : Rollback si l'email échoue
-      await prisma.reservation.update({
+      await prisma2.reservation.update({
         where: { id: Number(reservationId) },
         data: { paid: false }
       });
@@ -165,6 +153,6 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await prisma2.$disconnect();
   }
 }

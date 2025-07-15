@@ -1,14 +1,15 @@
-// app/api/reservation/deplacer-resa/route.ts
+// ===== FICHIER 3: app/api/reservation/deplacer-resa/route.ts =====
+
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withAdminAuth, validateRequestData, logApiAccess } from "@/lib/apiSecurity";
 import nodemailer from "nodemailer";
-// IMPORT DU GÉNÉRATEUR jsPDF
 import { generateReservationPDF } from "@/app/utils/convocationGeneratorJsPDF";
+// ✅ IMPORT DES UTILS DE DATE
+import { formatDateForEmail } from "@/app/utils/dateUtils";
 
-const prisma = new PrismaClient();
+const prisma3 = new PrismaClient();
 
-// Validateur pour les données de déplacement
 const isValidMoveData = (data: any): data is { userId: number; fromStageId: number; toStageId: number } => {
   return (
     typeof data === "object" &&
@@ -19,20 +20,19 @@ const isValidMoveData = (data: any): data is { userId: number; fromStageId: numb
   );
 };
 
-// Fonction helper pour mapper le type de stage vers le numéro
-function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
+function mapTypeStageToNumber2(typeStage: string): 1 | 2 | 3 | 4 {
   const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
-    "recuperation_points": 1,        // Stage volontaire
-    "permis_probatoire": 2,          // Permis probatoire  
-    "alternative_poursuites": 3,     // Alternative aux poursuites (tribunal)
-    "peine_complementaire": 4        // Peine complémentaire
+    "recuperation_points": 1,
+    "permis_probatoire": 2,
+    "alternative_poursuites": 3,
+    "peine_complementaire": 4
   };
   
-  return typeMapping[typeStage] || 1; // Par défaut : stage volontaire
+  return typeMapping[typeStage] || 1;
 }
 
-// Fonction pour envoyer l'email avec l'attestation
-async function sendEmailNotification(email: string, userName: string, oldStage: any, newStage: any, pdfBuffer: Buffer) {
+// ✅ Fonction email avec dates corrigées
+async function sendEmailNotification2(email: string, userName: string, oldStage: any, newStage: any, pdfBuffer: Buffer) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -44,17 +44,18 @@ async function sendEmailNotification(email: string, userName: string, oldStage: 
   await transporter.sendMail({
     from: `"EG-Formation" <${process.env.MAIL_USER}>`,
     to: email,
+    cc: process.env.MAIL_USER, // ✅ CC automatique
     subject: "Modification de votre réservation de stage",
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #333; text-align: center;">Modification de votre réservation</h1>
         <p>Bonjour ${userName},</p>
-        <p>Nous vous informons que votre réservation pour le stage initialement prévu le ${new Date(oldStage.DateDebut).toLocaleDateString()} à ${oldStage.Ville} a été déplacée vers un nouveau stage.</p>
+        <p>Nous vous informons que votre réservation pour le stage initialement prévu le ${formatDateForEmail(oldStage.DateDebut)} à ${oldStage.Ville} a été déplacée vers un nouveau stage.</p>
         
         <h2 style="color: #333; margin-top: 20px;">Détails du nouveau stage :</h2>
         <ul>
           <li><strong>Titre :</strong> ${newStage.Titre}</li>
-          <li><strong>Dates :</strong> ${new Date(newStage.DateDebut).toLocaleDateString()} au ${new Date(newStage.DateFin).toLocaleDateString()}</li>
+          <li><strong>Dates :</strong> ${formatDateForEmail(newStage.DateDebut)} au ${formatDateForEmail(newStage.DateFin)}</li>
           <li><strong>Horaires :</strong> ${newStage.HeureDebut} - ${newStage.HeureFin}</li>
           <li><strong>Adresse :</strong> ${newStage.Adresse}, ${newStage.CodePostal} ${newStage.Ville}</li>
           <li><strong>Numéro de stage :</strong> ${newStage.NumeroStage}</li>
@@ -78,7 +79,7 @@ async function sendEmailNotification(email: string, userName: string, oldStage: 
   });
 }
 
-export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
+export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => {
   const { data, error } = await validateRequestData(request, isValidMoveData);
   
   if (error) {
@@ -89,8 +90,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   const { userId, fromStageId, toStageId } = data!;
   
   try {
-    // 1. Récupérer la réservation avec tous ses détails
-    const reservation = await prisma.reservation.findFirst({
+    const reservation = await prisma3.reservation.findFirst({
       where: { userId, stageId: fromStageId },
       include: { user: true }
     });
@@ -103,13 +103,12 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
     
-    // 2. Récupérer les détails des deux stages AVEC L'AGRÉMENT
     const [fromStage, toStage] = await Promise.all([
-      prisma.stage.findUnique({ 
+      prisma3.stage.findUnique({ 
         where: { id: fromStageId },
         include: { agrement: true }
       }),
-      prisma.stage.findUnique({ 
+      prisma3.stage.findUnique({ 
         where: { id: toStageId },
         include: { agrement: true }
       })
@@ -131,29 +130,26 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
     
-    // 3. Mettre à jour la réservation
-    await prisma.reservation.update({
+    await prisma3.reservation.update({
       where: { id: reservation.id },
       data: { stageId: toStageId }
     });
     
-    // 4. Mettre à jour les places disponibles
     await Promise.all([
-      prisma.stage.update({
+      prisma3.stage.update({
         where: { id: fromStageId },
         data: { PlaceDisponibles: { increment: 1 } }
       }),
-      prisma.stage.update({
+      prisma3.stage.update({
         where: { id: toStageId },
         data: { PlaceDisponibles: { decrement: 1 } }
       })
     ]);
     
-    // 5. Générer et envoyer l'attestation avec jsPDF
+    // ✅ Génération PDF avec dates corrigées (generateReservationPDF gère déjà les dates)
     try {
       console.log(`📄 Génération PDF pour déplacement de réservation - User ${userId}, Stage ${toStageId}`);
       
-      // Transformer les données pour correspondre aux interfaces du générateur jsPDF
       const stageData = {
         id: toStage.id,
         Titre: toStage.Titre,
@@ -184,25 +180,22 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       };
 
       const reservationOptions = {
-        stageType: mapTypeStageToNumber(reservation.TypeStage)
+        stageType: mapTypeStageToNumber2(reservation.TypeStage)
       };
 
-      // Générer le PDF avec jsPDF
       const pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);
       
       console.log(`✅ PDF généré avec succès (${pdfBuffer.length} bytes)`);
       
-      // Envoyer l'email de notification
       const userName = reservation.user.firstName || reservation.user.lastName 
         ? `${reservation.user.firstName} ${reservation.user.lastName}`.trim()
         : reservation.user.email;
       
-      await sendEmailNotification(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
-      console.log(`✅ Email de notification envoyé à ${reservation.user.email}`);
+      await sendEmailNotification2(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
+      console.log(`✅ Email de notification envoyé à ${reservation.user.email} (CC: ${process.env.MAIL_USER})`);
       
     } catch (emailError) {
       console.error("❌ Erreur lors de la génération PDF ou envoi email:", emailError);
-      // On continue malgré l'erreur email pour ne pas annuler le déplacement
     }
     
     logApiAccess(request, session, true);
@@ -219,6 +212,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await prisma3.$disconnect();
   }
 });
