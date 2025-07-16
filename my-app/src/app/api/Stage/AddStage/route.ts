@@ -1,7 +1,9 @@
-// app/api/Stage/AddStage/route.ts
+// app/api/Stage/AddStage/route.ts - VERSION CORRIGÉE POUR VERCEL
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withAdminAuth, validateRequestData, validators, logApiAccess } from "@/lib/apiSecurity";
+// ✅ AJOUT : Import des fonctions de date sûres
+import { createSafeDate } from "@/app/utils/dateUtils";
 
 const prisma = new PrismaClient();
 
@@ -19,7 +21,7 @@ type StageData = {
   HeureFin2: string;
   Prix: number;
   NumeroStage?: string;
-  agrementId?: number; // Nouvel ajout pour l'agrément
+  agrementId?: number;
 };
 
 // Validation améliorée pour inclure l'agrément
@@ -44,6 +46,22 @@ const isValidStageData = (data: any): data is StageData => {
   );
 };
 
+// ✅ AJOUT : Fonction de validation des dates améliorée
+const validateStageDate = (dateString: string): boolean => {
+  try {
+    const date = createSafeDate(dateString);
+    const now = new Date();
+    
+    // Vérifier que la date n'est pas dans le passé (optionnel)
+    // return date >= now;
+    
+    // Pour l'instant, on accepte toutes les dates valides
+    return !isNaN(date.getTime());
+  } catch (error) {
+    return false;
+  }
+};
+
 export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   const { data, error } = await validateRequestData<StageData>(request, isValidStageData);
   
@@ -53,6 +71,64 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   }
 
   try {
+    // ✅ CORRECTION : Validation des dates avec createSafeDate
+    if (!validateStageDate(data!.DateDebut)) {
+      logApiAccess(request, session, false, "INVALID_DATE_DEBUT");
+      return NextResponse.json(
+        {
+          error: "Date de début invalide",
+          code: "INVALID_DATE_DEBUT",
+          message: "La date de début fournie n'est pas valide."
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!validateStageDate(data!.DateFin)) {
+      logApiAccess(request, session, false, "INVALID_DATE_FIN");
+      return NextResponse.json(
+        {
+          error: "Date de fin invalide", 
+          code: "INVALID_DATE_FIN",
+          message: "La date de fin fournie n'est pas valide."
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ CORRECTION : Créer les dates avec createSafeDate pour éviter les décalages timezone
+    const dateDebut = createSafeDate(data!.DateDebut);
+    const dateFin = createSafeDate(data!.DateFin);
+    
+    // Validation que date fin > date début
+    if (dateDebut >= dateFin) {
+      logApiAccess(request, session, false, "INVALID_DATES");
+      return NextResponse.json(
+        {
+          error: "Dates invalides",
+          code: "INVALID_DATES",
+          message: "La date de fin doit être postérieure à la date de début."
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ AMÉLIORATION : Validation que la date de début n'est pas trop dans le passé
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    if (dateDebut < oneDayAgo) {
+      logApiAccess(request, session, false, "DATE_IN_PAST");
+      return NextResponse.json(
+        {
+          error: "Date dans le passé",
+          code: "DATE_IN_PAST", 
+          message: "La date de début ne peut pas être antérieure à hier."
+        },
+        { status: 400 }
+      );
+    }
+
     // Vérifier si le numéro de stage existe déjà (si fourni)
     if (data!.NumeroStage) {
       const existingStage = await prisma.stage.findFirst({
@@ -91,27 +167,22 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       }
     }
 
-    // Validation des dates
-    const dateDebut = new Date(data!.DateDebut);
-    const dateFin = new Date(data!.DateFin);
-    
-    if (dateDebut >= dateFin) {
-      logApiAccess(request, session, false, "INVALID_DATES");
-      return NextResponse.json(
-        {
-          error: "Dates invalides",
-          code: "INVALID_DATES",
-          message: "La date de fin doit être postérieure à la date de début."
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validation des horaires
+    // ✅ AMÉLIORATION : Validation des horaires avec fonction dédiée
     const validateTimeFormat = (time: string): boolean => {
       return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time);
     };
 
+    const validateTimeRange = (start: string, end: string): boolean => {
+      const [startHours, startMinutes] = start.split(':').map(Number);
+      const [endHours, endMinutes] = end.split(':').map(Number);
+      
+      const startTime = startHours * 60 + startMinutes;
+      const endTime = endHours * 60 + endMinutes;
+      
+      return endTime > startTime;
+    };
+
+    // Validation format des horaires
     if (!validateTimeFormat(data!.HeureDebut) || !validateTimeFormat(data!.HeureFin) ||
         !validateTimeFormat(data!.HeureDebut2) || !validateTimeFormat(data!.HeureFin2)) {
       logApiAccess(request, session, false, "INVALID_TIME_FORMAT");
@@ -125,7 +196,21 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
 
-    // Créer le stage avec l'agrément
+    // Validation logique des horaires (heure fin > heure début)
+    if (!validateTimeRange(data!.HeureDebut, data!.HeureFin) || 
+        !validateTimeRange(data!.HeureDebut2, data!.HeureFin2)) {
+      logApiAccess(request, session, false, "INVALID_TIME_RANGE");
+      return NextResponse.json(
+        {
+          error: "Plage horaire invalide",
+          code: "INVALID_TIME_RANGE",
+          message: "L'heure de fin doit être postérieure à l'heure de début."
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Créer le stage avec les dates corrigées
     const stage = await prisma.stage.create({
       data: {
         Titre: data!.Titre.trim(),
@@ -133,8 +218,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
         CodePostal: data!.CodePostal.trim(),
         Ville: data!.Ville.trim(),
         PlaceDisponibles: data!.PlaceDisponibles,
-        DateDebut: dateDebut,
-        DateFin: dateFin,
+        DateDebut: dateDebut,  // ✅ Date créée avec createSafeDate
+        DateFin: dateFin,      // ✅ Date créée avec createSafeDate
         HeureDebut: data!.HeureDebut,
         HeureFin: data!.HeureFin,
         HeureDebut2: data!.HeureDebut2,
@@ -148,32 +233,61 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       }
     });
 
+    console.log(`✅ Stage créé avec succès: ${stage.Titre} (${stage.NumeroStage}) - Dates: ${dateDebut.toISOString()} à ${dateFin.toISOString()}`);
+
     logApiAccess(request, session, true);
     return NextResponse.json(
-      { message: "Stage créé avec succès", stage },
+      { 
+        message: "Stage créé avec succès", 
+        stage,
+        debug: {
+          dateDebutReceived: data!.DateDebut,
+          dateFinReceived: data!.DateFin,
+          dateDebutStored: dateDebut.toISOString(),
+          dateFinStored: dateFin.toISOString()
+        }
+      },
       { status: 201 }
     );
 
   } catch (error) {
-    console.error("Erreur API:", error);
+    console.error("❌ Erreur API création stage:", error);
     logApiAccess(request, session, false, "CREATE_FAILED");
     
-    if (typeof error === "object" && error !== null && "code" in error && (error as any).code === 'P2002') {
-      return NextResponse.json(
-        {
-          error: "Conflit de données",
-          code: "DUPLICATE_DATA",
-          message: "Ces données existent déjà dans la base de données."
-        },
-        { status: 409 }
-      );
+    // Gestion spécifique des erreurs Prisma
+    if (typeof error === "object" && error !== null && "code" in error) {
+      const prismaError = error as any;
+      
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json(
+          {
+            error: "Conflit de données",
+            code: "DUPLICATE_DATA",
+            message: "Ces données existent déjà dans la base de données.",
+            details: prismaError.meta?.target || "Champ inconnu"
+          },
+          { status: 409 }
+        );
+      }
+      
+      if (prismaError.code === 'P2003') {
+        return NextResponse.json(
+          {
+            error: "Référence invalide",
+            code: "FOREIGN_KEY_ERROR",
+            message: "L'agrément référencé n'existe pas."
+          },
+          { status: 400 }
+        );
+      }
     }
 
     return NextResponse.json(
       {
         error: "Erreur serveur",
         code: "CREATE_FAILED",
-        message: "Erreur lors de l'ajout du stage."
+        message: "Erreur lors de l'ajout du stage.",
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       },
       { status: 500 }
     );
