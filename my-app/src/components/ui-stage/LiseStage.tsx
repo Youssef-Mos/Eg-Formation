@@ -32,7 +32,6 @@ import {
   AlertCircle,
   EyeOff,  // Pour masquage manuel
   Eye,     // Pour démasquage manuel
-  ClockIcon, // Pour stages terminés
   CheckCircle // Pour stages terminés
 } from "lucide-react";
 import {
@@ -80,24 +79,19 @@ interface ListeStagesProps {
   filters: FilterValues;
 }
 
-// ✅ FONCTION pour vérifier si un stage est terminé (6h00 le jour du début)
-const isStageFinished = (dateDebut: Date): boolean => {
+// ✅ MODIFIÉ : Stage terminé dès l'heure de début du premier jour
+const isStageFinished = (dateDebut: Date, heureDebut: string): boolean => {
   const now = new Date();
   const stageStartDate = new Date(dateDebut);
-  // Fixer l'heure à 6h00 le jour de début du stage
-  stageStartDate.setHours(6, 0, 0, 0);
+  
+  // Extraire l'heure de début (format "HH:MM")
+  const [hours, minutes] = heureDebut.split(':').map(Number);
+  stageStartDate.setHours(hours, minutes, 0, 0);
   
   return now >= stageStartDate;
 };
 
-// ✅ FONCTION pour vérifier si un stage est en cours
-const isStageOngoing = (dateDebut: Date, dateFin: Date): boolean => {
-  const now = new Date();
-  const startDate = new Date(dateDebut);
-  const endDate = new Date(dateFin);
-  
-  return now >= startDate && now <= endDate;
-};
+// ✅ SUPPRIMÉ : isStageOngoing - plus de notion de "stage en cours"
 
 // Fonction pour obtenir un message d'erreur détaillé
 const getDeleteErrorMessage = (errorCode: string, reservationsCount?: number) => {
@@ -139,7 +133,6 @@ const getDeleteErrorMessage = (errorCode: string, reservationsCount?: number) =>
 export default function ListeStages({ filters }: ListeStagesProps) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // ✅ SUPPRIMÉ : const [notifiedStages, setNotifiedStages] = useState<Set<number>>(new Set());
 
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
@@ -278,7 +271,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     };
 
     fetchStages();
-  }, []); // ✅ PLUS DE DÉPENDANCES sur notifiedStages
+  }, []);
 
   const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
@@ -434,9 +427,9 @@ export default function ListeStages({ filters }: ListeStagesProps) {
       return;
     }
 
-    // Vérifier si le stage est terminé
-    if (isStageFinished(stage.DateFin)) {
-      toast.error("Ce stage est terminé. Les réservations ne sont plus possibles.");
+    // ✅ MODIFIÉ : Vérifier si le stage est terminé (dès l'heure de début)
+    if (isStageFinished(stage.DateDebut, stage.HeureDebut)) {
+      toast.error("Ce stage a déjà commencé. Les réservations ne sont plus possibles.");
       return;
     }
 
@@ -460,21 +453,20 @@ export default function ListeStages({ filters }: ListeStagesProps) {
     );
   };
 
-  // ✅ NOUVELLE LOGIQUE DE FILTRAGE avec système de statut et date "à partir de"
+  // ✅ MODIFIÉ : Logique de filtrage sans notion de "stage en cours"
   const filteredStages = stages.filter((stage) => {
-    const isFinished = isStageFinished(stage.DateFin);
-    const isOngoing = isStageOngoing(stage.DateDebut, stage.DateFin);
+    const isFinished = isStageFinished(stage.DateDebut, stage.HeureDebut);
     const isManuallyHidden = stage.hidden; // ✅ Récupéré de la BDD
     
-    // Pour les NON-ADMINS : masquer les stages terminés ET masqués manuellement
+    // ✅ MODIFIÉ : Pour les NON-ADMINS : masquer les stages terminés ET masqués manuellement
     if (!session?.user?.role || session.user.role !== "admin") {
       if (isFinished || isManuallyHidden) return false;
     }
 
-    // ✅ SIMPLIFIÉ : Filtrage par statut de stage
+    // ✅ MODIFIÉ : Filtrage par statut de stage (simplifié)
     if (filters.statutStage !== 'tout') {
       if (filters.statutStage === 'en-cours') {
-        // Afficher tous les stages NON terminés (disponibles + en cours)
+        // Afficher tous les stages NON terminés (disponibles uniquement)
         if (isFinished) return false;
       } else if (filters.statutStage === 'termines') {
         // Ne montrer que les stages terminés
@@ -514,14 +506,14 @@ export default function ListeStages({ filters }: ListeStagesProps) {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedStages = filteredStages.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // ✅ NOUVEAU : Calculer le statut pour l'affichage du header
+  // ✅ MODIFIÉ : Calculer le statut pour l'affichage du header (simplifié)
   const getStatusMessage = () => {
     if (filters.statutStage === 'en-cours') {
       return `${filteredStages.length} stage(s) disponible(s) • Triés par date de stage`;
     } else if (filters.statutStage === 'termines') {
       return `${filteredStages.length} stage(s) terminé(s) • Triés par date de stage`;
     } else {
-      return `${filteredStages.length} stage(s) disponible(s) • Triés par date de stage`;
+      return `${filteredStages.length} stage(s) au total • Triés par date de stage`;
     }
   };
 
@@ -560,12 +552,11 @@ export default function ListeStages({ filters }: ListeStagesProps) {
             {paginatedStages.map((stage) => {
               const isComplete = stage.PlaceDisponibles === 0;
               const isAlmostFull = stage.PlaceDisponibles <= 2 && stage.PlaceDisponibles > 0;
-              const isFinished = isStageFinished(stage.DateFin);
-              const isOngoing = isStageOngoing(stage.DateDebut, stage.DateFin);
+              const isFinished = isStageFinished(stage.DateDebut, stage.HeureDebut); // ✅ MODIFIÉ : utilise HeureDebut
               const isManuallyHidden = stage.hidden; // ✅ De la BDD
               const isHiding = hidingStages.has(stage.id);
               
-              // ✅ Déterminer le style et les badges à afficher
+              // ✅ MODIFIÉ : Déterminer le style sans notion de "stage en cours"
               const cardStyle = isFinished || isManuallyHidden 
                 ? 'bg-gray-100 border-gray-400 opacity-60' 
                 : isComplete 
@@ -596,16 +587,10 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                     </div>
                   )}
 
-                  {/* ✅ Badge "EN COURS" pour les stages actuellement en cours */}
-                  {isOngoing && !isFinished && !isManuallyHidden && (
-                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
-                      <ClockIcon className="w-3 h-3" />
-                      EN COURS
-                    </div>
-                  )}
+                  {/* ✅ SUPPRIMÉ : Badge "EN COURS" */}
 
                   {/* Badge "COMPLET" */}
-                  {isComplete && !isFinished && !isManuallyHidden && !isOngoing && (
+                  {isComplete && !isFinished && !isManuallyHidden && (
                     <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
                       <Ban className="w-3 h-3" />
                       COMPLET
@@ -613,7 +598,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                   )}
 
                   {/* Badge "Dernières places" */}
-                  {isAlmostFull && !isComplete && !isFinished && !isManuallyHidden && !isOngoing && (
+                  {isAlmostFull && !isComplete && !isFinished && !isManuallyHidden && (
                     <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10">
                       <AlertTriangle className="w-3 h-3" />
                       DERNIÈRES PLACES
@@ -805,7 +790,7 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                             size="sm"
                             className={`
                               w-full sm:w-auto cursor-pointer hover:scale-105 transition-transform duration-200 shadow-lg
-                              ${isOngoing 
+                              ${!session 
                                 ? 'bg-green-600 hover:bg-green-700 hover:shadow-green-500/25' 
                                 : isAlmostFull 
                                   ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-orange-500/25' 
@@ -814,11 +799,9 @@ export default function ListeStages({ filters }: ListeStagesProps) {
                             `}
                             onClick={() => handleReservation(stage)}
                           >
-                            {/* ✅ MODIFICATION : Texte différent selon l'état de connexion */}
+                            {/* ✅ MODIFIÉ : Texte simplifié sans "Rejoindre maintenant" */}
                             {!session ? (
                               'S\'inscrire maintenant'
-                            ) : isOngoing ? (
-                              'Rejoindre maintenant !' 
                             ) : isAlmostFull ? (
                               'Réserver vite !' 
                             ) : (
