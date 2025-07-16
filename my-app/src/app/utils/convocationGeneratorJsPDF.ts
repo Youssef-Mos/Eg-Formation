@@ -1,6 +1,6 @@
 // utils/convocationGeneratorJsPDF.ts
 import nodemailer from "nodemailer";
-import { createSafeDate, formatDateLongFR, formatDateForEmail } from "@/app/utils/dateUtils";
+import { formatDateLongFR, formatDateForEmail, formatCurrentDate } from "@/app/utils/dateUtils";
 interface User {
   firstName: string;
   lastName: string;
@@ -74,16 +74,7 @@ function generateClientNumber(): string {
 }
 
 // ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
-function parseDateSafely(dateInput: Date | string): Date {
-   // Utilise createSafeDate pour éviter tout problème de fuseau horaire
-  return createSafeDate(dateInput);
-}
 
-// ✅ FONCTION CORRIGÉE - Formate une date en français sans problème de fuseau horaire
-// ✅ DANS utils/convocationGeneratorJsPDF.ts
-function formatDateFR(dateInput: Date | string): string {
-  return formatDateLongFR(dateInput);
-}
 
 // Génère le PDF de convocation avec jsPDF et logo
 export async function generateReservationPDF(stage: Stage, user: User, options: ReservationOptions): Promise<Buffer> {
@@ -136,18 +127,12 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
         currentY += 5; // Petit espace même sans logo
       }
 
-      // Date actuelle en haut à droite
-      const currentDate = new Date().toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+ 
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(currentDate, pageWidth - margin, currentY, { align: 'right' });
+      const currentDate = formatCurrentDate(); // Format DD/MM/YYYY cohérent
+      doc.text(`Date: ${currentDate}`, pageWidth - margin, currentY, { align: 'right' });
       currentY += 20;
 
       // Titre principal
@@ -204,11 +189,10 @@ export async function generateReservationPDF(stage: Stage, user: User, options: 
       currentY += 10;
 
      // ✅ CORRECTION : Détails des dates et horaires avec formatage sûr
-      doc.text(`${formatDateFR(stage.DateDebut)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}`, margin, currentY);
+      doc.text(`${formatDateLongFR(stage.DateDebut)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}`, margin, currentY);
       currentY += 6;
-      doc.text(`${formatDateFR(stage.DateFin)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}, à l'adresse suivante :`, margin, currentY);
+      doc.text(`${formatDateLongFR(stage.DateFin)} - ${stage.HeureDebut}-${stage.HeureFin}/${stage.HeureDebut2}-${stage.HeureFin2}, à l'adresse suivante :`, margin, currentY);
       currentY += 10;
-
       // Adresse du stage
       doc.setFont('helvetica', 'bold');
       doc.text(stage.Titre.toUpperCase(), margin, currentY);

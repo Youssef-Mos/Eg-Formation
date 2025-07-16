@@ -1,7 +1,6 @@
 // utils/invoiceGeneratorJsPDF.ts
 import nodemailer from "nodemailer";
-import { createSafeDate } from "@/app/utils/dateUtils";
-
+import { formatDateShortFR, formatCurrentDate } from "@/app/utils/dateUtils";
 interface InvoiceData {
   invoiceNumber: string;
   date: Date;
@@ -29,35 +28,7 @@ interface InvoiceData {
   };
 }
 
-// ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
-function parseDateSafely(dateInput: Date | string): Date {
-  // Utilise createSafeDate pour éviter tout problème de fuseau horaire
-  return createSafeDate(dateInput);
-}
 
-// ✅ FONCTION UTILITAIRE - Formate une date en français sans problème de fuseau horaire
-function formatDateSafeFR(dateInput: Date | string): string {
-  const date = parseDateSafely(dateInput);
-  
-  // ✅ SOLUTION : Utiliser timeZone: "UTC" pour éviter les décalages
-  return date.toLocaleDateString('fr-FR', {
-    timeZone: "UTC",
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long', 
-    day: 'numeric'
-  });
-}
-
-// ✅ FONCTION UTILITAIRE - Formate une date courte en français sans problème de fuseau horaire
-function formatDateShortFR(dateInput: Date | string): string {
-  const date = parseDateSafely(dateInput);
-  
-  // ✅ SOLUTION : Utiliser timeZone: "UTC" pour éviter les décalages
-  return date.toLocaleDateString('fr-FR', {
-    timeZone: "UTC"
-  });
-}
 
 // Générateur de numéro de facture
 export function generateInvoiceNumber(): string {
@@ -93,13 +64,8 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<Buff
       // Date
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      const dateStr = new Date().toLocaleDateString('fr-FR', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      doc.text(dateStr, 20, currentY);
+      const dateStr = formatCurrentDate(); // Format DD/MM/YYYY cohérent
+      doc.text(`Date: ${dateStr}`, 20, currentY);
       currentY += 15;
 
       // Numéro client
