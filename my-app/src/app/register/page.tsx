@@ -1109,7 +1109,7 @@ function RegisterContent() {
                             onSelect={(date) => handleDateChange("permitDate", date)}
                             initialFocus
                             captionLayout="dropdown-buttons"
-                            fromYear={1970}
+                            fromYear={1930}
                             toYear={2025}
                           />
                         </PopoverContent>

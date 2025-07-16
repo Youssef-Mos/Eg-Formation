@@ -1,5 +1,6 @@
 // utils/invoiceGeneratorJsPDF.ts
 import nodemailer from "nodemailer";
+import { formatDateShortFR } from "@/app/utils/dateUtils";
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -245,11 +246,11 @@ Vous trouverez ci-joint votre facture n° ${invoiceData.invoiceNumber}.
 
 📋 Détails du stage :
 • Titre : ${invoiceData.stage.title}
-• Date : ${invoiceData.stage.date.toLocaleDateString('fr-FR')}
+• Date : ${formatDateShortFR(invoiceData.stage.date)}
 • Numéro de stage : ${invoiceData.stage.numeroStage}
 • Montant : ${invoiceData.stage.price}€
 
-✅ Paiement confirmé le ${invoiceData.payment.paymentDate.toLocaleDateString('fr-FR')}
+✅ Paiement confirmé le ${formatDateShortFR(invoiceData.payment.paymentDate)}
 
 Pour toute question, n'hésitez pas à nous contacter au 07 83 37 25 65.
 

@@ -1,5 +1,6 @@
 // utils/invoiceGeneratorJsPDF.ts
 import nodemailer from "nodemailer";
+import { createSafeDate } from "@/app/utils/dateUtils";
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -30,23 +31,8 @@ interface InvoiceData {
 
 // ✅ FONCTION UTILITAIRE - Parse une date de façon sûre sans problème de timezone
 function parseDateSafely(dateInput: Date | string): Date {
-  if (dateInput instanceof Date) {
-    return dateInput;
-  }
-  
-  // Si c'est une string au format YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
-  const dateStr = dateInput.toString();
-  
-  if (dateStr.includes('T')) {
-    // Si la date contient une heure, on prend juste la partie date
-    const datePart = dateStr.split('T')[0];
-    const [year, month, day] = datePart.split('-').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day); // Mois en base 0
-  } else {
-    // Format YYYY-MM-DD simple
-    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-    return new Date(year, month - 1, day); // Mois en base 0
-  }
+  // Utilise createSafeDate pour éviter tout problème de fuseau horaire
+  return createSafeDate(dateInput);
 }
 
 // ✅ FONCTION UTILITAIRE - Formate une date en français sans problème de fuseau horaire

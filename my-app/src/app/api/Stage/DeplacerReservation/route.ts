@@ -56,7 +56,7 @@ async function sendEmailNotification2(email: string, userName: string, oldStage:
         <ul>
           <li><strong>Titre :</strong> ${newStage.Titre}</li>
           <li><strong>Dates :</strong> ${formatDateForEmail(newStage.DateDebut)} au ${formatDateForEmail(newStage.DateFin)}</li>
-          <li><strong>Horaires :</strong> ${newStage.HeureDebut} - ${newStage.HeureFin}</li>
+          <li><strong>Horaires :</strong> ${newStage.HeureDebut}-${newStage.HeureFin} / ${newStage.HeureDebut2}-${newStage.HeureFin2}</li>
           <li><strong>Adresse :</strong> ${newStage.Adresse}, ${newStage.CodePostal} ${newStage.Ville}</li>
           <li><strong>Numéro de stage :</strong> ${newStage.NumeroStage}</li>
         </ul>
