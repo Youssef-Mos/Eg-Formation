@@ -1,4 +1,4 @@
-// ===== FICHIER 2: app/api/reservation/validate-payment/route.ts =====
+// ===== FICHIER CORRIGÉ: app/api/reservation/validate-payment/route.ts =====
 
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -6,7 +6,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sendConfirmationEmail } from "@/app/utils/convocationGeneratorJsPDF";
 
-const prisma2 = new PrismaClient();
+// Renommé prisma2 en prisma (plus conventionnel)
+const prisma = new PrismaClient();
 
 function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
@@ -19,7 +20,8 @@ function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   return typeMapping[typeStage] || 1;
 }
 
-export async function POST2(request: Request) {
+// ✅ CORRECTION PRINCIPALE: POST2 → POST
+export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user || session.user.role !== "admin") {
     return NextResponse.json(
@@ -38,7 +40,7 @@ export async function POST2(request: Request) {
       );
     }
 
-    const reservation = await prisma2.reservation.findUnique({
+    const reservation = await prisma.reservation.findUnique({
       where: { id: Number(reservationId) },
       include: {
         stage: {
@@ -71,7 +73,7 @@ export async function POST2(request: Request) {
       );
     }
 
-    const updatedReservation = await prisma2.reservation.update({
+    const updatedReservation = await prisma.reservation.update({
       where: { id: Number(reservationId) },
       data: { paid: true }
     });
@@ -120,7 +122,8 @@ export async function POST2(request: Request) {
     } catch (emailError) {
       console.error("❌ Erreur lors de l'envoi de l'email:", emailError);
       
-      await prisma2.reservation.update({
+      // Rollback du paiement en cas d'erreur email
+      await prisma.reservation.update({
         where: { id: Number(reservationId) },
         data: { paid: false }
       });
@@ -153,6 +156,6 @@ export async function POST2(request: Request) {
       { status: 500 }
     );
   } finally {
-    await prisma2.$disconnect();
+    await prisma.$disconnect();
   }
 }
