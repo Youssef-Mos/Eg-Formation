@@ -1,14 +1,14 @@
-// app/api/reservation/deplacer-resa/route.ts - VERSION CORRIGÉE POUR VERCEL
+// app/api/reservation/deplacer-resa/route.ts - VERSION NETTOYÉE
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withAdminAuth, validateRequestData, logApiAccess } from "@/lib/apiSecurity";
 import nodemailer from "nodemailer";
 import { generateReservationPDF } from "@/app/utils/convocationGeneratorJsPDF";
-// ✅ CORRECTION : Utiliser UNIQUEMENT les fonctions du dateUtils centralisé
 import { formatDateForEmail, formatCurrentDate } from "@/app/utils/dateUtils";
 
-const prisma3 = new PrismaClient();
+// ✅ Utilisation d'un nom standard
+const prisma = new PrismaClient();
 
 const isValidMoveData = (data: any): data is { userId: number; fromStageId: number; toStageId: number } => {
   return (
@@ -20,7 +20,8 @@ const isValidMoveData = (data: any): data is { userId: number; fromStageId: numb
   );
 };
 
-function mapTypeStageToNumber2(typeStage: string): 1 | 2 | 3 | 4 {
+// ✅ Éviter la duplication - importer depuis un fichier commun
+function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
     "recuperation_points": 1,
     "permis_probatoire": 2,
@@ -31,8 +32,14 @@ function mapTypeStageToNumber2(typeStage: string): 1 | 2 | 3 | 4 {
   return typeMapping[typeStage] || 1;
 }
 
-// ✅ FONCTION EMAIL CORRIGÉE avec dates sûres
-async function sendEmailNotification2(email: string, userName: string, oldStage: any, newStage: any, pdfBuffer: Buffer) {
+// ✅ Fonction email simplifiée
+async function sendMoveNotificationEmail(
+  email: string, 
+  userName: string, 
+  oldStage: any, 
+  newStage: any, 
+  pdfBuffer: Buffer
+) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -41,7 +48,6 @@ async function sendEmailNotification2(email: string, userName: string, oldStage:
     },
   });
 
-  // ✅ Message HTML corrigé avec formatage de dates sûr
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #333; text-align: center;">Modification de votre réservation</h1>
@@ -76,7 +82,6 @@ async function sendEmailNotification2(email: string, userName: string, oldStage:
     </div>
   `;
 
-  // ✅ Version texte avec formatage de dates sûr
   const textContent = `
 Modification de votre réservation
 
@@ -111,7 +116,7 @@ Email généré automatiquement le ${formatCurrentDate()}
   await transporter.sendMail({
     from: `"EG-Formation" <${process.env.MAIL_USER}>`,
     to: email,
-    cc: process.env.MAIL_USER, // ✅ CC automatique
+    cc: process.env.MAIL_USER,
     subject: `✅ Modification de votre réservation - Nouveau stage ${newStage.Ville} (${newStage.NumeroStage})`,
     text: textContent,
     html: htmlContent,
@@ -125,7 +130,8 @@ Email généré automatiquement le ${formatCurrentDate()}
   });
 }
 
-export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => {
+// ✅ Export direct avec un nom clair
+export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   const { data, error } = await validateRequestData(request, isValidMoveData);
   
   if (error) {
@@ -137,7 +143,7 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
   
   try {
     // Récupérer la réservation existante
-    const reservation = await prisma3.reservation.findFirst({
+    const reservation = await prisma.reservation.findFirst({
       where: { userId, stageId: fromStageId },
       include: { user: true }
     });
@@ -152,11 +158,11 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
     
     // Récupérer les détails des stages avec leurs agréments
     const [fromStage, toStage] = await Promise.all([
-      prisma3.stage.findUnique({ 
+      prisma.stage.findUnique({ 
         where: { id: fromStageId },
         include: { agrement: true }
       }),
-      prisma3.stage.findUnique({ 
+      prisma.stage.findUnique({ 
         where: { id: toStageId },
         include: { agrement: true }
       })
@@ -179,8 +185,8 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
       );
     }
     
-    // ✅ Transaction pour déplacer la réservation
-    await prisma3.$transaction(async (tx) => {
+    // Transaction pour déplacer la réservation
+    await prisma.$transaction(async (tx) => {
       // Mettre à jour la réservation
       await tx.reservation.update({
         where: { id: reservation.id },
@@ -199,11 +205,11 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
       });
     });
     
-    // ✅ Génération PDF et envoi email avec gestion d'erreur
+    // Génération PDF et envoi email avec gestion d'erreur
     try {
       console.log(`📄 Génération PDF pour déplacement de réservation - User ${userId}, Stage ${toStageId}`);
       
-      // Préparer les données pour le PDF avec le bon format
+      // Préparer les données pour le PDF
       const stageData = {
         id: toStage.id,
         Titre: toStage.Titre,
@@ -234,7 +240,7 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
       };
 
       const reservationOptions = {
-        stageType: mapTypeStageToNumber2(reservation.TypeStage)
+        stageType: mapTypeStageToNumber(reservation.TypeStage)
       };
 
       // Générer le PDF
@@ -247,7 +253,7 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
         : reservation.user.email;
       
       // Envoyer l'email de notification
-      await sendEmailNotification2(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
+      await sendMoveNotificationEmail(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
       console.log(`✅ Email de notification envoyé à ${reservation.user.email} (CC: ${process.env.MAIL_USER})`);
       
     } catch (emailError) {
@@ -287,9 +293,6 @@ export const POST3 = withAdminAuth(async (request: NextRequest, { session }) => 
       { status: 500 }
     );
   } finally {
-    await prisma3.$disconnect();
+    await prisma.$disconnect();
   }
 });
-
-// Export par défaut pour Next.js
-export const POST = POST3;

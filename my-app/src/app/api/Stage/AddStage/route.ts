@@ -1,9 +1,7 @@
-// app/api/Stage/AddStage/route.ts - VERSION CORRIGÉE POUR VERCEL
+// app/api/Stage/AddStage/route.ts - VERSION ULTRA SIMPLE VERCEL
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { withAdminAuth, validateRequestData, validators, logApiAccess } from "@/lib/apiSecurity";
-// ✅ AJOUT : Import des fonctions de date sûres
-import { createSafeDate } from "@/app/utils/dateUtils";
 
 const prisma = new PrismaClient();
 
@@ -13,8 +11,8 @@ type StageData = {
   CodePostal: string;
   Ville: string;
   PlaceDisponibles: number;
-  DateDebut: string;
-  DateFin: string;
+  DateDebut: string; // ✅ MAINTENANT STRING FORMAT YYYY-MM-DD
+  DateFin: string;   // ✅ MAINTENANT STRING FORMAT YYYY-MM-DD
   HeureDebut: string;
   HeureFin: string;
   HeureDebut2: string;
@@ -23,6 +21,19 @@ type StageData = {
   NumeroStage?: string;
   agrementId?: number;
 };
+
+// ✅ FONCTION ULTRA SIMPLE pour créer une date à midi UTC
+function createDateAtNoonUTC(dateString: string): Date {
+  // dateString format: "2024-01-15"
+  const [year, month, day] = dateString.split('-').map(Number);
+  
+  if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+    throw new Error(`Format de date invalide: ${dateString}`);
+  }
+  
+  // Créer directement à midi UTC - AUCUN décalage possible
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
 
 // Validation améliorée pour inclure l'agrément
 const isValidStageData = (data: any): data is StageData => {
@@ -34,8 +45,8 @@ const isValidStageData = (data: any): data is StageData => {
     typeof data.CodePostal === 'string' && data.CodePostal.trim().length > 0 &&
     typeof data.Ville === 'string' && data.Ville.trim().length > 0 &&
     typeof data.PlaceDisponibles === 'number' && data.PlaceDisponibles > 0 &&
-    typeof data.DateDebut === 'string' &&
-    typeof data.DateFin === 'string' &&
+    typeof data.DateDebut === 'string' && data.DateDebut.length > 0 &&
+    typeof data.DateFin === 'string' && data.DateFin.length > 0 &&
     typeof data.HeureDebut === 'string' &&
     typeof data.HeureFin === 'string' &&
     typeof data.HeureDebut2 === 'string' &&
@@ -46,16 +57,10 @@ const isValidStageData = (data: any): data is StageData => {
   );
 };
 
-// ✅ AJOUT : Fonction de validation des dates améliorée
-const validateStageDate = (dateString: string): boolean => {
+// ✅ Validation date simplifiée
+const validateDateString = (dateString: string): boolean => {
   try {
-    const date = createSafeDate(dateString);
-    const now = new Date();
-    
-    // Vérifier que la date n'est pas dans le passé (optionnel)
-    // return date >= now;
-    
-    // Pour l'instant, on accepte toutes les dates valides
+    const date = createDateAtNoonUTC(dateString);
     return !isNaN(date.getTime());
   } catch (error) {
     return false;
@@ -71,8 +76,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   }
 
   try {
-    // ✅ CORRECTION : Validation des dates avec createSafeDate
-    if (!validateStageDate(data!.DateDebut)) {
+    // ✅ Validation des dates avec la nouvelle fonction simple
+    if (!validateDateString(data!.DateDebut)) {
       logApiAccess(request, session, false, "INVALID_DATE_DEBUT");
       return NextResponse.json(
         {
@@ -84,7 +89,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
 
-    if (!validateStageDate(data!.DateFin)) {
+    if (!validateDateString(data!.DateFin)) {
       logApiAccess(request, session, false, "INVALID_DATE_FIN");
       return NextResponse.json(
         {
@@ -96,9 +101,15 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
 
-    // ✅ CORRECTION : Créer les dates avec createSafeDate pour éviter les décalages timezone
-    const dateDebut = createSafeDate(data!.DateDebut);
-    const dateFin = createSafeDate(data!.DateFin);
+    // ✅ CORRECTION PRINCIPALE : Créer les dates à midi UTC - JAMAIS de décalage
+    const dateDebut = createDateAtNoonUTC(data!.DateDebut);
+    const dateFin = createDateAtNoonUTC(data!.DateFin);
+    
+    console.log(`🔍 DATES DEBUG:`);
+    console.log(`   String reçu début: ${data!.DateDebut}`);
+    console.log(`   String reçu fin: ${data!.DateFin}`);
+    console.log(`   Date créée début: ${dateDebut.toISOString()}`);
+    console.log(`   Date créée fin: ${dateFin.toISOString()}`);
     
     // Validation que date fin > date début
     if (dateDebut >= dateFin) {
@@ -113,7 +124,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
 
-    // ✅ AMÉLIORATION : Validation que la date de début n'est pas trop dans le passé
+    // ✅ Validation que la date de début n'est pas trop dans le passé
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     
@@ -167,7 +178,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       }
     }
 
-    // ✅ AMÉLIORATION : Validation des horaires avec fonction dédiée
+    // ✅ Validation des horaires
     const validateTimeFormat = (time: string): boolean => {
       return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time);
     };
@@ -210,7 +221,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       );
     }
 
-    // ✅ Créer le stage avec les dates corrigées
+    // ✅ Créer le stage avec les dates à midi UTC (jamais de décalage)
     const stage = await prisma.stage.create({
       data: {
         Titre: data!.Titre.trim(),
@@ -218,8 +229,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
         CodePostal: data!.CodePostal.trim(),
         Ville: data!.Ville.trim(),
         PlaceDisponibles: data!.PlaceDisponibles,
-        DateDebut: dateDebut,  // ✅ Date créée avec createSafeDate
-        DateFin: dateFin,      // ✅ Date créée avec createSafeDate
+        DateDebut: dateDebut,  // ✅ Date créée à midi UTC
+        DateFin: dateFin,      // ✅ Date créée à midi UTC
         HeureDebut: data!.HeureDebut,
         HeureFin: data!.HeureFin,
         HeureDebut2: data!.HeureDebut2,
@@ -233,7 +244,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       }
     });
 
-    console.log(`✅ Stage créé avec succès: ${stage.Titre} (${stage.NumeroStage}) - Dates: ${dateDebut.toISOString()} à ${dateFin.toISOString()}`);
+    console.log(`✅ Stage créé avec succès: ${stage.Titre} (${stage.NumeroStage})`);
+    console.log(`   Dates stockées: ${stage.DateDebut.toISOString()} à ${stage.DateFin.toISOString()}`);
 
     logApiAccess(request, session, true);
     return NextResponse.json(
@@ -243,8 +255,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
         debug: {
           dateDebutReceived: data!.DateDebut,
           dateFinReceived: data!.DateFin,
-          dateDebutStored: dateDebut.toISOString(),
-          dateFinStored: dateFin.toISOString()
+          dateDebutStored: stage.DateDebut.toISOString(),
+          dateFinStored: stage.DateFin.toISOString()
         }
       },
       { status: 201 }

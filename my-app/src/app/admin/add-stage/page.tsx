@@ -24,6 +24,14 @@ import {
 import { motion } from "framer-motion";
 import AuthGuard from "@/components/auth/AuthGuard";
 
+// ✅ FONCTION UTILITAIRE pour convertir Date en string YYYY-MM-DD
+function formatDateForApi(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function AddStagePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +58,7 @@ export default function AddStagePage() {
     setIsLoading(true);
     
     try {
+      // ✅ CORRECTION PRINCIPALE: Envoyer les dates au format string YYYY-MM-DD
       const res = await fetch("/api/Stage/AddStage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,8 +67,9 @@ export default function AddStagePage() {
           PlaceDisponibles: Number(formData.PlaceDisponibles),
           NumeroStage: String(formData.NumeroStage),
           Prix: Number(formData.Prix),
-          DateDebut: new Date(formData.DateDebut),
-          DateFin: new Date(formData.DateFin),
+          // ✅ Conversion des dates en string format YYYY-MM-DD
+          DateDebut: formatDateForApi(formData.DateDebut),
+          DateFin: formatDateForApi(formData.DateFin),
           agrementId: formData.agrementId ? Number(formData.agrementId) : undefined,
         }),
       });
