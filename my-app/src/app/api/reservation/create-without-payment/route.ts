@@ -267,10 +267,6 @@ Date de réservation : ${formatCurrentDate()}
               </ol>
             </div>
 
-            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
-              <p style="color: #721c24; margin: 0;"><strong>⏰ DÉLAI :</strong> Merci d'effectuer le paiement dans les 7 jours pour conserver votre place.</p>
-            </div>
-
             <p style="text-align: center; margin-top: 30px;">
               <strong>📞 Questions ? Contactez-nous au 0783372565</strong>
             </p>
