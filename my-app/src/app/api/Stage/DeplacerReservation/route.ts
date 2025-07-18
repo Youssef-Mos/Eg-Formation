@@ -1,4 +1,4 @@
-// app/api/reservation/deplacer-resa/route.ts - VERSION NETTOYÉE
+// app/api/reservation/deplacer-resa/route.ts - VERSION CORRIGÉE POUR PAIEMENT
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -7,7 +7,6 @@ import nodemailer from "nodemailer";
 import { generateReservationPDF } from "@/app/utils/convocationGeneratorJsPDF";
 import { formatDateForEmail, formatCurrentDate } from "@/app/utils/dateUtils";
 
-// ✅ Utilisation d'un nom standard
 const prisma = new PrismaClient();
 
 const isValidMoveData = (data: any): data is { userId: number; fromStageId: number; toStageId: number } => {
@@ -20,7 +19,6 @@ const isValidMoveData = (data: any): data is { userId: number; fromStageId: numb
   );
 };
 
-// ✅ Éviter la duplication - importer depuis un fichier commun
 function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   const typeMapping: Record<string, 1 | 2 | 3 | 4> = {
     "recuperation_points": 1,
@@ -32,13 +30,15 @@ function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   return typeMapping[typeStage] || 1;
 }
 
-// ✅ Fonction email simplifiée
+// ✅ FONCTION EMAIL CORRIGÉE - Prend en compte le statut de paiement
 async function sendMoveNotificationEmail(
   email: string, 
   userName: string, 
   oldStage: any, 
   newStage: any, 
-  pdfBuffer: Buffer
+  pdfBuffer: Buffer,
+  isPaid: boolean, // ✅ NOUVEAU PARAMÈTRE
+  paymentMethod: string // ✅ NOUVEAU PARAMÈTRE
 ) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -48,6 +48,16 @@ async function sendMoveNotificationEmail(
     },
   });
 
+  // ✅ Traduction des méthodes de paiement
+  const paymentMethodFR = {
+    'bank_transfer': 'Virement bancaire',
+    'check': 'Chèque', 
+    'cash': 'Espèces',
+    'card': 'Carte bancaire'
+  };
+  const methodeFR = paymentMethodFR[paymentMethod as keyof typeof paymentMethodFR] || paymentMethod;
+
+  // ✅ CONTENU ADAPTÉ selon le statut de paiement
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #333; text-align: center;">Modification de votre réservation</h1>
@@ -61,13 +71,31 @@ async function sendMoveNotificationEmail(
         <li><strong>Horaires :</strong> ${newStage.HeureDebut}-${newStage.HeureFin} / ${newStage.HeureDebut2}-${newStage.HeureFin2}</li>
         <li><strong>Adresse :</strong> ${newStage.Adresse}, ${newStage.CodePostal} ${newStage.Ville}</li>
         <li><strong>Numéro de stage :</strong> ${newStage.NumeroStage}</li>
+        <li><strong>Prix :</strong> ${newStage.Prix}€</li>
       </ul>
       
-      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
-        <p style="margin: 0;"><strong>✅ Important :</strong></p>
-        <p style="margin: 5px 0 0 0;">Vous trouverez ci-joint votre nouvelle attestation de réservation.</p>
-        <p style="margin: 5px 0 0 0;">Cette modification n'affecte pas votre statut de paiement.</p>
-      </div>
+      ${isPaid ? `
+        <!-- ✅ CLIENT PAYÉ -->
+        <div style="background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+          <p style="margin: 0;"><strong>✅ Paiement confirmé</strong></p>
+          <p style="margin: 5px 0 0 0;">Vous trouverez ci-joint votre nouvelle attestation de réservation.</p>
+          <p style="margin: 5px 0 0 0;">Cette modification n'affecte pas votre statut de paiement.</p>
+        </div>
+      ` : `
+        <!-- ⚠️ CLIENT NON PAYÉ -->
+        <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+          <p style="margin: 0;"><strong>⚠️ Paiement requis</strong></p>
+          <p style="margin: 5px 0 0 0;">ATTENTION : Votre place a été déplacée mais vous devez encore effectuer le paiement.</p>
+          <p style="margin: 5px 0 0 0;"><strong>Méthode de paiement :</strong> ${methodeFR}</p>
+          <p style="margin: 5px 0 0 0;"><strong>Montant :</strong> ${newStage.Prix}€</p>
+        </div>
+        
+        <div style="background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
+          <p style="margin: 0; color: #721c24;"><strong>🚨 IMPORTANT</strong></p>
+          <p style="margin: 5px 0 0 0; color: #721c24;">Vous devez effectuer le paiement dans les 7 jours pour conserver votre place dans le nouveau stage.</p>
+          <p style="margin: 5px 0 0 0; color: #721c24;">Sans paiement, votre réservation sera annulée.</p>
+        </div>
+      `}
       
       <p>Vous pouvez également télécharger cette attestation depuis votre espace personnel sur notre site.</p>
       <p>Si vous avez des questions, n'hésitez pas à nous contacter au <strong>0783372565</strong>.</p>
@@ -97,10 +125,22 @@ DÉTAILS DU NOUVEAU STAGE :
 • Horaires : ${newStage.HeureDebut}-${newStage.HeureFin} / ${newStage.HeureDebut2}-${newStage.HeureFin2}
 • Adresse : ${newStage.Adresse}, ${newStage.CodePostal} ${newStage.Ville}
 • Numéro de stage : ${newStage.NumeroStage}
+• Prix : ${newStage.Prix}€
 
-✅ IMPORTANT :
+${isPaid ? `
+✅ PAIEMENT CONFIRMÉ :
 Vous trouverez ci-joint votre nouvelle attestation de réservation.
 Cette modification n'affecte pas votre statut de paiement.
+` : `
+⚠️ PAIEMENT REQUIS :
+ATTENTION : Votre place a été déplacée mais vous devez encore effectuer le paiement.
+
+🚨 IMPORTANT :
+• Méthode de paiement : ${methodeFR}
+• Montant : ${newStage.Prix}€  
+• Délai : 7 jours pour conserver votre place
+• Sans paiement, votre réservation sera annulée.
+`}
 
 Vous pouvez également télécharger cette attestation depuis votre espace personnel sur notre site.
 
@@ -113,11 +153,16 @@ L'équipe EG-Formation
 Email généré automatiquement le ${formatCurrentDate()}
   `;
 
+  // ✅ Sujet adapté selon le statut de paiement
+  const subject = isPaid 
+    ? `✅ Modification de votre réservation - Nouveau stage ${newStage.Ville} (${newStage.NumeroStage})`
+    : `⚠️ Stage déplacé + Paiement requis - ${newStage.Ville} (${newStage.NumeroStage})`;
+
   await transporter.sendMail({
     from: `"EG-Formation" <${process.env.MAIL_USER}>`,
     to: email,
     cc: process.env.MAIL_USER,
-    subject: `✅ Modification de votre réservation - Nouveau stage ${newStage.Ville} (${newStage.NumeroStage})`,
+    subject,
     text: textContent,
     html: htmlContent,
     attachments: [
@@ -130,7 +175,6 @@ Email généré automatiquement le ${formatCurrentDate()}
   });
 }
 
-// ✅ Export direct avec un nom clair
 export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
   const { data, error } = await validateRequestData(request, isValidMoveData);
   
@@ -208,6 +252,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
     // Génération PDF et envoi email avec gestion d'erreur
     try {
       console.log(`📄 Génération PDF pour déplacement de réservation - User ${userId}, Stage ${toStageId}`);
+      console.log(`💰 Statut paiement: ${reservation.paid ? 'PAYÉ' : 'NON PAYÉ'} (${reservation.paymentMethod})`);
       
       // Préparer les données pour le PDF
       const stageData = {
@@ -252,22 +297,31 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
         ? `${reservation.user.firstName} ${reservation.user.lastName}`.trim()
         : reservation.user.email;
       
-      // Envoyer l'email de notification
-      await sendMoveNotificationEmail(reservation.user.email, userName, fromStage, toStage, pdfBuffer);
-      console.log(`✅ Email de notification envoyé à ${reservation.user.email} (CC: ${process.env.MAIL_USER})`);
+      // ✅ Envoyer l'email avec le statut de paiement
+      await sendMoveNotificationEmail(
+        reservation.user.email, 
+        userName, 
+        fromStage, 
+        toStage, 
+        pdfBuffer,
+        reservation.paid, // ✅ STATUT PAIEMENT
+        reservation.paymentMethod // ✅ MÉTHODE PAIEMENT
+      );
+      console.log(`✅ Email de notification envoyé à ${reservation.user.email} (Statut: ${reservation.paid ? 'PAYÉ' : 'NON PAYÉ'})`);
       
     } catch (emailError) {
       console.error("❌ Erreur lors de la génération PDF ou envoi email:", emailError);
-      // Ne pas faire échouer la transaction, mais logger l'erreur
       console.error("📧 Le déplacement a réussi mais l'email n'a pas pu être envoyé");
     }
     
     logApiAccess(request, session, true);
     return NextResponse.json({ 
       success: true,
-      message: "Réservation déplacée avec succès et client notifié par email",
+      message: `Réservation déplacée avec succès. Client notifié par email ${reservation.paid ? '(payé)' : '(paiement requis)'}.`,
       data: {
         reservationId: reservation.id,
+        paid: reservation.paid, // ✅ AJOUT du statut de paiement dans la réponse
+        paymentMethod: reservation.paymentMethod,
         fromStage: {
           id: fromStage.id,
           title: fromStage.Titre,

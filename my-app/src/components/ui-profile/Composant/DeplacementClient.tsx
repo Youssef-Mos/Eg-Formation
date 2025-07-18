@@ -1,4 +1,4 @@
-// components/Composant/DeplacementClient.tsx
+// components/Composant/DeplacementClient.tsx - VERSION CORRIGÉE
 "use client";
 
 import { useState } from "react";
@@ -94,7 +94,7 @@ export function DeplacementClient({
     try {
       if (setGlobalLoading) setGlobalLoading(true);
       
-      const response = await fetch("/api/Stage/DeplacerReservation", {
+      const response = await fetch("/api/reservation/deplacer-resa", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +111,18 @@ export function DeplacementClient({
         throw new Error(error.error || "Échec du déplacement");
       }
 
-      toast.success(`${user.prenom} ${user.nom} a été déplacé avec succès`);
+      // ✅ RÉCUPÉRER LE STATUT DE PAIEMENT DE LA RÉPONSE
+      const result = await response.json();
+      const isPaid = result.data?.paid || false;
+      const paymentMethod = result.data?.paymentMethod || 'card';
+      
+      // ✅ MESSAGE ADAPTÉ selon le statut de paiement
+      if (isPaid) {
+        toast.success(`✅ ${user.prenom} ${user.nom} a été déplacé avec succès (payé)`);
+      } else {
+        toast.warning(`⚠️ ${user.prenom} ${user.nom} a été déplacé mais doit encore payer (${paymentMethod})`);
+      }
+      
       setSuccess(true);
       
       // Attendre un peu avant de fermer le dialogue pour montrer le succès
@@ -143,7 +154,7 @@ export function DeplacementClient({
         <DialogHeader>
           <DialogTitle>Déplacer {user.prenom} {user.nom}</DialogTitle>
           <DialogDescription>
-            Sélectionnez un stage disponible pour y déplacer ce participant. Un email de notification sera envoyé au client.
+            Sélectionnez un stage disponible pour y déplacer ce participant. Un email de notification sera envoyé au client avec les instructions appropriées selon son statut de paiement.
           </DialogDescription>
         </DialogHeader>
         
@@ -210,6 +221,20 @@ export function DeplacementClient({
                 </div>
               </div>
             )}
+            
+            {/* ✅ NOUVEAU : Avertissement sur le statut de paiement */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="text-sm text-amber-800">
+                <div className="font-medium mb-1">ℹ️ Information importante :</div>
+                <div className="text-xs">
+                  L'email de notification sera adapté selon le statut de paiement du client :
+                  <ul className="mt-1 ml-4 space-y-1">
+                    <li>• ✅ <strong>Payé</strong> : Convocation avec nouveau stage</li>
+                    <li>• ⚠️ <strong>Non payé</strong> : Rappel de paiement requis</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         )}
         
