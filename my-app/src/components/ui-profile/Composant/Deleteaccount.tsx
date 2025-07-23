@@ -49,7 +49,9 @@ import {
   Cookie,
   Clock,
   Trash,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  MapPin
 } from "lucide-react";
 import { useCookieConsent } from "@/components/Cookies/cookie-consent";
 
@@ -59,6 +61,14 @@ type ShowPasswordsState = Record<PasswordFieldKey, boolean>;
 
 type CookieCategory = 'necessary' | 'analytics' | 'marketing' | 'preferences';
 type ConsentData = Record<CookieCategory, boolean>;
+
+// ✅ Type pour les réservations actives
+interface ActiveReservation {
+  stageTitle: string;
+  city: string;
+  startDate: string;
+  endDate: string;
+}
 
 // Composant de validation du mot de passe
 const PasswordValidator = ({ password }: { password: string }) => {
@@ -147,7 +157,6 @@ const CookieManagement = () => {
   const updateConsent = async () => {
     setIsUpdating(true);
     try {
-      // Sauvegarder les nouvelles préférences
       saveConsent(localConsent);
       toast.success("Préférences de cookies mises à jour !");
     } catch (error) {
@@ -292,6 +301,46 @@ const CookieManagement = () => {
   );
 };
 
+// ✅ Composant pour afficher les réservations actives
+const ActiveReservationsList = ({ reservations }: { reservations: ActiveReservation[] }) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <h4 className="font-medium text-red-800 flex items-center gap-2">
+        <Calendar className="w-4 h-4" />
+        Stages non terminés ({reservations.length})
+      </h4>
+      <div className="space-y-2 max-h-40 overflow-y-auto">
+        {reservations.map((reservation, index) => (
+          <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="font-medium text-red-800">{reservation.stageTitle}</div>
+            <div className="flex items-center gap-4 text-sm text-red-700 mt-1">
+              <div className="flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                <span>{reservation.city}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                <span>{formatDate(reservation.startDate)} - {formatDate(reservation.endDate)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+        <strong>💡 Pour supprimer votre compte :</strong> Attendez que tous vos stages soient terminés ou annulez vos réservations.
+      </div>
+    </div>
+  );
+};
+
 export default function AccountSettingsDialog() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -315,6 +364,7 @@ export default function AccountSettingsDialog() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [activeReservations, setActiveReservations] = useState<ActiveReservation[]>([]);
 
   const handlePasswordChange = (field: string, value: string) => {
     setPasswordData(prev => ({
@@ -323,7 +373,6 @@ export default function AccountSettingsDialog() {
     }));
   };
 
-  // ✅ Fonction corrigée avec types appropriés
   const togglePasswordVisibility = (field: PasswordFieldKey) => {
     setShowPasswords(prev => ({
       ...prev,
@@ -409,32 +458,50 @@ export default function AccountSettingsDialog() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmation !== "SUPPRIMER") {
-      toast.error("Veuillez taper 'SUPPRIMER' pour confirmer");
-      return;
+const handleDeleteAccount = async () => {
+  if (deleteConfirmation !== "SUPPRIMER") {
+    toast.error("Veuillez taper 'SUPPRIMER' pour confirmer");
+    return;
+  }
+
+  setIsDeleting(true);
+
+  try {
+    // ✅ CORRECTION : Utiliser la route explicite /api/user/delete/[id]
+    const res = await fetch(`/api/user/delete/${session?.user?.id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      // ✅ Gestion spéciale des réservations actives
+      if (result.code === "USER_HAS_ACTIVE_RESERVATIONS") {
+        setActiveReservations(result.activeReservations || []);
+        toast.error("Vous avez des stages non terminés. Consultez la liste ci-dessous.");
+        return; // Ne pas fermer le dialogue pour montrer les réservations
+      }
+      
+      throw new Error(result.error || "Erreur lors de la suppression");
     }
 
-    setIsDeleting(true);
+    toast.success("Compte supprimé avec succès");
+    await signOut({ callbackUrl: "/" });
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err.message || "Impossible de supprimer le compte");
+  } finally {
+    setIsDeleting(false);
+  }
+};
 
-    try {
-      const res = await fetch(`/api/user/${session?.user?.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error || "Erreur lors de la suppression");
-      }
-
-      toast.success("Compte supprimé avec succès");
-      await signOut({ callbackUrl: "/" });
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Impossible de supprimer le compte");
-      setIsDeleting(false);
+  // ✅ Réinitialiser les réservations actives quand le dialogue se ferme
+  const handleDeleteDialogChange = (open: boolean) => {
+    setIsDeleteDialogOpen(open);
+    if (!open) {
+      setActiveReservations([]);
+      setDeleteConfirmation("");
     }
   };
 
@@ -664,7 +731,7 @@ export default function AccountSettingsDialog() {
           </div>
           
           {/* Suppression du compte */}
-          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
             <AlertDialogTrigger asChild>
               <Button 
                 variant="destructive" 
@@ -674,7 +741,7 @@ export default function AccountSettingsDialog() {
                 Supprimer mon compte
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="sm:max-w-md">
+            <AlertDialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
               <AlertDialogHeader>
                 <AlertDialogTitle className="flex items-center gap-2 text-red-600">
                   <AlertTriangle className="w-5 h-5" />
@@ -689,48 +756,65 @@ export default function AccountSettingsDialog() {
                     <li>Votre historique de réservations</li>
                     <li>Vos préférences et paramètres</li>
                   </ul>
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      <strong>⚠️ Attention :</strong> Si vous avez des réservations actives, la suppression sera impossible.
-                    </p>
-                  </div>
+                  
+                  {/* ✅ Affichage des réservations actives si présentes */}
+                  {activeReservations.length > 0 && (
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                      <ActiveReservationsList reservations={activeReservations} />
+                    </div>
+                  )}
+                  
+                  {activeReservations.length === 0 && (
+                    <div className="bg-yellow-50 p-3 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <strong>⚠️ Condition :</strong> Seuls les comptes sans stages actifs peuvent être supprimés.
+                      </p>
+                    </div>
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               
-              <div className="space-y-3 py-4">
-                <Label htmlFor="delete-confirmation">
-                  Tapez <strong>"SUPPRIMER"</strong> pour confirmer :
-                </Label>
-                <Input
-                  id="delete-confirmation"
-                  value={deleteConfirmation}
-                  onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  placeholder="SUPPRIMER"
-                  className="text-center font-mono"
-                />
-              </div>
+              {/* ✅ Ne montrer la confirmation que si pas de réservations actives */}
+              {activeReservations.length === 0 && (
+                <div className="space-y-3 py-4">
+                  <Label htmlFor="delete-confirmation">
+                    Tapez <strong>"SUPPRIMER"</strong> pour confirmer :
+                  </Label>
+                  <Input
+                    id="delete-confirmation"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder="SUPPRIMER"
+                    className="text-center font-mono"
+                  />
+                </div>
+              )}
 
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting}>
-                  Annuler
+                  {activeReservations.length > 0 ? "Fermer" : "Annuler"}
                 </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteAccount}
-                  disabled={isDeleting || deleteConfirmation !== "SUPPRIMER"}
-                  className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Suppression...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Supprimer définitivement
-                    </>
-                  )}
-                </AlertDialogAction>
+                
+                {/* ✅ Bouton de suppression seulement si pas de réservations actives */}
+                {activeReservations.length === 0 && (
+                  <AlertDialogAction
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting || deleteConfirmation !== "SUPPRIMER"}
+                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Suppression...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer définitivement
+                      </>
+                    )}
+                  </AlertDialogAction>
+                )}
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

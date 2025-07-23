@@ -94,7 +94,7 @@ export function DeplacementClient({
     try {
       if (setGlobalLoading) setGlobalLoading(true);
       
-      const response = await fetch("/api/reservation/deplacer-resa", {
+      const response = await fetch("/api/Stage/DeplacerReservation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

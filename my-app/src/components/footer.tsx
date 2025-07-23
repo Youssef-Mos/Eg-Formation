@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from "react-icons/fa";
 
 export default function Footer() {
@@ -18,7 +19,9 @@ export default function Footer() {
           <div>
             <h2 className="max-md:text-center text-xl font-semibold mb-3">Liens utiles</h2>
             <ul className="max-md:text-center text-sm text-gray-400 space-y-2">
-              <li><a href="/" className="hover:text-white">Réservation</a></li>
+              <li>
+                <Link href="/" className="hover:text-white">Réservation</Link>
+              </li>
               <li><a href="/Home" className="hover:text-white">Accueil</a></li>
               <li><a href="/contact" className="hover:text-white">Contact</a></li>
               <li><a href="/mention-legales" className="hover:text-white">Mentions légales</a></li>
@@ -37,7 +40,7 @@ export default function Footer() {
           <div className="max-md:text-center">
             <h2 className="text-xl font-semibold mb-3">Suivez-nous</h2>
             <div className="flex space-x-4 max-sm:flex max-md:justify-center"> 
-              <a href="#" className="text-gray-400 hover:text-white"><FaFacebook size={24} /></a>
+              <a href="https://www.facebook.com/people/EG-formations/61577263170261/" target="_blank" className="text-gray-400 hover:text-white"><FaFacebook size={24} /></a>
               <a href="#" className="text-gray-400 hover:text-white"><FaTwitter size={24} /></a>
               <a href="#" className="text-gray-400 hover:text-white"><FaInstagram size={24} /></a>
               <a href="#" className="text-gray-400 hover:text-white"><FaLinkedin size={24} /></a>
