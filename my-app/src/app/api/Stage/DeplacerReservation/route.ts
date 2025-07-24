@@ -93,7 +93,6 @@ async function sendMoveNotificationEmail(
         <div style="background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
           <p style="margin: 0; color: #721c24;"><strong>📋 CONVOCATION</strong></p>
           <p style="margin: 5px 0 0 0; color: #721c24;">Votre convocation officielle vous sera envoyée <strong>après réception du paiement</strong>.</p>
-          <p style="margin: 5px 0 0 0; color: #721c24;">Délai de paiement : 7 jours pour conserver votre place.</p>
         </div>
       `}
       
