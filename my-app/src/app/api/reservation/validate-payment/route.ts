@@ -1,4 +1,4 @@
-// ===== FICHIER CORRIGÉ: app/api/reservation/validate-payment/route.ts =====
+// app/api/reservation/validate-payment/route.ts - AVEC DÉCOMPTE DE PLACE
 
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -6,7 +6,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sendConfirmationEmail } from "@/app/utils/convocationGeneratorJsPDF";
 
-// Renommé prisma2 en prisma (plus conventionnel)
 const prisma = new PrismaClient();
 
 function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
@@ -20,7 +19,6 @@ function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   return typeMapping[typeStage] || 1;
 }
 
-// ✅ CORRECTION PRINCIPALE: POST2 → POST
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user || session.user.role !== "admin") {
@@ -73,12 +71,52 @@ export async function POST(request: Request) {
       );
     }
 
-    const updatedReservation = await prisma.reservation.update({
-      where: { id: Number(reservationId) },
-      data: { paid: true }
+    // ✅ MODIFICATION PRINCIPALE : Vérifier les places disponibles au moment du paiement
+    if (reservation.stage.PlaceDisponibles <= 0) {
+      return NextResponse.json(
+        { 
+          error: "Impossible de valider le paiement : plus de places disponibles dans ce stage",
+          code: "NO_PLACES_AVAILABLE",
+          message: "Le stage est complet. La demande de réservation doit être annulée."
+        },
+        { status: 409 }
+      );
+    }
+
+    console.log(`💰 Validation paiement - Réservation ${reservationId}, Stage ${reservation.stage.NumeroStage}`);
+    console.log(`📊 Places avant validation: ${reservation.stage.PlaceDisponibles}`);
+
+    // ✅ TRANSACTION : Valider paiement + décompter place en une seule opération
+    const updatedReservation = await prisma.$transaction(async (tx) => {
+      // 1. Marquer comme payé
+      const reservationPayee = await tx.reservation.update({
+        where: { id: Number(reservationId) },
+        data: { paid: true }
+      });
+
+      // 2. Décompter la place du stage
+      await tx.stage.update({
+        where: { id: Number(stageId) },
+        data: {
+          PlaceDisponibles: {
+            decrement: 1
+          }
+        }
+      });
+
+      console.log(`✅ Transaction réussie - Paiement validé + Place décomptée`);
+      return reservationPayee;
     });
 
-    // ✅ Envoi convocation avec dates corrigées (sendConfirmationEmail gère déjà les dates)
+    // ✅ Récupérer les infos mises à jour pour les logs
+    const updatedStage = await prisma.stage.findUnique({
+      where: { id: Number(stageId) },
+      select: { PlaceDisponibles: true }
+    });
+
+    console.log(`📊 Places après validation: ${updatedStage?.PlaceDisponibles}`);
+
+    // ✅ Envoi convocation après validation réussie
     try {
       console.log(`📧 Validation paiement + envoi convocation à ${reservation.user.email}...`);
       
@@ -122,11 +160,30 @@ export async function POST(request: Request) {
     } catch (emailError) {
       console.error("❌ Erreur lors de l'envoi de l'email:", emailError);
       
-      // Rollback du paiement en cas d'erreur email
-      await prisma.reservation.update({
-        where: { id: Number(reservationId) },
-        data: { paid: false }
-      });
+      // ✅ ROLLBACK COMPLET en cas d'erreur email
+      try {
+        await prisma.$transaction(async (tx) => {
+          // Annuler le paiement
+          await tx.reservation.update({
+            where: { id: Number(reservationId) },
+            data: { paid: false }
+          });
+          
+          // Remettre la place
+          await tx.stage.update({
+            where: { id: Number(stageId) },
+            data: {
+              PlaceDisponibles: {
+                increment: 1
+              }
+            }
+          });
+        });
+        
+        console.log(`🔄 Rollback effectué - Paiement annulé + Place restituée`);
+      } catch (rollbackError) {
+        console.error("❌ ERREUR CRITIQUE - Impossible de faire le rollback:", rollbackError);
+      }
       
       return NextResponse.json(
         { 
@@ -139,7 +196,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `✅ Paiement validé ! Convocation envoyée à ${reservation.user.email}`,
+      message: `✅ Paiement validé et place sécurisée ! Convocation envoyée à ${reservation.user.email}`,
       reservation: {
         id: updatedReservation.id,
         userId: updatedReservation.userId,
@@ -147,12 +204,30 @@ export async function POST(request: Request) {
         paid: true,
         userEmail: reservation.user.email,
         stageNumber: reservation.stage.NumeroStage
+      },
+      stage: {
+        placesRestantes: updatedStage?.PlaceDisponibles || 0
       }
     });
   } catch (error) {
     console.error("❌ Erreur lors de la validation du paiement:", error);
+    
+    // ✅ Gestion spécifique des erreurs de transaction
+    if (error instanceof Error && error.message.includes('PlaceDisponibles')) {
+      return NextResponse.json(
+        { 
+          error: "Erreur de concurrence : plus de places disponibles",
+          code: "CONCURRENT_BOOKING_ERROR"
+        },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Erreur serveur lors de la validation du paiement" },
+      { 
+        error: "Erreur serveur lors de la validation du paiement",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   } finally {

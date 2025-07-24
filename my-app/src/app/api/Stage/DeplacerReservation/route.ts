@@ -1,4 +1,4 @@
-// app/api/reservation/deplacer-resa/route.ts - VERSION CORRIGÉE POUR PAIEMENT
+// app/api/reservation/deplacer-resa/route.ts - VERSION SANS PDF POUR NON PAYÉ
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -30,15 +30,15 @@ function mapTypeStageToNumber(typeStage: string): 1 | 2 | 3 | 4 {
   return typeMapping[typeStage] || 1;
 }
 
-// ✅ FONCTION EMAIL CORRIGÉE - Prend en compte le statut de paiement
+// ✅ FONCTION EMAIL CORRIGÉE - Pièce jointe conditionnelle selon le statut de paiement
 async function sendMoveNotificationEmail(
   email: string, 
   userName: string, 
   oldStage: any, 
   newStage: any, 
-  pdfBuffer: Buffer,
-  isPaid: boolean, // ✅ NOUVEAU PARAMÈTRE
-  paymentMethod: string // ✅ NOUVEAU PARAMÈTRE
+  pdfBuffer: Buffer | null, // ✅ PEUT ÊTRE NULL
+  isPaid: boolean,
+  paymentMethod: string
 ) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -78,7 +78,7 @@ async function sendMoveNotificationEmail(
         <!-- ✅ CLIENT PAYÉ -->
         <div style="background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
           <p style="margin: 0;"><strong>✅ Paiement confirmé</strong></p>
-          <p style="margin: 5px 0 0 0;">Vous trouverez ci-joint votre nouvelle attestation de réservation.</p>
+          <p style="margin: 5px 0 0 0;">Vous trouverez ci-joint votre nouvelle convocation officielle.</p>
           <p style="margin: 5px 0 0 0;">Cette modification n'affecte pas votre statut de paiement.</p>
         </div>
       ` : `
@@ -91,13 +91,12 @@ async function sendMoveNotificationEmail(
         </div>
         
         <div style="background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
-          <p style="margin: 0; color: #721c24;"><strong>🚨 IMPORTANT</strong></p>
-          <p style="margin: 5px 0 0 0; color: #721c24;">Vous devez effectuer le paiement dans les 7 jours pour conserver votre place dans le nouveau stage.</p>
-          <p style="margin: 5px 0 0 0; color: #721c24;">Sans paiement, votre réservation sera annulée.</p>
+          <p style="margin: 0; color: #721c24;"><strong>📋 CONVOCATION</strong></p>
+          <p style="margin: 5px 0 0 0; color: #721c24;">Votre convocation officielle vous sera envoyée <strong>après réception du paiement</strong>.</p>
+          <p style="margin: 5px 0 0 0; color: #721c24;">Délai de paiement : 7 jours pour conserver votre place.</p>
         </div>
       `}
       
-      <p>Vous pouvez également télécharger cette attestation depuis votre espace personnel sur notre site.</p>
       <p>Si vous avez des questions, n'hésitez pas à nous contacter au <strong>0783372565</strong>.</p>
       
       <p style="margin-top: 30px;">Cordialement,</p>
@@ -129,7 +128,7 @@ DÉTAILS DU NOUVEAU STAGE :
 
 ${isPaid ? `
 ✅ PAIEMENT CONFIRMÉ :
-Vous trouverez ci-joint votre nouvelle attestation de réservation.
+Vous trouverez ci-joint votre nouvelle convocation officielle.
 Cette modification n'affecte pas votre statut de paiement.
 ` : `
 ⚠️ PAIEMENT REQUIS :
@@ -139,10 +138,11 @@ ATTENTION : Votre place a été déplacée mais vous devez encore effectuer le p
 • Méthode de paiement : ${methodeFR}
 • Montant : ${newStage.Prix}€  
 • Délai : 7 jours pour conserver votre place
-• Sans paiement, votre réservation sera annulée.
-`}
 
-Vous pouvez également télécharger cette attestation depuis votre espace personnel sur notre site.
+📋 CONVOCATION :
+Votre convocation officielle vous sera envoyée après réception du paiement.
+Sans paiement, votre réservation sera annulée.
+`}
 
 Si vous avez des questions, n'hésitez pas à nous contacter au 0783372565.
 
@@ -158,21 +158,28 @@ Email généré automatiquement le ${formatCurrentDate()}
     ? `✅ Modification de votre réservation - Nouveau stage ${newStage.Ville} (${newStage.NumeroStage})`
     : `⚠️ Stage déplacé + Paiement requis - ${newStage.Ville} (${newStage.NumeroStage})`;
 
-  await transporter.sendMail({
+  // ✅ PIÈCE JOINTE CONDITIONNELLE
+  const emailOptions: any = {
     from: `"EG-Formation" <${process.env.MAIL_USER}>`,
     to: email,
     cc: process.env.MAIL_USER,
     subject,
     text: textContent,
     html: htmlContent,
-    attachments: [
+  };
+
+  // ✅ AJOUTER LA PIÈCE JOINTE SEULEMENT SI PAYÉ
+  if (isPaid && pdfBuffer) {
+    emailOptions.attachments = [
       {
         filename: `nouvelle_convocation_stage_${newStage.NumeroStage}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
       },
-    ],
-  });
+    ];
+  }
+
+  await transporter.sendMail(emailOptions);
 }
 
 export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
@@ -249,65 +256,76 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
       });
     });
     
-    // Génération PDF et envoi email avec gestion d'erreur
+    // ✅ GÉNÉRATION PDF ET ENVOI EMAIL AVEC LOGIQUE CONDITIONNELLE
     try {
-      console.log(`📄 Génération PDF pour déplacement de réservation - User ${userId}, Stage ${toStageId}`);
+      console.log(`📄 Traitement email pour déplacement - User ${userId}, Stage ${toStageId}`);
       console.log(`💰 Statut paiement: ${reservation.paid ? 'PAYÉ' : 'NON PAYÉ'} (${reservation.paymentMethod})`);
       
-      // Préparer les données pour le PDF
-      const stageData = {
-        id: toStage.id,
-        Titre: toStage.Titre,
-        Adresse: toStage.Adresse,
-        CodePostal: toStage.CodePostal,
-        Ville: toStage.Ville,
-        DateDebut: toStage.DateDebut,
-        DateFin: toStage.DateFin,
-        HeureDebut: toStage.HeureDebut,
-        HeureFin: toStage.HeureFin,
-        HeureDebut2: toStage.HeureDebut2,
-        HeureFin2: toStage.HeureFin2,
-        Prix: toStage.Prix,
-        NumeroStage: toStage.NumeroStage,
-        agrement: toStage.agrement
-          ? {
-              ...toStage.agrement,
-              nomDepartement: toStage.agrement.nomDepartement ?? undefined
-            }
-          : null
-      };
+      let pdfBuffer: Buffer | null = null;
+      
+      // ✅ GÉNÉRER LE PDF SEULEMENT SI LE CLIENT A PAYÉ
+      if (reservation.paid) {
+        console.log(`📄 Génération PDF (client payé)...`);
+        
+        // Préparer les données pour le PDF
+        const stageData = {
+          id: toStage.id,
+          Titre: toStage.Titre,
+          Adresse: toStage.Adresse,
+          CodePostal: toStage.CodePostal,
+          Ville: toStage.Ville,
+          DateDebut: toStage.DateDebut,
+          DateFin: toStage.DateFin,
+          HeureDebut: toStage.HeureDebut,
+          HeureFin: toStage.HeureFin,
+          HeureDebut2: toStage.HeureDebut2,
+          HeureFin2: toStage.HeureFin2,
+          Prix: toStage.Prix,
+          NumeroStage: toStage.NumeroStage,
+          agrement: toStage.agrement
+            ? {
+                ...toStage.agrement,
+                nomDepartement: toStage.agrement.nomDepartement ?? undefined
+              }
+            : null
+        };
 
-      const userData = {
-        id: reservation.user.id,
-        firstName: reservation.user.firstName,
-        lastName: reservation.user.lastName,
-        email: reservation.user.email
-      };
+        const userData = {
+          id: reservation.user.id,
+          firstName: reservation.user.firstName,
+          lastName: reservation.user.lastName,
+          email: reservation.user.email
+        };
 
-      const reservationOptions = {
-        stageType: mapTypeStageToNumber(reservation.TypeStage)
-      };
+        const reservationOptions = {
+          stageType: mapTypeStageToNumber(reservation.TypeStage)
+        };
 
-      // Générer le PDF
-      const pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);
-      console.log(`✅ PDF généré avec succès (${pdfBuffer.length} bytes)`);
+        // Générer le PDF
+        pdfBuffer = await generateReservationPDF(stageData, userData, reservationOptions);
+        console.log(`✅ PDF généré avec succès (${pdfBuffer.length} bytes)`);
+      } else {
+        console.log(`⚠️ Pas de génération PDF (client non payé)`);
+      }
       
       // Préparer le nom d'utilisateur pour l'email
       const userName = reservation.user.firstName || reservation.user.lastName 
         ? `${reservation.user.firstName} ${reservation.user.lastName}`.trim()
         : reservation.user.email;
       
-      // ✅ Envoyer l'email avec le statut de paiement
+      // ✅ Envoyer l'email avec ou sans pièce jointe selon le statut
       await sendMoveNotificationEmail(
         reservation.user.email, 
         userName, 
         fromStage, 
         toStage, 
-        pdfBuffer,
-        reservation.paid, // ✅ STATUT PAIEMENT
-        reservation.paymentMethod // ✅ MÉTHODE PAIEMENT
+        pdfBuffer, // ✅ NULL si non payé
+        reservation.paid,
+        reservation.paymentMethod
       );
-      console.log(`✅ Email de notification envoyé à ${reservation.user.email} (Statut: ${reservation.paid ? 'PAYÉ' : 'NON PAYÉ'})`);
+      
+      const pdfStatus = reservation.paid ? "avec convocation" : "sans convocation";
+      console.log(`✅ Email envoyé à ${reservation.user.email} (${pdfStatus})`);
       
     } catch (emailError) {
       console.error("❌ Erreur lors de la génération PDF ou envoi email:", emailError);
@@ -317,11 +335,12 @@ export const POST = withAdminAuth(async (request: NextRequest, { session }) => {
     logApiAccess(request, session, true);
     return NextResponse.json({ 
       success: true,
-      message: `Réservation déplacée avec succès. Client notifié par email ${reservation.paid ? '(payé)' : '(paiement requis)'}.`,
+      message: `Réservation déplacée avec succès. Email envoyé ${reservation.paid ? 'avec convocation' : 'avec rappel de paiement'}.`,
       data: {
         reservationId: reservation.id,
-        paid: reservation.paid, // ✅ AJOUT du statut de paiement dans la réponse
+        paid: reservation.paid,
         paymentMethod: reservation.paymentMethod,
+        pdfGenerated: reservation.paid, // ✅ Indique si le PDF a été généré
         fromStage: {
           id: fromStage.id,
           title: fromStage.Titre,

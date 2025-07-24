@@ -1,11 +1,10 @@
-// app/api/reservation/create-without-payment/route.ts - VERSION CORRIGÉE POUR VERCEL
+// app/api/reservation/create-without-payment/route.ts - SANS DÉCOMPTE DE PLACE
 
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import nodemailer from "nodemailer";
-// ✅ CORRECTION : Utiliser UNIQUEMENT les fonctions du dateUtils centralisé
 import { formatDateForEmail, formatCurrentDate } from "@/app/utils/dateUtils";
 
 const prisma = new PrismaClient();
@@ -55,6 +54,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // ✅ MODIFICATION : Vérifier qu'il y a au moins 1 place, mais ne pas la décompter
     if (stage.PlaceDisponibles <= 0) {
       return NextResponse.json(
         { error: "Plus de places disponibles pour ce stage" },
@@ -97,31 +97,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ Transaction pour créer la réservation et mettre à jour les places
-    const reservation = await prisma.$transaction(async (tx) => {
-      // Créer la réservation
-      const newReservation = await tx.reservation.create({
-        data: {
-          userId: Number(userId),
-          stageId: Number(stageId),
-          TypeStage: typeStage,
-          paymentMethod: paymentMethod,
-          paid: false
-        }
-      });
-
-      // Mettre à jour le nombre de places disponibles
-      await tx.stage.update({
-        where: { id: Number(stageId) },
-        data: {
-          PlaceDisponibles: stage.PlaceDisponibles - 1
-        }
-      });
-
-      return newReservation;
+    // ✅ MODIFICATION PRINCIPALE : Créer seulement la réservation, SANS décompter la place
+    const reservation = await prisma.reservation.create({
+      data: {
+        userId: Number(userId),
+        stageId: Number(stageId),
+        TypeStage: typeStage,
+        paymentMethod: paymentMethod,
+        paid: false // ❌ Non payé = pas de place décomptée
+      }
     });
 
-    // ✅ ENVOI D'EMAIL avec dates corrigées et formatage amélioré
+    console.log(`📝 Réservation créée sans paiement - ID: ${reservation.id}, User: ${user.email}, Stage: ${stage.NumeroStage}`);
+    console.log(`📊 Places restantes inchangées: ${stage.PlaceDisponibles} (décompte à la validation paiement)`);
+
+    // ✅ ENVOI D'EMAIL avec mise à jour du message
     try {
       console.log(`📧 Envoi de la notification de paiement à ${user.email}...`);
       
@@ -158,13 +148,13 @@ export async function POST(request: Request) {
 
       const methodeFR = paymentMethodFR[paymentMethod as keyof typeof paymentMethodFR] || paymentMethod;
 
-      // ✅ Contenu de l'email avec dates formatées de façon sûre
+      // ✅ CONTENU EMAIL MODIFIÉ pour indiquer que la place n'est pas encore réservée
       const emailContent = `
 Bonjour ${user.firstName} ${user.lastName},
 
-Votre réservation pour le stage de sécurité routière a été enregistrée avec succès !
+Votre demande de réservation pour le stage de sécurité routière a été enregistrée !
 
-📋 DÉTAILS DE VOTRE RÉSERVATION :
+📋 DÉTAILS DE VOTRE DEMANDE :
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📍 Lieu : ${stage.Titre}
@@ -176,10 +166,15 @@ ${agrementInfo ? `${agrementInfo}\n` : ''}💰 Prix : ${stage.Prix}€
 📋 Type : ${stageDescription}
 💳 Méthode de paiement choisie : ${methodeFR}
 
-🚨 PAIEMENT REQUIS POUR FINALISER VOTRE INSCRIPTION
+🚨 PAIEMENT URGENT POUR SÉCURISER VOTRE PLACE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ IMPORTANT : Votre place est réservée, mais vous devez effectuer le paiement pour recevoir votre convocation officielle.
+⚠️ IMPORTANT : Votre demande est enregistrée mais votre place ne sera définitivement réservée qu'après réception du paiement.
+
+💡 SYSTÈME DE RÉSERVATION :
+• Votre demande est en attente de paiement
+• Les places sont attribuées aux premiers qui paient
+• Plus vous payez rapidement, plus vous êtes sûr d'avoir votre place
 
 ${paymentMethod === 'bank_transfer' ? `
 💸 VIREMENT BANCAIRE :
@@ -208,12 +203,13 @@ ${paymentMethod === 'bank_transfer' ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 1️⃣ Effectuez le paiement selon la méthode choisie
-2️⃣ Nous validons votre paiement (sous 48h)
+2️⃣ Nous validons votre paiement et sécurisons votre place (sous 48h)
 3️⃣ Vous recevez votre convocation officielle par email
 4️⃣ Présentez-vous le jour J avec votre convocation et vos documents
 
-⏰ DÉLAI DE PAIEMENT :
-Merci d'effectuer le paiement dans les 7 jours suivant cette réservation pour conserver votre place.
+⏰ DÉLAI CRITIQUE :
+Merci d'effectuer le paiement dans les 72h pour garantir votre place.
+Passé ce délai, votre demande pourra être annulée si le stage est complet.
 
 📞 CONTACT :
 En cas de question, contactez-nous au 0783372565.
@@ -222,24 +218,24 @@ Cordialement,
 L'équipe EG-FORMATIONS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-N° de réservation : ${reservation.id}
-Date de réservation : ${formatCurrentDate()}
+N° de demande : ${reservation.id}
+Date de demande : ${formatCurrentDate()}
       `;
 
-      // ✅ Version HTML avec styles améliorés
+      // ✅ Version HTML avec message adapté
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
           <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h1 style="color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 15px;">
-              ✅ Réservation enregistrée
+            <h1 style="color: #2c3e50; text-align: center; border-bottom: 3px solid #f39c12; padding-bottom: 15px;">
+              ⏳ Demande de réservation
             </h1>
             
             <p style="font-size: 16px; color: #34495e;">Bonjour <strong>${user.firstName} ${user.lastName}</strong>,</p>
-            <p style="color: #27ae60; font-weight: bold; background-color: #d5edda; padding: 10px; border-radius: 5px;">
-              🎉 Votre réservation pour le stage de sécurité routière a été enregistrée avec succès !
+            <p style="color: #f39c12; font-weight: bold; background-color: #fef9e7; padding: 10px; border-radius: 5px;">
+              📝 Votre demande de réservation a été enregistrée !
             </p>
 
-            <h2 style="color: #2c3e50; border-left: 4px solid #3498db; padding-left: 15px;">📋 Détails de votre réservation</h2>
+            <h2 style="color: #2c3e50; border-left: 4px solid #f39c12; padding-left: 15px;">📋 Détails de votre demande</h2>
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
               <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">📍 Lieu :</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${stage.Titre}</td></tr>
               <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">📍 Adresse :</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${stage.Adresse}, ${stage.CodePostal} ${stage.Ville}</td></tr>
@@ -253,18 +249,23 @@ Date de réservation : ${formatCurrentDate()}
             </table>
 
             <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 20px; margin: 25px 0;">
-              <h3 style="color: #856404; margin-top: 0;">🚨 PAIEMENT REQUIS POUR FINALISER</h3>
-              <p style="color: #856404; margin-bottom: 0;"><strong>⚠️ IMPORTANT :</strong> Votre place est réservée, mais vous devez effectuer le paiement pour recevoir votre convocation officielle.</p>
+              <h3 style="color: #856404; margin-top: 0;">🚨 PAIEMENT URGENT POUR SÉCURISER</h3>
+              <p style="color: #856404; margin-bottom: 10px;"><strong>⚠️ IMPORTANT :</strong> Votre demande est enregistrée mais votre place ne sera définitivement réservée qu'après réception du paiement.</p>
+              <p style="color: #856404; margin-bottom: 0; font-size: 14px;">💡 Les places sont attribuées aux premiers qui paient !</p>
             </div>
 
             <div style="background-color: #e8f4fd; border-left: 4px solid #3498db; padding: 15px; margin: 20px 0;">
               <h4 style="margin-top: 0; color: #2c3e50;">📋 Prochaines étapes :</h4>
               <ol style="color: #34495e; line-height: 1.6;">
                 <li>Effectuez le paiement selon la méthode choisie</li>
-                <li>Nous validons votre paiement (sous 48h)</li>
+                <li>Nous validons votre paiement et sécurisons votre place (sous 48h)</li>
                 <li>Vous recevez votre convocation officielle par email</li>
                 <li>Présentez-vous le jour J avec votre convocation et vos documents</li>
               </ol>
+            </div>
+
+            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+              <p style="color: #721c24; margin: 0; font-weight: bold;">⏰ DÉLAI CRITIQUE : 72h pour garantir votre place</p>
             </div>
 
             <p style="text-align: center; margin-top: 30px;">
@@ -277,41 +278,40 @@ Date de réservation : ${formatCurrentDate()}
             </div>
             
             <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #6c757d;">
-              N° de réservation : ${reservation.id} | Date de réservation : ${formatCurrentDate()}
+              N° de demande : ${reservation.id} | Date de demande : ${formatCurrentDate()}
             </div>
           </div>
         </div>
       `;
 
-      // Envoyer l'email
+      // Envoyer l'email avec sujet modifié
       await transporter.sendMail({
         from: `"EG-FORMATIONS" <${process.env.MAIL_USER}>`,
         to: user.email,
-        cc: process.env.MAIL_USER, // ✅ CC automatique au gestionnaire
-        subject: `🚨 Paiement requis - Stage ${stage.Ville} (${stage.NumeroStage})`,
+        cc: process.env.MAIL_USER,
+        subject: `⏳ Demande enregistrée - Paiement urgent - Stage ${stage.Ville} (${stage.NumeroStage})`,
         text: emailContent,
         html: htmlContent,
       });
 
-      console.log(`✅ Email de notification de paiement envoyé à: ${user.email} (copie à: ${process.env.MAIL_USER})`);
+      console.log(`✅ Email de demande de paiement envoyé à: ${user.email} (copie à: ${process.env.MAIL_USER})`);
       
     } catch (emailError) {
-      console.error('❌ Erreur lors de l\'envoi de l\'email de paiement:', emailError);
-      // Ne pas faire échouer la réservation si l'email ne peut pas être envoyé
-      console.error('📧 La réservation a réussi mais l\'email n\'a pas pu être envoyé');
+      console.error('❌ Erreur lors de l\'envoi de l\'email:', emailError);
+      console.error('📧 La demande a réussi mais l\'email n\'a pas pu être envoyé');
     }
 
-    // ✅ Réponse de succès avec toutes les informations
+    // ✅ Réponse avec message adapté
     return NextResponse.json({
       success: true,
-      message: "Réservation créée avec succès. Un email avec les instructions de paiement vous a été envoyé.",
+      message: "Demande de réservation enregistrée. Effectuez le paiement rapidement pour sécuriser votre place !",
       reservation: {
         id: reservation.id,
         userId: reservation.userId,
         stageId: reservation.stageId,
         TypeStage: reservation.TypeStage,
         paymentMethod: reservation.paymentMethod,
-        paid: reservation.paid,
+        paid: false,
         createdAt: reservation.createdAt
       },
       stage: {
@@ -319,15 +319,17 @@ Date de réservation : ${formatCurrentDate()}
         city: stage.Ville,
         numero: stage.NumeroStage,
         dateDebut: formatDateForEmail(stage.DateDebut),
-        price: stage.Prix
-      }
+        price: stage.Prix,
+        placesDisponibles: stage.PlaceDisponibles // ✅ Places inchangées
+      },
+      warning: "Votre place ne sera sécurisée qu'après validation du paiement."
     });
 
   } catch (error) {
-    console.error("❌ Erreur lors de la création de la réservation:", error);
+    console.error("❌ Erreur lors de la création de la demande:", error);
     return NextResponse.json(
       { 
-        error: "Erreur serveur lors de la création de la réservation",
+        error: "Erreur serveur lors de la création de la demande",
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }
