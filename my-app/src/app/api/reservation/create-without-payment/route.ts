@@ -258,9 +258,6 @@ Date de demande : ${formatCurrentDate()}
               </ol>
             </div>
 
-            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
-              <p style="color: #721c24; margin: 0; font-weight: bold;">⏰ DÉLAI CRITIQUE : 72h pour garantir votre place</p>
-            </div>
 
             <p style="text-align: center; margin-top: 30px;">
               <strong>📞 Questions ? Contactez-nous au 0783372565</strong>
