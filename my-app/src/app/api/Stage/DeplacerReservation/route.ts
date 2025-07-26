@@ -136,7 +136,6 @@ ATTENTION : Votre place a été déplacée mais vous devez encore effectuer le p
 🚨 IMPORTANT :
 • Méthode de paiement : ${methodeFR}
 • Montant : ${newStage.Prix}€  
-• Délai : 7 jours pour conserver votre place
 
 📋 CONVOCATION :
 Votre convocation officielle vous sera envoyée après réception du paiement.

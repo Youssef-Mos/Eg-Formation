@@ -320,7 +320,7 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
                 <div className="text-sm text-gray-600">
                   Vérifiez vos points sur{" "}
                   <LinkPreview 
-                    url="https://www.telepoints.info" 
+                    url="https://mespoints.permisdeconduire.gouv.fr/bienvenue" 
                     className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 hover:no-underline transition-all duration-200 inline-flex items-center gap-1"
                   >
                     Télépoints (site officiel du gouvernement)

@@ -173,8 +173,6 @@ ${agrementInfo ? `${agrementInfo}\n` : ''}💰 Prix : ${stage.Prix}€
 
 💡 SYSTÈME DE RÉSERVATION :
 • Votre demande est en attente de paiement
-• Les places sont attribuées aux premiers qui paient
-• Plus vous payez rapidement, plus vous êtes sûr d'avoir votre place
 
 ${paymentMethod === 'bank_transfer' ? `
 💸 VIREMENT BANCAIRE :
@@ -203,13 +201,10 @@ ${paymentMethod === 'bank_transfer' ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 1️⃣ Effectuez le paiement selon la méthode choisie
-2️⃣ Nous validons votre paiement et sécurisons votre place (sous 48h)
-3️⃣ Vous recevez votre convocation officielle par email
-4️⃣ Présentez-vous le jour J avec votre convocation et vos documents
+2️⃣ Vous recevez votre convocation officielle par email
+3️⃣ Présentez-vous le jour J avec votre convocation et vos documents
 
-⏰ DÉLAI CRITIQUE :
-Merci d'effectuer le paiement dans les 72h pour garantir votre place.
-Passé ce délai, votre demande pourra être annulée si le stage est complet.
+
 
 📞 CONTACT :
 En cas de question, contactez-nous au 0783372565.
@@ -251,7 +246,6 @@ Date de demande : ${formatCurrentDate()}
             <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 20px; margin: 25px 0;">
               <h3 style="color: #856404; margin-top: 0;">🚨 PAIEMENT URGENT POUR SÉCURISER</h3>
               <p style="color: #856404; margin-bottom: 10px;"><strong>⚠️ IMPORTANT :</strong> Votre demande est enregistrée mais votre place ne sera définitivement réservée qu'après réception du paiement.</p>
-              <p style="color: #856404; margin-bottom: 0; font-size: 14px;">💡 Les places sont attribuées aux premiers qui paient !</p>
             </div>
 
             <div style="background-color: #e8f4fd; border-left: 4px solid #3498db; padding: 15px; margin: 20px 0;">

@@ -46,7 +46,7 @@ export default function BodyHome () {
                 <Search className="w-5 h-5" />
               </div>
               <span className="font-bold text-xl lg:text-xl text-red-500 mb-2">Vérifiez vos points</span>
-            <span className="text-gray-600">Avant de vous inscrire, consultez gratuitement votre capital de points sur le service officiel {' '}<LinkPreview url="https://www.securite-routiere.gouv.fr/le-permis-points/consulter-son-solde-de-points" className="text-red-400 hover:text-red-600 font-medium inline-flex items-center">Mes Points Permis <ChevronRight className="w-4 h-4 ml-1" /></LinkPreview>{' '} <br/><br/><span className="">Une connexion sécurisée via FranceConnect vous permet d'accéder à votre situation.</span></span>
+            <span className="text-gray-600">Avant de vous inscrire, consultez gratuitement votre capital de points sur le service officiel {' '}<LinkPreview url="https://mespoints.permisdeconduire.gouv.fr/bienvenue" className="text-red-400 hover:text-red-600 font-medium inline-flex items-center">Mes Points Permis <ChevronRight className="w-4 h-4 ml-1" /></LinkPreview>{' '} <br/><br/><span className="">Une connexion sécurisée via FranceConnect vous permet d'accéder à votre situation.</span></span>
             
             </div>
             </AnimatedCard>
@@ -56,7 +56,7 @@ export default function BodyHome () {
         <AnimatedSection>
     <AnimatedCard delay={250}>
         <div className="max-sm:w-xs w-lg m-auto md:w-2xl lg:w-4xl mt-10 text-gray-700 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://permisdeconduire.ants.gouv.fr" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
+            Besoin d'informations complémentaires ? Consultez {' '} <LinkPreview url="https://mespoints.permisdeconduire.gouv.fr/bienvenue" className="text-blue-600 hover:text-blue-800 transition-colors font-medium">le site officiel du gouvernement</LinkPreview> {' '} ou réservez directement votre stage en ligne. Notre équipe reste disponible pour répondre à toutes vos questions et vous accompagner dans votre démarche.
         </div>
     </AnimatedCard>    
     
