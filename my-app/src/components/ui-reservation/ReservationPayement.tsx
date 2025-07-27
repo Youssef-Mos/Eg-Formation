@@ -268,7 +268,7 @@ export default function ReservationFormClient({ stage }: { stage: any }) {
                   <LinkPreview 
                     url="https://eg-formations.net/mention-legales" 
                     className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 hover:no-underline transition-all duration-200 inline-flex items-center gap-1"
-                    target="_blank"
+                    
                   >
                     Conditions Générales d'Utilisation et de ventes (CGU)
                     <ExternalLink className="w-3 h-3" />
